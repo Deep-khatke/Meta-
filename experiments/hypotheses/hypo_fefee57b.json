@@ -1,0 +1,20 @@
+{
+  "hypothesis_id": "hypo_fefee57b",
+  "timestamp": 1793061621.0212002,
+  "target_scenario_id": "scen_slalom_beta",
+  "observed_failure": "Baseline timed out without reaching the goal (final distance: 0.53m).",
+  "hypothesis": "Increasing robot maximum turn rate from 3.5 to 4.7 rad/s will reduce cornering radius and allow timely goal convergence within timeout.",
+  "controlled_parameter": "task.policy.max_turn_rate",
+  "baseline_value": 3.5,
+  "proposed_value": 4.7,
+  "baseline_run_id": "run_712f94db",
+  "refinement_run_id": "run_538bbb80",
+  "baseline_collisions": 0,
+  "refinement_collisions": 0,
+  "baseline_success": false,
+  "refinement_success": false,
+  "baseline_time": 9.95,
+  "refinement_time": 9.95,
+  "outcome_verdict": "INCONCLUSIVE",
+  "empirical_evidence": "Outcome neutral: Collisions remained 0 vs 0, time changed from 9.95s to 9.95s."
+}

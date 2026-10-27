@@ -1,0 +1,109 @@
+{
+  "run_id": "run_25e87080",
+  "experiment_id": "scen_mvpxm8ub",
+  "experiment_name": "Obstacle Course Challenge",
+  "config_version": "1.0.0",
+  "seed": 100,
+  "status": "failed",
+  "created_at": 1793063119.2699513,
+  "completed_at": 1793063119.2694273,
+  "measurements": [
+    {
+      "sim_time": 0.0,
+      "position": [
+        0.0,
+        0.0,
+        0.07
+      ],
+      "quaternion": [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "linear_velocity": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "angular_velocity": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "linear_speed": 0.0,
+      "angular_speed": 0.0,
+      "contacts_count": 12,
+      "active_contacts": [
+        "geom_base_link",
+        "geom_base_link",
+        "geom_base_link",
+        "geom_base_link",
+        "geom_base_link",
+        "geom_base_link",
+        "geom_base_link",
+        "geom_base_link",
+        "geom_arm_link1",
+        "geom_arm_link1",
+        "geom_arm_link1",
+        "geom_arm_link1"
+      ]
+    },
+    {
+      "sim_time": 0.0,
+      "position": [
+        0.0,
+        0.0,
+        0.07
+      ],
+      "quaternion": [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "linear_velocity": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "angular_velocity": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "linear_speed": 0.0,
+      "angular_speed": 0.0,
+      "contacts_count": 12,
+      "active_contacts": [
+        "geom_base_link",
+        "geom_base_link",
+        "geom_base_link",
+        "geom_base_link",
+        "geom_base_link",
+        "geom_base_link",
+        "geom_base_link",
+        "geom_base_link",
+        "geom_arm_link1",
+        "geom_arm_link1",
+        "geom_arm_link1",
+        "geom_arm_link1"
+      ]
+    }
+  ],
+  "metrics": {
+    "total_duration": 0.0,
+    "total_distance_traveled": 0.0,
+    "initial_distance_to_target": 3.5,
+    "final_distance_to_target": 3.5,
+    "min_distance_to_target": 3.5,
+    "max_linear_speed": 0.0,
+    "mean_linear_speed": 0.0,
+    "max_angular_speed": 0.0,
+    "total_collisions": 1,
+    "success": false,
+    "time_to_goal": null,
+    "status_reason": "Collision limit exceeded: 1 > 0"
+  },
+  "errors": []
+}

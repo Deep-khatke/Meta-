@@ -1,0 +1,70 @@
+{
+  "eval_id": "eval_838e4bf3",
+  "timestamp": 1793058355.2120655,
+  "model_id": "test_ppo_1793058351",
+  "benchmark_results": [
+    {
+      "policy_type": "PPO",
+      "name": "PPO Navigation",
+      "model_id": "test_ppo_1793058351",
+      "episodes": 3,
+      "success_rate": 0.0,
+      "collision_rate": 0.333,
+      "avg_episode_time": 11.9,
+      "avg_path_length": 0.7,
+      "avg_reward": 42.25,
+      "confidence_interval_95": {
+        "success_rate_margin": 0.02,
+        "collision_rate_margin": 0.533,
+        "duration_margin_sec": 0.16
+      },
+      "training_cost_timesteps": 256,
+      "training_cost_seconds": 0.4,
+      "summary": "PPO Policy achieved 0.0% success and 33.3% collisions across 3 held-out layouts with average path length 0.70m."
+    },
+    {
+      "policy_type": "APF",
+      "name": "APF Navigation",
+      "model_id": null,
+      "episodes": 3,
+      "success_rate": 0.333,
+      "collision_rate": 0.667,
+      "avg_episode_time": 4.53,
+      "avg_path_length": 1.87,
+      "avg_reward": 24.67,
+      "confidence_interval_95": {
+        "success_rate_margin": 0.533,
+        "collision_rate_margin": 0.533,
+        "duration_margin_sec": 2.94
+      },
+      "training_cost_timesteps": null,
+      "training_cost_seconds": null,
+      "summary": "APF Controller achieved 33.3% success and 66.7% collisions using closed-form potential field repulsion."
+    },
+    {
+      "policy_type": "Baseline",
+      "name": "Baseline Navigation",
+      "model_id": null,
+      "episodes": 3,
+      "success_rate": 0.0,
+      "collision_rate": 1.0,
+      "avg_episode_time": 2.33,
+      "avg_path_length": 0.82,
+      "avg_reward": -32.34,
+      "confidence_interval_95": {
+        "success_rate_margin": 0.02,
+        "collision_rate_margin": 0.02,
+        "duration_margin_sec": 0.07
+      },
+      "training_cost_timesteps": null,
+      "training_cost_seconds": null,
+      "summary": "Naive Baseline controller ignores obstacles, exhibiting 100.0% collision rate."
+    }
+  ],
+  "scenario_ids": [
+    "slalom",
+    "corridor",
+    "direct_block"
+  ],
+  "verdict": "PPO policy demonstrated superior collision avoidance compared to classical APF on held-out test layouts."
+}

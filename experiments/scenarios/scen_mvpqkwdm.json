@@ -1,0 +1,110 @@
+{
+  "schema_version": "1.0.0",
+  "id": "scen_mvpqkwdm",
+  "name": "Obstacle Course Challenge",
+  "description": "Custom scenario targeting [2.5, 0.5]",
+  "seed": 42,
+  "robot": {
+    "id": "robot_main",
+    "name": "ForgeBot-DD1",
+    "initial_position": [
+      0.0,
+      0.0,
+      0.08
+    ],
+    "initial_yaw": 0.0,
+    "chassis_size": [
+      0.2,
+      0.14,
+      0.05
+    ],
+    "wheel_radius": 0.06,
+    "wheel_width": 0.03,
+    "wheel_base": 0.28,
+    "caster_radius": 0.025,
+    "chassis_mass": 3.5,
+    "wheel_mass": 0.5,
+    "max_linear_velocity": 1.5,
+    "max_angular_velocity": 3.0
+  },
+  "environment": [
+    {
+      "id": "obs_slalom_1",
+      "name": "Slalom Pylon 1",
+      "type": "cylinder",
+      "position": [
+        1.0,
+        0.1,
+        0.3
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "size": [
+        0.15,
+        0.3
+      ],
+      "color": "#98c379",
+      "is_static": true,
+      "mass": 10.0,
+      "visible": true
+    },
+    {
+      "id": "obs_slalom_2",
+      "name": "Slalom Pylon 2",
+      "type": "cylinder",
+      "position": [
+        1.8,
+        -0.2,
+        0.3
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "size": [
+        0.15,
+        0.3
+      ],
+      "color": "#e5c07b",
+      "is_static": true,
+      "mass": 10.0,
+      "visible": true
+    }
+  ],
+  "settings": {
+    "timestep": 0.005,
+    "speed_multiplier": 1.0,
+    "gravity": [
+      0.0,
+      0.0,
+      -9.81
+    ]
+  },
+  "task": {
+    "target_position": [
+      2.5,
+      0.5,
+      0.25
+    ],
+    "distance_threshold": 0.25,
+    "max_allowed_collisions": 0,
+    "timeout": 10.0,
+    "control_mode": "goal_seeking",
+    "policy": {
+      "enabled": true,
+      "safety_margin": 0.6,
+      "repulsion_gain": 1.4,
+      "tangential_gain": 1.2,
+      "max_turn_rate": 2.5,
+      "slowdown_distance": 0.4
+    },
+    "scripted_commands": null
+  },
+  "duration": 10.0,
+  "sample_rate_hz": 20.0,
+  "created_at": 1793048162.026
+}

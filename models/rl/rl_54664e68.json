@@ -1,0 +1,22 @@
+{
+  "model_id": "rl_54664e68",
+  "name": "PPO-DiffDrive-Agent",
+  "checkpoint_path": "models\\rl\\rl_54664e68.zip",
+  "timesteps_trained": 2000,
+  "training_duration_seconds": 4.92,
+  "success_rate": 0.0,
+  "collision_rate": 0.0,
+  "mean_reward": 76.31,
+  "created_at": 1793056503.3171356,
+  "hyperparameters": {
+    "learning_rate": 0.0003,
+    "n_steps": 512,
+    "batch_size": 64,
+    "n_epochs": 10,
+    "gamma": 0.99,
+    "gae_lambda": 0.95,
+    "clip_range": 0.2,
+    "ent_coef": 0.01
+  },
+  "scenario_id": "scen_mvpundaq"
+}

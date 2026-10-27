@@ -1,0 +1,1276 @@
+[
+  {
+    "id": "custom_1fe6ae37",
+    "name": "TwoLinkPlanarArm",
+    "category": "robot",
+    "description": "Exported from active simulation",
+    "tags": [
+      "custom",
+      "user-created"
+    ],
+    "is_built_in": false,
+    "created_at": 1793092440.1183574,
+    "thumbnail_hint": "arm",
+    "version": "1.0.0",
+    "data": {
+      "type": "articulated",
+      "config": {
+        "name": "TwoLinkPlanarArm",
+        "root_link": "base_link",
+        "links": [
+          {
+            "name": "base_link",
+            "visual": {
+              "type": "cylinder",
+              "size": [
+                0.18,
+                0.05
+              ],
+              "origin_pos": [
+                0.0,
+                0.0,
+                0.05
+              ],
+              "origin_rpy": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "color": "#334155"
+            },
+            "collision": {
+              "type": "cylinder",
+              "size": [
+                0.18,
+                0.05
+              ],
+              "origin_pos": [
+                0.0,
+                0.0,
+                0.05
+              ],
+              "origin_rpy": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "color": "#334155"
+            },
+            "inertial": {
+              "mass": 4.0,
+              "origin_pos": [
+                0.0,
+                0.0,
+                0.05
+              ],
+              "ixx": 0.05,
+              "iyy": 0.05,
+              "izz": 0.05
+            }
+          },
+          {
+            "name": "link_1",
+            "visual": {
+              "type": "box",
+              "size": [
+                0.2,
+                0.04,
+                0.04
+              ],
+              "origin_pos": [
+                0.2,
+                0.0,
+                0.0
+              ],
+              "origin_rpy": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "color": "#2563eb"
+            },
+            "collision": {
+              "type": "box",
+              "size": [
+                0.2,
+                0.04,
+                0.04
+              ],
+              "origin_pos": [
+                0.2,
+                0.0,
+                0.0
+              ],
+              "origin_rpy": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "color": "#2563eb"
+            },
+            "inertial": {
+              "mass": 1.5,
+              "origin_pos": [
+                0.2,
+                0.0,
+                0.0
+              ],
+              "ixx": 0.02,
+              "iyy": 0.02,
+              "izz": 0.02
+            }
+          },
+          {
+            "name": "link_2",
+            "visual": {
+              "type": "box",
+              "size": [
+                0.15,
+                0.03,
+                0.03
+              ],
+              "origin_pos": [
+                0.15,
+                0.0,
+                0.0
+              ],
+              "origin_rpy": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "color": "#f97316"
+            },
+            "collision": {
+              "type": "box",
+              "size": [
+                0.15,
+                0.03,
+                0.03
+              ],
+              "origin_pos": [
+                0.15,
+                0.0,
+                0.0
+              ],
+              "origin_rpy": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "color": "#f97316"
+            },
+            "inertial": {
+              "mass": 0.8,
+              "origin_pos": [
+                0.15,
+                0.0,
+                0.0
+              ],
+              "ixx": 0.01,
+              "iyy": 0.01,
+              "izz": 0.01
+            }
+          }
+        ],
+        "joints": [
+          {
+            "name": "shoulder_joint",
+            "type": "revolute",
+            "parent_link": "base_link",
+            "child_link": "link_1",
+            "origin_pos": [
+              0.0,
+              0.0,
+              0.12
+            ],
+            "origin_rpy": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "axis": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "limit": {
+              "lower": -3.14,
+              "upper": 3.14,
+              "effort": 50.0,
+              "velocity": 5.0
+            },
+            "damping": 0.2,
+            "armature": 0.01,
+            "actuator_mode": "position",
+            "kp": 80.0,
+            "kv": 8.0
+          },
+          {
+            "name": "elbow_joint",
+            "type": "revolute",
+            "parent_link": "link_1",
+            "child_link": "link_2",
+            "origin_pos": [
+              0.4,
+              0.0,
+              0.0
+            ],
+            "origin_rpy": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "axis": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "limit": {
+              "lower": -2.6,
+              "upper": 2.6,
+              "effort": 30.0,
+              "velocity": 5.0
+            },
+            "damping": 0.15,
+            "armature": 0.01,
+            "actuator_mode": "position",
+            "kp": 60.0,
+            "kv": 6.0
+          }
+        ],
+        "base_position": [
+          2.5,
+          2.5,
+          0.05
+        ],
+        "base_rpy": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "is_fixed_base": true
+      }
+    }
+  },
+  {
+    "id": "custom_a5a4d8ca",
+    "name": "CustomPersistedArm",
+    "category": "robot",
+    "description": "2-link articulated arm saved from studio",
+    "tags": [
+      "custom",
+      "articulated",
+      "robot-studio"
+    ],
+    "is_built_in": false,
+    "created_at": 1793097829.753214,
+    "thumbnail_hint": "arm",
+    "version": "1.0.0",
+    "data": {
+      "type": "articulated",
+      "config": {
+        "name": "CustomPersistedArm",
+        "root_link": "base_link",
+        "links": [
+          {
+            "name": "base_link",
+            "visual": {
+              "type": "cylinder",
+              "size": [
+                0.15,
+                0.05
+              ],
+              "origin_pos": [
+                0.0,
+                0.0,
+                0.05
+              ],
+              "origin_rpy": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "color": "#334155"
+            },
+            "collision": {
+              "type": "cylinder",
+              "size": [
+                0.15,
+                0.05
+              ],
+              "origin_pos": [
+                0.0,
+                0.0,
+                0.05
+              ],
+              "origin_rpy": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "color": "#334155"
+            },
+            "inertial": {
+              "mass": 4.0,
+              "origin_pos": [
+                0.0,
+                0.0,
+                0.05
+              ],
+              "ixx": 0.04,
+              "iyy": 0.04,
+              "izz": 0.04
+            }
+          },
+          {
+            "name": "link_1",
+            "visual": {
+              "type": "box",
+              "size": [
+                0.2,
+                0.04,
+                0.04
+              ],
+              "origin_pos": [
+                0.2,
+                0.0,
+                0.0
+              ],
+              "origin_rpy": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "color": "#2563eb"
+            },
+            "collision": {
+              "type": "box",
+              "size": [
+                0.2,
+                0.04,
+                0.04
+              ],
+              "origin_pos": [
+                0.2,
+                0.0,
+                0.0
+              ],
+              "origin_rpy": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "color": "#2563eb"
+            },
+            "inertial": {
+              "mass": 1.5,
+              "origin_pos": [
+                0.2,
+                0.0,
+                0.0
+              ],
+              "ixx": 0.02,
+              "iyy": 0.02,
+              "izz": 0.02
+            }
+          },
+          {
+            "name": "link_2",
+            "visual": {
+              "type": "box",
+              "size": [
+                0.15,
+                0.03,
+                0.03
+              ],
+              "origin_pos": [
+                0.15,
+                0.0,
+                0.0
+              ],
+              "origin_rpy": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "color": "#f97316"
+            },
+            "collision": {
+              "type": "box",
+              "size": [
+                0.15,
+                0.03,
+                0.03
+              ],
+              "origin_pos": [
+                0.15,
+                0.0,
+                0.0
+              ],
+              "origin_rpy": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "color": "#f97316"
+            },
+            "inertial": {
+              "mass": 0.8,
+              "origin_pos": [
+                0.15,
+                0.0,
+                0.0
+              ],
+              "ixx": 0.01,
+              "iyy": 0.01,
+              "izz": 0.01
+            }
+          }
+        ],
+        "joints": [
+          {
+            "name": "shoulder_joint",
+            "type": "revolute",
+            "parent_link": "base_link",
+            "child_link": "link_1",
+            "origin_pos": [
+              0.0,
+              0.0,
+              0.1
+            ],
+            "origin_rpy": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "axis": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "limit": {
+              "lower": -3.14,
+              "upper": 3.14,
+              "effort": 50.0,
+              "velocity": 5.0
+            },
+            "damping": 0.2,
+            "armature": 0.01,
+            "actuator_mode": "position",
+            "kp": 80.0,
+            "kv": 8.0
+          },
+          {
+            "name": "elbow_joint",
+            "type": "revolute",
+            "parent_link": "link_1",
+            "child_link": "link_2",
+            "origin_pos": [
+              0.4,
+              0.0,
+              0.0
+            ],
+            "origin_rpy": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "axis": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "limit": {
+              "lower": -2.8,
+              "upper": 2.8,
+              "effort": 30.0,
+              "velocity": 5.0
+            },
+            "damping": 0.15,
+            "armature": 0.01,
+            "actuator_mode": "position",
+            "kp": 60.0,
+            "kv": 6.0
+          }
+        ],
+        "base_position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "base_rpy": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "is_fixed_base": true
+      }
+    }
+  },
+  {
+    "id": "custom_e951fbe7",
+    "name": "CustomPersistedArm",
+    "category": "robot",
+    "description": "2-link articulated arm saved from studio",
+    "tags": [
+      "custom",
+      "articulated",
+      "robot-studio"
+    ],
+    "is_built_in": false,
+    "created_at": 1793097961.5849123,
+    "thumbnail_hint": "arm",
+    "version": "1.0.0",
+    "data": {
+      "type": "articulated",
+      "config": {
+        "name": "CustomPersistedArm",
+        "root_link": "base_link",
+        "links": [
+          {
+            "name": "base_link",
+            "visual": {
+              "type": "cylinder",
+              "size": [
+                0.15,
+                0.05
+              ],
+              "origin_pos": [
+                0.0,
+                0.0,
+                0.05
+              ],
+              "origin_rpy": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "color": "#334155"
+            },
+            "collision": {
+              "type": "cylinder",
+              "size": [
+                0.15,
+                0.05
+              ],
+              "origin_pos": [
+                0.0,
+                0.0,
+                0.05
+              ],
+              "origin_rpy": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "color": "#334155"
+            },
+            "inertial": {
+              "mass": 4.0,
+              "origin_pos": [
+                0.0,
+                0.0,
+                0.05
+              ],
+              "ixx": 0.04,
+              "iyy": 0.04,
+              "izz": 0.04
+            }
+          },
+          {
+            "name": "link_1",
+            "visual": {
+              "type": "box",
+              "size": [
+                0.2,
+                0.04,
+                0.04
+              ],
+              "origin_pos": [
+                0.2,
+                0.0,
+                0.0
+              ],
+              "origin_rpy": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "color": "#2563eb"
+            },
+            "collision": {
+              "type": "box",
+              "size": [
+                0.2,
+                0.04,
+                0.04
+              ],
+              "origin_pos": [
+                0.2,
+                0.0,
+                0.0
+              ],
+              "origin_rpy": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "color": "#2563eb"
+            },
+            "inertial": {
+              "mass": 1.5,
+              "origin_pos": [
+                0.2,
+                0.0,
+                0.0
+              ],
+              "ixx": 0.02,
+              "iyy": 0.02,
+              "izz": 0.02
+            }
+          },
+          {
+            "name": "link_2",
+            "visual": {
+              "type": "box",
+              "size": [
+                0.15,
+                0.03,
+                0.03
+              ],
+              "origin_pos": [
+                0.15,
+                0.0,
+                0.0
+              ],
+              "origin_rpy": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "color": "#f97316"
+            },
+            "collision": {
+              "type": "box",
+              "size": [
+                0.15,
+                0.03,
+                0.03
+              ],
+              "origin_pos": [
+                0.15,
+                0.0,
+                0.0
+              ],
+              "origin_rpy": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "color": "#f97316"
+            },
+            "inertial": {
+              "mass": 0.8,
+              "origin_pos": [
+                0.15,
+                0.0,
+                0.0
+              ],
+              "ixx": 0.01,
+              "iyy": 0.01,
+              "izz": 0.01
+            }
+          }
+        ],
+        "joints": [
+          {
+            "name": "shoulder_joint",
+            "type": "revolute",
+            "parent_link": "base_link",
+            "child_link": "link_1",
+            "origin_pos": [
+              0.0,
+              0.0,
+              0.1
+            ],
+            "origin_rpy": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "axis": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "limit": {
+              "lower": -3.14,
+              "upper": 3.14,
+              "effort": 50.0,
+              "velocity": 5.0
+            },
+            "damping": 0.2,
+            "armature": 0.01,
+            "actuator_mode": "position",
+            "kp": 80.0,
+            "kv": 8.0
+          },
+          {
+            "name": "elbow_joint",
+            "type": "revolute",
+            "parent_link": "link_1",
+            "child_link": "link_2",
+            "origin_pos": [
+              0.4,
+              0.0,
+              0.0
+            ],
+            "origin_rpy": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "axis": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "limit": {
+              "lower": -2.8,
+              "upper": 2.8,
+              "effort": 30.0,
+              "velocity": 5.0
+            },
+            "damping": 0.15,
+            "armature": 0.01,
+            "actuator_mode": "position",
+            "kp": 60.0,
+            "kv": 6.0
+          }
+        ],
+        "base_position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "base_rpy": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "is_fixed_base": true
+      }
+    }
+  },
+  {
+    "id": "custom_e9b1bc53",
+    "name": "CustomPersistedArm",
+    "category": "robot",
+    "description": "2-link articulated arm saved from studio",
+    "tags": [
+      "custom",
+      "articulated",
+      "robot-studio"
+    ],
+    "is_built_in": false,
+    "created_at": 1793097972.324064,
+    "thumbnail_hint": "arm",
+    "version": "1.0.0",
+    "data": {
+      "type": "articulated",
+      "config": {
+        "name": "CustomPersistedArm",
+        "root_link": "base_link",
+        "links": [
+          {
+            "name": "base_link",
+            "visual": {
+              "type": "cylinder",
+              "size": [
+                0.15,
+                0.05
+              ],
+              "origin_pos": [
+                0.0,
+                0.0,
+                0.05
+              ],
+              "origin_rpy": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "color": "#334155"
+            },
+            "collision": {
+              "type": "cylinder",
+              "size": [
+                0.15,
+                0.05
+              ],
+              "origin_pos": [
+                0.0,
+                0.0,
+                0.05
+              ],
+              "origin_rpy": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "color": "#334155"
+            },
+            "inertial": {
+              "mass": 4.0,
+              "origin_pos": [
+                0.0,
+                0.0,
+                0.05
+              ],
+              "ixx": 0.04,
+              "iyy": 0.04,
+              "izz": 0.04
+            }
+          },
+          {
+            "name": "link_1",
+            "visual": {
+              "type": "box",
+              "size": [
+                0.2,
+                0.04,
+                0.04
+              ],
+              "origin_pos": [
+                0.2,
+                0.0,
+                0.0
+              ],
+              "origin_rpy": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "color": "#2563eb"
+            },
+            "collision": {
+              "type": "box",
+              "size": [
+                0.2,
+                0.04,
+                0.04
+              ],
+              "origin_pos": [
+                0.2,
+                0.0,
+                0.0
+              ],
+              "origin_rpy": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "color": "#2563eb"
+            },
+            "inertial": {
+              "mass": 1.5,
+              "origin_pos": [
+                0.2,
+                0.0,
+                0.0
+              ],
+              "ixx": 0.02,
+              "iyy": 0.02,
+              "izz": 0.02
+            }
+          },
+          {
+            "name": "link_2",
+            "visual": {
+              "type": "box",
+              "size": [
+                0.15,
+                0.03,
+                0.03
+              ],
+              "origin_pos": [
+                0.15,
+                0.0,
+                0.0
+              ],
+              "origin_rpy": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "color": "#f97316"
+            },
+            "collision": {
+              "type": "box",
+              "size": [
+                0.15,
+                0.03,
+                0.03
+              ],
+              "origin_pos": [
+                0.15,
+                0.0,
+                0.0
+              ],
+              "origin_rpy": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "color": "#f97316"
+            },
+            "inertial": {
+              "mass": 0.8,
+              "origin_pos": [
+                0.15,
+                0.0,
+                0.0
+              ],
+              "ixx": 0.01,
+              "iyy": 0.01,
+              "izz": 0.01
+            }
+          }
+        ],
+        "joints": [
+          {
+            "name": "shoulder_joint",
+            "type": "revolute",
+            "parent_link": "base_link",
+            "child_link": "link_1",
+            "origin_pos": [
+              0.0,
+              0.0,
+              0.1
+            ],
+            "origin_rpy": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "axis": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "limit": {
+              "lower": -3.14,
+              "upper": 3.14,
+              "effort": 50.0,
+              "velocity": 5.0
+            },
+            "damping": 0.2,
+            "armature": 0.01,
+            "actuator_mode": "position",
+            "kp": 80.0,
+            "kv": 8.0
+          },
+          {
+            "name": "elbow_joint",
+            "type": "revolute",
+            "parent_link": "link_1",
+            "child_link": "link_2",
+            "origin_pos": [
+              0.4,
+              0.0,
+              0.0
+            ],
+            "origin_rpy": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "axis": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "limit": {
+              "lower": -2.8,
+              "upper": 2.8,
+              "effort": 30.0,
+              "velocity": 5.0
+            },
+            "damping": 0.15,
+            "armature": 0.01,
+            "actuator_mode": "position",
+            "kp": 60.0,
+            "kv": 6.0
+          }
+        ],
+        "base_position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "base_rpy": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "is_fixed_base": true
+      }
+    }
+  },
+  {
+    "id": "custom_99df2f25",
+    "name": "CustomPersistedArm",
+    "category": "robot",
+    "description": "2-link articulated arm saved from studio",
+    "tags": [
+      "custom",
+      "articulated",
+      "robot-studio"
+    ],
+    "is_built_in": false,
+    "created_at": 1793099699.7662685,
+    "thumbnail_hint": "arm",
+    "version": "1.0.0",
+    "data": {
+      "type": "articulated",
+      "config": {
+        "name": "CustomPersistedArm",
+        "root_link": "base_link",
+        "links": [
+          {
+            "name": "base_link",
+            "visual": {
+              "type": "cylinder",
+              "size": [
+                0.15,
+                0.05
+              ],
+              "origin_pos": [
+                0.0,
+                0.0,
+                0.05
+              ],
+              "origin_rpy": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "color": "#334155"
+            },
+            "collision": {
+              "type": "cylinder",
+              "size": [
+                0.15,
+                0.05
+              ],
+              "origin_pos": [
+                0.0,
+                0.0,
+                0.05
+              ],
+              "origin_rpy": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "color": "#334155"
+            },
+            "inertial": {
+              "mass": 4.0,
+              "origin_pos": [
+                0.0,
+                0.0,
+                0.05
+              ],
+              "ixx": 0.04,
+              "iyy": 0.04,
+              "izz": 0.04
+            }
+          },
+          {
+            "name": "link_1",
+            "visual": {
+              "type": "box",
+              "size": [
+                0.2,
+                0.04,
+                0.04
+              ],
+              "origin_pos": [
+                0.2,
+                0.0,
+                0.0
+              ],
+              "origin_rpy": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "color": "#2563eb"
+            },
+            "collision": {
+              "type": "box",
+              "size": [
+                0.2,
+                0.04,
+                0.04
+              ],
+              "origin_pos": [
+                0.2,
+                0.0,
+                0.0
+              ],
+              "origin_rpy": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "color": "#2563eb"
+            },
+            "inertial": {
+              "mass": 1.5,
+              "origin_pos": [
+                0.2,
+                0.0,
+                0.0
+              ],
+              "ixx": 0.02,
+              "iyy": 0.02,
+              "izz": 0.02
+            }
+          },
+          {
+            "name": "link_2",
+            "visual": {
+              "type": "box",
+              "size": [
+                0.15,
+                0.03,
+                0.03
+              ],
+              "origin_pos": [
+                0.15,
+                0.0,
+                0.0
+              ],
+              "origin_rpy": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "color": "#f97316"
+            },
+            "collision": {
+              "type": "box",
+              "size": [
+                0.15,
+                0.03,
+                0.03
+              ],
+              "origin_pos": [
+                0.15,
+                0.0,
+                0.0
+              ],
+              "origin_rpy": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "color": "#f97316"
+            },
+            "inertial": {
+              "mass": 0.8,
+              "origin_pos": [
+                0.15,
+                0.0,
+                0.0
+              ],
+              "ixx": 0.01,
+              "iyy": 0.01,
+              "izz": 0.01
+            }
+          }
+        ],
+        "joints": [
+          {
+            "name": "shoulder_joint",
+            "type": "revolute",
+            "parent_link": "base_link",
+            "child_link": "link_1",
+            "origin_pos": [
+              0.0,
+              0.0,
+              0.1
+            ],
+            "origin_rpy": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "axis": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "limit": {
+              "lower": -3.14,
+              "upper": 3.14,
+              "effort": 50.0,
+              "velocity": 5.0
+            },
+            "damping": 0.2,
+            "armature": 0.01,
+            "actuator_mode": "position",
+            "kp": 80.0,
+            "kv": 8.0
+          },
+          {
+            "name": "elbow_joint",
+            "type": "revolute",
+            "parent_link": "link_1",
+            "child_link": "link_2",
+            "origin_pos": [
+              0.4,
+              0.0,
+              0.0
+            ],
+            "origin_rpy": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "axis": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "limit": {
+              "lower": -2.8,
+              "upper": 2.8,
+              "effort": 30.0,
+              "velocity": 5.0
+            },
+            "damping": 0.15,
+            "armature": 0.01,
+            "actuator_mode": "position",
+            "kp": 60.0,
+            "kv": 6.0
+          }
+        ],
+        "base_position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "base_rpy": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "is_fixed_base": true
+      }
+    }
+  }
+]

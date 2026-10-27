@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0.0",
+  "name": "Obstacle Course Challenge (PPO Policy)",
+  "description": "Default RoboForge differential-drive arena",
+  "robot": {
+    "id": "robot_main",
+    "name": "ForgeBot-DD1",
+    "initial_position": [
+      0.0,
+      0.0,
+      0.07
+    ],
+    "initial_yaw": 0.0,
+    "chassis_size": [
+      0.2,
+      0.14,
+      0.05
+    ],
+    "wheel_radius": 0.06,
+    "wheel_width": 0.03,
+    "wheel_base": 0.28,
+    "caster_radius": 0.025,
+    "chassis_mass": 3.5,
+    "wheel_mass": 0.5,
+    "max_linear_velocity": 1.5,
+    "max_angular_velocity": 3.0
+  },
+  "objects": [],
+  "settings": {
+    "timestep": 0.005,
+    "speed_multiplier": 1.0,
+    "gravity": [
+      0.0,
+      0.0,
+      -9.81
+    ]
+  }
+}

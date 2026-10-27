@@ -1,0 +1,22 @@
+{
+  "model_id": "test_ppo_1793064150",
+  "name": "Unit-Test-PPO-Agent",
+  "checkpoint_path": "models\\rl\\test_ppo_1793064150.zip",
+  "timesteps_trained": 256,
+  "training_duration_seconds": 0.28,
+  "success_rate": 0.0,
+  "collision_rate": 0.0,
+  "mean_reward": 0.0,
+  "created_at": 1793064151.4569497,
+  "hyperparameters": {
+    "learning_rate": 0.0003,
+    "n_steps": 128,
+    "batch_size": 64,
+    "n_epochs": 2,
+    "gamma": 0.99,
+    "gae_lambda": 0.95,
+    "clip_range": 0.2,
+    "ent_coef": 0.01
+  },
+  "scenario_id": null
+}

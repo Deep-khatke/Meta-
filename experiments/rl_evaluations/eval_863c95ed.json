@@ -1,0 +1,70 @@
+{
+  "eval_id": "eval_863c95ed",
+  "timestamp": 1793057229.6696615,
+  "model_id": "rl_51d463d1",
+  "benchmark_results": [
+    {
+      "policy_type": "PPO",
+      "name": "PPO Navigation",
+      "model_id": "rl_51d463d1",
+      "episodes": 3,
+      "success_rate": 0.0,
+      "collision_rate": 0.667,
+      "avg_episode_time": 5.75,
+      "avg_path_length": 1.57,
+      "avg_reward": -2.96,
+      "confidence_interval_95": {
+        "success_rate_margin": 0.02,
+        "collision_rate_margin": 0.533,
+        "duration_margin_sec": 5.02
+      },
+      "training_cost_timesteps": 2000,
+      "training_cost_seconds": 3.44,
+      "summary": "PPO Policy achieved 0.0% success and 66.7% collisions across 3 held-out layouts with average path length 1.57m."
+    },
+    {
+      "policy_type": "APF",
+      "name": "APF Navigation",
+      "model_id": null,
+      "episodes": 3,
+      "success_rate": 0.333,
+      "collision_rate": 0.667,
+      "avg_episode_time": 4.53,
+      "avg_path_length": 1.87,
+      "avg_reward": 24.67,
+      "confidence_interval_95": {
+        "success_rate_margin": 0.533,
+        "collision_rate_margin": 0.533,
+        "duration_margin_sec": 2.94
+      },
+      "training_cost_timesteps": null,
+      "training_cost_seconds": null,
+      "summary": "APF Controller achieved 33.3% success and 66.7% collisions using closed-form potential field repulsion."
+    },
+    {
+      "policy_type": "Baseline",
+      "name": "Baseline Navigation",
+      "model_id": null,
+      "episodes": 3,
+      "success_rate": 0.0,
+      "collision_rate": 1.0,
+      "avg_episode_time": 2.33,
+      "avg_path_length": 0.82,
+      "avg_reward": -32.34,
+      "confidence_interval_95": {
+        "success_rate_margin": 0.02,
+        "collision_rate_margin": 0.02,
+        "duration_margin_sec": 0.07
+      },
+      "training_cost_timesteps": null,
+      "training_cost_seconds": null,
+      "summary": "Naive Baseline controller ignores obstacles, exhibiting 100.0% collision rate."
+    }
+  ],
+  "scenario_ids": [
+    "slalom",
+    "corridor",
+    "direct_block"
+  ],
+  "verdict": "APF currently holds higher clearance reliability on tight geometry; additional RL fine-tuning recommended."
+}

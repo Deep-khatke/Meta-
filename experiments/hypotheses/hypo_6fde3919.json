@@ -1,0 +1,20 @@
+{
+  "hypothesis_id": "hypo_6fde3919",
+  "timestamp": 1793057387.3910677,
+  "target_scenario_id": "scen_mvpw0yud",
+  "observed_failure": "Baseline succeeded with 0 collisions in 16.68s.",
+  "hypothesis": "Sharpening obstacle repulsion gain from 2.5 to 3.3 will allow tighter clearance and reduce time to goal.",
+  "controlled_parameter": "task.policy.repulsion_gain",
+  "baseline_value": 2.5,
+  "proposed_value": 3.3,
+  "baseline_run_id": "run_aa192109",
+  "refinement_run_id": "run_b5b72819",
+  "baseline_collisions": 0,
+  "refinement_collisions": 0,
+  "baseline_success": true,
+  "refinement_success": true,
+  "baseline_time": 16.68,
+  "refinement_time": 16.45,
+  "outcome_verdict": "SUPPORTED",
+  "empirical_evidence": "Hypothesis validated: Navigation time improved from 16.68s to 16.45s while maintaining 0 collisions."
+}

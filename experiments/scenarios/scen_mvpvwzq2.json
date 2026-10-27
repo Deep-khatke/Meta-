@@ -1,0 +1,133 @@
+{
+  "schema_version": "1.0.0",
+  "id": "scen_mvpvwzq2",
+  "name": "Obstacle Course Challenge",
+  "description": "Custom scenario targeting [5.3, 4.3]",
+  "seed": 42,
+  "robot": {
+    "id": "robot_main",
+    "name": "ForgeBot-DD1",
+    "initial_position": [
+      0.0,
+      0.0,
+      0.07
+    ],
+    "initial_yaw": 0.0,
+    "chassis_size": [
+      0.2,
+      0.14,
+      0.05
+    ],
+    "wheel_radius": 0.06,
+    "wheel_width": 0.03,
+    "wheel_base": 0.28,
+    "caster_radius": 0.025,
+    "chassis_mass": 3.5,
+    "wheel_mass": 0.5,
+    "max_linear_velocity": 1.5,
+    "max_angular_velocity": 3.0
+  },
+  "environment": [
+    {
+      "id": "obs_box_1",
+      "name": "Cargo Box A",
+      "type": "box",
+      "position": [
+        1.5,
+        0.0,
+        0.2
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        15.0
+      ],
+      "size": [
+        0.25,
+        0.25,
+        0.2
+      ],
+      "color": "#e06c75",
+      "is_static": false,
+      "mass": 2.0,
+      "visible": true
+    },
+    {
+      "id": "obs_cyl_1",
+      "name": "Pylon Cylinder",
+      "type": "cylinder",
+      "position": [
+        2.0,
+        1.2,
+        0.35
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "size": [
+        0.18,
+        0.35
+      ],
+      "color": "#98c379",
+      "is_static": true,
+      "mass": 10.0,
+      "visible": true
+    },
+    {
+      "id": "obs_sph_1",
+      "name": "Target Sphere",
+      "type": "sphere",
+      "position": [
+        1.2,
+        -1.2,
+        0.25
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "size": [
+        0.25
+      ],
+      "color": "#d19a66",
+      "is_static": false,
+      "mass": 1.2,
+      "visible": true
+    }
+  ],
+  "settings": {
+    "timestep": 0.005,
+    "speed_multiplier": 1.0,
+    "gravity": [
+      0.0,
+      0.0,
+      -9.81
+    ]
+  },
+  "task": {
+    "target_position": [
+      5.3,
+      4.3,
+      0.25
+    ],
+    "distance_threshold": 0.25,
+    "max_allowed_collisions": 0,
+    "timeout": 20.0,
+    "control_mode": "goal_seeking",
+    "policy": {
+      "enabled": true,
+      "safety_margin": 0.95,
+      "repulsion_gain": 3.0,
+      "tangential_gain": 3.2,
+      "max_turn_rate": 4.0,
+      "slowdown_distance": 0.7
+    },
+    "scripted_commands": null
+  },
+  "duration": 20.0,
+  "sample_rate_hz": 20.0,
+  "created_at": 1793057124.314
+}
