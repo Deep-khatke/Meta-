@@ -1,0 +1,22 @@
+{
+  "plan_id": "plan_160a92eb",
+  "mission_id": "mission_9127bb83",
+  "hypothesis_id": "hypo_25d7ecaf",
+  "title": "Controlled Experiment for: Velocity Scaling Optimization Hypothesis",
+  "rationale": "Test causal effect of modifying robot.max_linear_velocity to 1.4 while keeping all other physics and layout variables constant.",
+  "base_scenario_id": "scen_mvqgu87z",
+  "parameter_modifications": {
+    "robot.max_linear_velocity": 1.4
+  },
+  "seeds": [
+    100,
+    101,
+    102
+  ],
+  "expected_outcome": "Observed metric improves relative to baseline.",
+  "is_validated": true,
+  "validation_messages": [],
+  "user_approved": true,
+  "status": "ready",
+  "created_at": 1793120628.7927516
+}

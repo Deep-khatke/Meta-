@@ -1,0 +1,21 @@
+{
+  "hypothesis_id": "hypo_6c736785",
+  "mission_id": "mission_blind_discovery_1793133854",
+  "title": "Increasing Tangential Gain for Improved Maneuverability",
+  "statement": "Increasing the tangential gain will allow the robot to more precisely follow the path through the chicane obstacles.",
+  "mechanism": "The tangential gain affects the robot's ability to turn and follow the path accurately.",
+  "controlled_variable": "task.policy.tangential_gain",
+  "baseline_value": 0.5,
+  "proposed_value": 0.8,
+  "status": "inconclusive",
+  "confidence": 0.45,
+  "supporting_evidence": [],
+  "contradicting_evidence": [
+    "Experiment plan_blind_1: Observed delta=+0.000. Verdict: inconclusive (). (Did not produce statistically distinguishable change)"
+  ],
+  "experiment_ids": [
+    "plan_blind_1"
+  ],
+  "created_at": 1793133858.8344157,
+  "updated_at": 1793133861.196246
+}

@@ -1,0 +1,17 @@
+{
+  "hypothesis_id": "hypo_a04c7d84",
+  "mission_id": "mission_c27a3426",
+  "title": "Increasing Tangential Gain",
+  "statement": "Increasing the tangential gain will help the robot navigate more closely around obstacles without colliding.",
+  "mechanism": "The robot will be able to make tighter turns, reducing the distance to obstacles and thus the risk of collision.",
+  "controlled_variable": "task.policy.tangential_gain",
+  "baseline_value": 0.5,
+  "proposed_value": 0.8,
+  "status": "untested",
+  "confidence": 0.5,
+  "supporting_evidence": [],
+  "contradicting_evidence": [],
+  "experiment_ids": [],
+  "created_at": 1793138500.1903946,
+  "updated_at": 1793138500.1903946
+}

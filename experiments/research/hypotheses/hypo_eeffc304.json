@@ -1,0 +1,17 @@
+{
+  "hypothesis_id": "hypo_eeffc304",
+  "mission_id": "mission_14018ba5",
+  "title": "Reducing Safety Margin",
+  "statement": "Reducing the safety margin will allow the robot to navigate closer to obstacles, potentially reducing the distance traveled and time to goal.",
+  "mechanism": "The safety margin is a buffer zone that the robot maintains around obstacles to ensure safe navigation.",
+  "controlled_variable": "task.policy.safety_margin",
+  "baseline_value": 0.2,
+  "proposed_value": 0.1,
+  "status": "untested",
+  "confidence": 0.5,
+  "supporting_evidence": [],
+  "contradicting_evidence": [],
+  "experiment_ids": [],
+  "created_at": 1793131934.2411413,
+  "updated_at": 1793131934.2411413
+}

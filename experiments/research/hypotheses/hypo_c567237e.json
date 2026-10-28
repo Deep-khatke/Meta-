@@ -1,0 +1,21 @@
+{
+  "hypothesis_id": "hypo_c567237e",
+  "mission_id": "mission_0e99f00e",
+  "title": "Reducing Safety Margin",
+  "statement": "Reducing the safety margin will make the robot more responsive to the immediate environment, potentially allowing it to navigate closer to obstacles without colliding.",
+  "mechanism": "task.policy.safety_margin",
+  "controlled_variable": "task.policy.safety_margin",
+  "baseline_value": 0.2,
+  "proposed_value": 0.15,
+  "status": "inconclusive",
+  "confidence": 0.45,
+  "supporting_evidence": [],
+  "contradicting_evidence": [
+    "Experiment plan_ca2f36d0: Observed delta=+0.000. Verdict: inconclusive (No statistically significant difference in collision count or success rate.). (Did not produce statistically distinguishable change)"
+  ],
+  "experiment_ids": [
+    "plan_ca2f36d0"
+  ],
+  "created_at": 1793134339.0049176,
+  "updated_at": 1793134342.8410776
+}

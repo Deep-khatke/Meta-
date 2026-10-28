@@ -1,0 +1,557 @@
+{
+  "scen_blind_chicanes": {
+    "schema_version": "1.0.0",
+    "id": "scen_blind_chicanes",
+    "name": "Blind Discovery: Double Chicane",
+    "description": "Double offset chicane pylons forcing curved S-maneuvers towards target beacon (2.8, 0.4).",
+    "seed": 100,
+    "robot": {
+      "id": "robot_main",
+      "name": "ForgeBot-DD1",
+      "initial_position": [
+        0.0,
+        0.0,
+        0.07
+      ],
+      "initial_yaw": 0.0,
+      "chassis_size": [
+        0.2,
+        0.14,
+        0.05
+      ],
+      "wheel_radius": 0.06,
+      "wheel_width": 0.03,
+      "wheel_base": 0.28,
+      "caster_radius": 0.025,
+      "chassis_mass": 3.5,
+      "wheel_mass": 0.5,
+      "max_linear_velocity": 1.5,
+      "max_angular_velocity": 3.0
+    },
+    "environment": [
+      {
+        "id": "chicane_pylon_1",
+        "name": "Chicane Pylon 1",
+        "type": "cylinder",
+        "position": [
+          1.1,
+          0.15,
+          0.3
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "size": [
+          0.15,
+          0.3
+        ],
+        "color": "#e06c75",
+        "is_static": true,
+        "mass": 10.0,
+        "friction": [
+          1.0,
+          0.005,
+          0.0001
+        ],
+        "visible": true,
+        "is_locked": false
+      },
+      {
+        "id": "chicane_pylon_2",
+        "name": "Chicane Pylon 2",
+        "type": "cylinder",
+        "position": [
+          1.9,
+          -0.2,
+          0.3
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "size": [
+          0.15,
+          0.3
+        ],
+        "color": "#98c379",
+        "is_static": true,
+        "mass": 10.0,
+        "friction": [
+          1.0,
+          0.005,
+          0.0001
+        ],
+        "visible": true,
+        "is_locked": false
+      }
+    ],
+    "settings": {
+      "timestep": 0.005,
+      "speed_multiplier": 1.0,
+      "gravity": [
+        0.0,
+        0.0,
+        -9.81
+      ],
+      "world_boundaries": [
+        -15.0,
+        15.0,
+        -15.0,
+        15.0,
+        0.0,
+        8.0
+      ],
+      "enable_boundaries": true
+    },
+    "task": {
+      "target_position": [
+        2.8,
+        0.4,
+        0.25
+      ],
+      "distance_threshold": 0.3,
+      "max_allowed_collisions": 0,
+      "timeout": 11.0,
+      "control_mode": "goal_seeking",
+      "policy": {
+        "enabled": true,
+        "safety_margin": 0.65,
+        "repulsion_gain": 1.6,
+        "tangential_gain": 1.3,
+        "max_turn_rate": 2.5,
+        "slowdown_distance": 0.45
+      },
+      "scripted_commands": null
+    },
+    "duration": 11.0,
+    "sample_rate_hz": 20.0,
+    "created_at": 1793145075.077565
+  },
+  "scen_blind_narrow_gate": {
+    "schema_version": "1.0.0",
+    "id": "scen_blind_narrow_gate",
+    "name": "Blind Held-Out: Narrow Gate",
+    "description": "Constricted gateway at x=1.4 requiring precise clearance without repulsive stall.",
+    "seed": 200,
+    "robot": {
+      "id": "robot_main",
+      "name": "ForgeBot-DD1",
+      "initial_position": [
+        0.0,
+        0.0,
+        0.07
+      ],
+      "initial_yaw": 0.0,
+      "chassis_size": [
+        0.2,
+        0.14,
+        0.05
+      ],
+      "wheel_radius": 0.06,
+      "wheel_width": 0.03,
+      "wheel_base": 0.28,
+      "caster_radius": 0.025,
+      "chassis_mass": 3.5,
+      "wheel_mass": 0.5,
+      "max_linear_velocity": 1.5,
+      "max_angular_velocity": 3.0
+    },
+    "environment": [
+      {
+        "id": "gate_pillar_left",
+        "name": "Left Gate Post",
+        "type": "cylinder",
+        "position": [
+          1.4,
+          0.6,
+          0.3
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "size": [
+          0.15,
+          0.3
+        ],
+        "color": "#61afef",
+        "is_static": true,
+        "mass": 15.0,
+        "friction": [
+          1.0,
+          0.005,
+          0.0001
+        ],
+        "visible": true,
+        "is_locked": false
+      },
+      {
+        "id": "gate_pillar_right",
+        "name": "Right Gate Post",
+        "type": "cylinder",
+        "position": [
+          1.4,
+          -0.6,
+          0.3
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "size": [
+          0.15,
+          0.3
+        ],
+        "color": "#61afef",
+        "is_static": true,
+        "mass": 15.0,
+        "friction": [
+          1.0,
+          0.005,
+          0.0001
+        ],
+        "visible": true,
+        "is_locked": false
+      }
+    ],
+    "settings": {
+      "timestep": 0.005,
+      "speed_multiplier": 1.0,
+      "gravity": [
+        0.0,
+        0.0,
+        -9.81
+      ],
+      "world_boundaries": [
+        -15.0,
+        15.0,
+        -15.0,
+        15.0,
+        0.0,
+        8.0
+      ],
+      "enable_boundaries": true
+    },
+    "task": {
+      "target_position": [
+        2.6,
+        0.0,
+        0.25
+      ],
+      "distance_threshold": 0.3,
+      "max_allowed_collisions": 0,
+      "timeout": 10.0,
+      "control_mode": "goal_seeking",
+      "policy": {
+        "enabled": true,
+        "safety_margin": 0.65,
+        "repulsion_gain": 1.6,
+        "tangential_gain": 1.3,
+        "max_turn_rate": 2.5,
+        "slowdown_distance": 0.45
+      },
+      "scripted_commands": null
+    },
+    "duration": 10.0,
+    "sample_rate_hz": 20.0,
+    "created_at": 1793145075.077565
+  },
+  "scen_blind_staggered_forest": {
+    "schema_version": "1.0.0",
+    "id": "scen_blind_staggered_forest",
+    "name": "Blind Held-Out: Staggered Forest",
+    "description": "3 staggered columns requiring continuous multi-obstacle avoidance.",
+    "seed": 201,
+    "robot": {
+      "id": "robot_main",
+      "name": "ForgeBot-DD1",
+      "initial_position": [
+        0.0,
+        0.0,
+        0.07
+      ],
+      "initial_yaw": 0.0,
+      "chassis_size": [
+        0.2,
+        0.14,
+        0.05
+      ],
+      "wheel_radius": 0.06,
+      "wheel_width": 0.03,
+      "wheel_base": 0.28,
+      "caster_radius": 0.025,
+      "chassis_mass": 3.5,
+      "wheel_mass": 0.5,
+      "max_linear_velocity": 1.5,
+      "max_angular_velocity": 3.0
+    },
+    "environment": [
+      {
+        "id": "forest_p1",
+        "name": "Forest Column 1",
+        "type": "cylinder",
+        "position": [
+          0.9,
+          -0.3,
+          0.3
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "size": [
+          0.15,
+          0.3
+        ],
+        "color": "#c678dd",
+        "is_static": true,
+        "mass": 10.0,
+        "friction": [
+          1.0,
+          0.005,
+          0.0001
+        ],
+        "visible": true,
+        "is_locked": false
+      },
+      {
+        "id": "forest_p2",
+        "name": "Forest Column 2",
+        "type": "cylinder",
+        "position": [
+          1.5,
+          0.35,
+          0.3
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "size": [
+          0.15,
+          0.3
+        ],
+        "color": "#c678dd",
+        "is_static": true,
+        "mass": 10.0,
+        "friction": [
+          1.0,
+          0.005,
+          0.0001
+        ],
+        "visible": true,
+        "is_locked": false
+      },
+      {
+        "id": "forest_p3",
+        "name": "Forest Column 3",
+        "type": "cylinder",
+        "position": [
+          2.1,
+          -0.35,
+          0.3
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "size": [
+          0.15,
+          0.3
+        ],
+        "color": "#c678dd",
+        "is_static": true,
+        "mass": 10.0,
+        "friction": [
+          1.0,
+          0.005,
+          0.0001
+        ],
+        "visible": true,
+        "is_locked": false
+      }
+    ],
+    "settings": {
+      "timestep": 0.005,
+      "speed_multiplier": 1.0,
+      "gravity": [
+        0.0,
+        0.0,
+        -9.81
+      ],
+      "world_boundaries": [
+        -15.0,
+        15.0,
+        -15.0,
+        15.0,
+        0.0,
+        8.0
+      ],
+      "enable_boundaries": true
+    },
+    "task": {
+      "target_position": [
+        2.8,
+        0.0,
+        0.25
+      ],
+      "distance_threshold": 0.3,
+      "max_allowed_collisions": 0,
+      "timeout": 15.0,
+      "control_mode": "goal_seeking",
+      "policy": {
+        "enabled": true,
+        "safety_margin": 0.65,
+        "repulsion_gain": 1.6,
+        "tangential_gain": 1.3,
+        "max_turn_rate": 2.5,
+        "slowdown_distance": 0.45
+      },
+      "scripted_commands": null
+    },
+    "duration": 15.0,
+    "sample_rate_hz": 20.0,
+    "created_at": 1793145075.077565
+  },
+  "scen_blind_diagonal_barrier": {
+    "schema_version": "1.0.0",
+    "id": "scen_blind_diagonal_barrier",
+    "name": "Blind Held-Out: Diagonal Barrier",
+    "description": "Diagonal obstacle barrier with offset pass-through.",
+    "seed": 202,
+    "robot": {
+      "id": "robot_main",
+      "name": "ForgeBot-DD1",
+      "initial_position": [
+        0.0,
+        0.0,
+        0.07
+      ],
+      "initial_yaw": 0.0,
+      "chassis_size": [
+        0.2,
+        0.14,
+        0.05
+      ],
+      "wheel_radius": 0.06,
+      "wheel_width": 0.03,
+      "wheel_base": 0.28,
+      "caster_radius": 0.025,
+      "chassis_mass": 3.5,
+      "wheel_mass": 0.5,
+      "max_linear_velocity": 1.5,
+      "max_angular_velocity": 3.0
+    },
+    "environment": [
+      {
+        "id": "diag_obs_1",
+        "name": "Diagonal Wall 1",
+        "type": "box",
+        "position": [
+          1.0,
+          -0.4,
+          0.25
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "size": [
+          0.2,
+          0.2,
+          0.25
+        ],
+        "color": "#d19a66",
+        "is_static": true,
+        "mass": 10.0,
+        "friction": [
+          1.0,
+          0.005,
+          0.0001
+        ],
+        "visible": true,
+        "is_locked": false
+      },
+      {
+        "id": "diag_obs_2",
+        "name": "Diagonal Wall 2",
+        "type": "box",
+        "position": [
+          1.5,
+          0.1,
+          0.25
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "size": [
+          0.2,
+          0.2,
+          0.25
+        ],
+        "color": "#d19a66",
+        "is_static": true,
+        "mass": 10.0,
+        "friction": [
+          1.0,
+          0.005,
+          0.0001
+        ],
+        "visible": true,
+        "is_locked": false
+      }
+    ],
+    "settings": {
+      "timestep": 0.005,
+      "speed_multiplier": 1.0,
+      "gravity": [
+        0.0,
+        0.0,
+        -9.81
+      ],
+      "world_boundaries": [
+        -15.0,
+        15.0,
+        -15.0,
+        15.0,
+        0.0,
+        8.0
+      ],
+      "enable_boundaries": true
+    },
+    "task": {
+      "target_position": [
+        2.6,
+        0.0,
+        0.25
+      ],
+      "distance_threshold": 0.3,
+      "max_allowed_collisions": 0,
+      "timeout": 12.0,
+      "control_mode": "goal_seeking",
+      "policy": {
+        "enabled": true,
+        "safety_margin": 0.65,
+        "repulsion_gain": 1.6,
+        "tangential_gain": 1.3,
+        "max_turn_rate": 2.5,
+        "slowdown_distance": 0.45
+      },
+      "scripted_commands": null
+    },
+    "duration": 12.0,
+    "sample_rate_hz": 20.0,
+    "created_at": 1793145075.077565
+  }
+}

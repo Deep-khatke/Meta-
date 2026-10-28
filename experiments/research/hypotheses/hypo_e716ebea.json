@@ -1,0 +1,17 @@
+{
+  "hypothesis_id": "hypo_e716ebea",
+  "mission_id": "mission_c1f8c3d1",
+  "title": "Angular Agility Saturation Hypothesis",
+  "statement": "Increasing maximum turn rate will allow the robot to negotiate tight turns without sliding into obstacles.",
+  "mechanism": "Higher angular rate prevents control saturation during rapid avoidance maneuvers.",
+  "controlled_variable": "task.policy.max_turn_rate",
+  "baseline_value": 3.0,
+  "proposed_value": 4.5,
+  "status": "untested",
+  "confidence": 0.5,
+  "supporting_evidence": [],
+  "contradicting_evidence": [],
+  "experiment_ids": [],
+  "created_at": 1793122783.4644718,
+  "updated_at": 1793122783.4644718
+}

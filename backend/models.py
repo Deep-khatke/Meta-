@@ -28,6 +28,7 @@ class SceneObject(BaseModel):
     # [sliding, torsional, rolling] friction
     friction: List[float] = Field(default=[1.0, 0.005, 0.0001], description="MuJoCo geom friction [sliding, torsional, rolling]")
     visible: bool = Field(default=True)
+    is_locked: bool = Field(default=False, description="If True, object is locked and cannot be transformed via gizmo.")
 
     @field_validator("position")
     @classmethod
@@ -149,10 +150,17 @@ class LidarConfig(BaseModel):
     fov_deg: float = Field(default=360.0, ge=10.0, le=360.0)
     max_range: float = Field(default=8.0, ge=0.5, le=50.0)
     min_range: float = Field(default=0.05, ge=0.01, le=1.0)
+    noise_std: float = Field(default=0.0, ge=0.0, le=0.5, description="Gaussian noise standard deviation in meters")
+    dropout_prob: float = Field(default=0.0, ge=0.0, le=0.5, description="Probability of dropped beam / missed return")
+    channels: int = Field(default=1, ge=1, le=64, description="Vertical channel count (1 for 2D LiDAR, >1 for 3D LiDAR)")
 
 class ImuConfig(BaseModel):
     enabled: bool = True
     mount_pos: List[float] = Field(default_factory=lambda: [0.0, 0.0, 0.05])
+    accel_noise_std: float = Field(default=0.0, ge=0.0, le=0.5, description="Accelerometer Gaussian noise std (m/s^2)")
+    gyro_noise_std: float = Field(default=0.0, ge=0.0, le=0.5, description="Gyroscope Gaussian noise std (rad/s)")
+    accel_bias: List[float] = Field(default_factory=lambda: [0.0, 0.0, 0.0], description="Accelerometer constant drift bias")
+    gyro_bias: List[float] = Field(default_factory=lambda: [0.0, 0.0, 0.0], description="Gyroscope constant drift bias")
 
 class CameraConfig(BaseModel):
     enabled: bool = False
@@ -174,6 +182,14 @@ class SensorSettings(BaseModel):
     encoders: EncoderConfig = Field(default_factory=EncoderConfig)
 
 class URDFImportResult(BaseModel):
+    status: Literal["success", "warning", "error"]
+    robot: Optional[GenericRobotModel] = None
+    warnings: List[str] = Field(default_factory=list)
+    errors: List[str] = Field(default_factory=list)
+    total_links: int = 0
+    total_joints: int = 0
+
+class MJCFImportResult(BaseModel):
     status: Literal["success", "warning", "error"]
     robot: Optional[GenericRobotModel] = None
     warnings: List[str] = Field(default_factory=list)
@@ -247,6 +263,30 @@ class ContactInfo(BaseModel):
     geom2: str
     position: List[float]
     distance: float
+    force_normal: float = 0.0
+    force_tangent: float = 0.0
+    penetration: float = 0.0
+
+
+class OdometryState(BaseModel):
+    position: List[float] = Field(default_factory=lambda: [0.0, 0.0, 0.0])
+    yaw: float = 0.0
+    linear_velocity: List[float] = Field(default_factory=lambda: [0.0, 0.0, 0.0])
+    angular_velocity: List[float] = Field(default_factory=lambda: [0.0, 0.0, 0.0])
+    distance_traveled: float = 0.0
+
+
+class SimulationSnapshot(BaseModel):
+    snapshot_id: str = Field(default_factory=lambda: str(uuid.uuid4())[:8])
+    timestamp: float = 0.0
+    sim_time: float = 0.0
+    step_count: int = 0
+    qpos: List[float] = Field(default_factory=list)
+    qvel: List[float] = Field(default_factory=list)
+    act: List[float] = Field(default_factory=list)
+    joint_targets: Dict[str, float] = Field(default_factory=dict)
+    teleop_linear: float = 0.0
+    teleop_angular: float = 0.0
 
 
 class SimulationState(BaseModel):
@@ -254,7 +294,9 @@ class SimulationState(BaseModel):
     sim_time: float = 0.0
     wall_time: float = 0.0
     step_count: int = 0
+    real_time_factor: float = 1.0
     robot: RobotState = Field(default_factory=RobotState)
+    odometry: Optional[OdometryState] = None
     objects: Dict[str, ObjectPhysicsState] = Field(default_factory=dict)
     contacts: List[ContactInfo] = Field(default_factory=list)
     errors: List[str] = Field(default_factory=list)

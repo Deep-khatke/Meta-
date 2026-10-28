@@ -1,0 +1,28 @@
+{
+  "plan_id": "plan_8d862d4e",
+  "mission_id": "mission_34e7c4c0",
+  "hypothesis_id": "hypo_78779032",
+  "title": "Experiment for: Reducing Safety Margin",
+  "rationale": "Candidate task.policy.safety_margin=0.23: Expected Improvement=0.26, Info Gain=1.00, Prior Influence=No direct prior bias. Mechanism: task.policy.safety_margin",
+  "base_scenario_id": "scen_mvqgu87z",
+  "parameter_modifications": {
+    "task.policy.safety_margin": 0.23
+  },
+  "seeds": [
+    100,
+    101,
+    102
+  ],
+  "expected_outcome": "Reducing the safety margin in the robot's policy will make the robot take tighter turns around obstacles, potentially reducing the total distance traveled and the time to reach the goal.",
+  "candidate_rank": 1,
+  "expected_improvement": 0.261,
+  "information_gain": 1.0,
+  "acquisition_score": 0.531,
+  "selection_rationale": "Candidate task.policy.safety_margin=0.23: Expected Improvement=0.26, Info Gain=1.00, Prior Influence=No direct prior bias. Mechanism: task.policy.safety_margin",
+  "prior_evidence_influence": "Evaluated against 19 compatible prior runs (0 incompatible runs excluded). No direct prior bias",
+  "is_validated": true,
+  "validation_messages": [],
+  "user_approved": true,
+  "status": "ready",
+  "created_at": 1793134173.1134572
+}

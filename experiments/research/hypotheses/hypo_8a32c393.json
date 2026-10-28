@@ -1,0 +1,21 @@
+{
+  "hypothesis_id": "hypo_8a32c393",
+  "mission_id": "mission_blind_discovery_1793133625",
+  "title": "Reducing Safety Margin to Increase Speed",
+  "statement": "Reducing the safety margin will allow the robot to move closer to the obstacles, potentially increasing its speed and reducing the time to traverse the chicane.",
+  "mechanism": "A smaller safety margin means the robot can approach the obstacles more closely, which can be beneficial for faster traversal.",
+  "controlled_variable": "task.policy.safety_margin",
+  "baseline_value": 0.3,
+  "proposed_value": 0.1,
+  "status": "inconclusive",
+  "confidence": 0.45,
+  "supporting_evidence": [],
+  "contradicting_evidence": [
+    "Experiment plan_blind_2: Observed delta=+0.000. Verdict: inconclusive (). (Did not produce statistically distinguishable change)"
+  ],
+  "experiment_ids": [
+    "plan_blind_2"
+  ],
+  "created_at": 1793133630.0383909,
+  "updated_at": 1793133633.3098817
+}

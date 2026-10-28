@@ -1,0 +1,17 @@
+{
+  "hypothesis_id": "hypo_451aa3a7",
+  "mission_id": "mission_27efd9fc",
+  "title": "Reducing Safety Margin",
+  "statement": "Reducing the safety margin will make the robot more responsive to its environment, potentially improving its path planning.",
+  "mechanism": "The safety margin determines the distance the robot maintains from obstacles to ensure safety.",
+  "controlled_variable": "task.policy.safety_margin",
+  "baseline_value": 0.2,
+  "proposed_value": 0.15,
+  "status": "untested",
+  "confidence": 0.5,
+  "supporting_evidence": [],
+  "contradicting_evidence": [],
+  "experiment_ids": [],
+  "created_at": 1793145127.9700832,
+  "updated_at": 1793145127.9700832
+}

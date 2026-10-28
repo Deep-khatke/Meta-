@@ -1,0 +1,21 @@
+{
+  "hypothesis_id": "hypo_1d294ea5",
+  "mission_id": "mission_3ce8c274",
+  "title": "Increasing Tangential Gain",
+  "statement": "Increasing the tangential gain will improve the robot's ability to navigate around obstacles by enhancing its turning agility.",
+  "mechanism": "The tangential gain affects how quickly the robot can adjust its direction to avoid obstacles.",
+  "controlled_variable": "task.policy.tangential_gain",
+  "baseline_value": 0.5,
+  "proposed_value": 0.8,
+  "status": "inconclusive",
+  "confidence": 0.45,
+  "supporting_evidence": [],
+  "contradicting_evidence": [
+    "Experiment plan_63367a43: Observed delta=+0.000. Verdict: inconclusive (Time difference (+0.31s) is within experimental noise margin.). (Did not produce statistically distinguishable change)"
+  ],
+  "experiment_ids": [
+    "plan_63367a43"
+  ],
+  "created_at": 1793134318.911592,
+  "updated_at": 1793134320.912805
+}

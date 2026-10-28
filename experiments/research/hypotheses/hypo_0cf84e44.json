@@ -1,0 +1,17 @@
+{
+  "hypothesis_id": "hypo_0cf84e44",
+  "mission_id": "mission_609da78a",
+  "title": "Angular Steering Agility Hypothesis",
+  "statement": "Increasing maximum turn rate will allow the robot to quickly align with tangent escape vectors.",
+  "mechanism": "Higher angular agility avoids control saturation during rapid heading changes around obstacles.",
+  "controlled_variable": "task.policy.max_turn_rate",
+  "baseline_value": 2.5,
+  "proposed_value": 3.2,
+  "status": "untested",
+  "confidence": 0.5,
+  "supporting_evidence": [],
+  "contradicting_evidence": [],
+  "experiment_ids": [],
+  "created_at": 1793137711.9148438,
+  "updated_at": 1793137711.9148438
+}

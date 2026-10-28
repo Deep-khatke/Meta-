@@ -1,0 +1,21 @@
+{
+  "hypothesis_id": "hypo_5016396b",
+  "mission_id": "mission_blind_discovery_1793133625",
+  "title": "Increasing Repulsion Gain for Obstacle Avoidance",
+  "statement": "Increasing the repulsion gain will make the robot more responsive to the obstacles, potentially leading to a smoother traversal.",
+  "mechanism": "The repulsion gain influences how strongly the robot avoids obstacles, which can affect its path planning and traversal speed.",
+  "controlled_variable": "task.policy.repulsion_gain",
+  "baseline_value": 0.5,
+  "proposed_value": 1.0,
+  "status": "inconclusive",
+  "confidence": 0.45,
+  "supporting_evidence": [],
+  "contradicting_evidence": [
+    "Experiment plan_blind_1: Observed delta=+0.000. Verdict: inconclusive (). (Did not produce statistically distinguishable change)"
+  ],
+  "experiment_ids": [
+    "plan_blind_1"
+  ],
+  "created_at": 1793133630.0372713,
+  "updated_at": 1793133632.5113304
+}

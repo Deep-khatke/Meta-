@@ -1,0 +1,28 @@
+{
+  "plan_id": "plan_de3c2b6c",
+  "mission_id": "mission_4689cc61",
+  "hypothesis_id": "hypo_9ed45fa2",
+  "title": "Experiment for: Increasing Tangential Gain",
+  "rationale": "Candidate task.policy.tangential_gain=0.8: Expected Improvement=0.50, Info Gain=1.00, Prior Influence=No direct prior bias. Mechanism: The tangential gain affects the robot's ability to adjust its path to avoid obstacles while maintaining a straight course towards the goal.",
+  "base_scenario_id": "scen_mvqgu87z",
+  "parameter_modifications": {
+    "task.policy.tangential_gain": 0.8
+  },
+  "seeds": [
+    100,
+    101,
+    102
+  ],
+  "expected_outcome": "Increasing the tangential gain will help the robot navigate around obstacles more effectively, reducing the likelihood of collisions.",
+  "candidate_rank": 1,
+  "expected_improvement": 0.5,
+  "information_gain": 1.0,
+  "acquisition_score": 0.65,
+  "selection_rationale": "Candidate task.policy.tangential_gain=0.8: Expected Improvement=0.50, Info Gain=1.00, Prior Influence=No direct prior bias. Mechanism: The tangential gain affects the robot's ability to adjust its path to avoid obstacles while maintaining a straight course towards the goal.",
+  "prior_evidence_influence": "Evaluated against 32 compatible prior runs (0 incompatible runs excluded). No direct prior bias",
+  "is_validated": true,
+  "validation_messages": [],
+  "user_approved": true,
+  "status": "ready",
+  "created_at": 1793138540.6288543
+}

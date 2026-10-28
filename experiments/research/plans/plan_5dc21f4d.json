@@ -1,0 +1,28 @@
+{
+  "plan_id": "plan_5dc21f4d",
+  "mission_id": "mission_68c9bb1f",
+  "hypothesis_id": "hypo_1cc5314d",
+  "title": "Experiment for: Increasing Max Linear Velocity",
+  "rationale": "Candidate robot.max_linear_velocity=1.2: Expected Improvement=0.50, Info Gain=1.00, Prior Influence=No direct prior bias. Mechanism: By increasing the robot's speed, it can reach the goal faster, reducing the overall time to complete the task.",
+  "base_scenario_id": "scen_mvqgu87z",
+  "parameter_modifications": {
+    "robot.max_linear_velocity": 1.2
+  },
+  "seeds": [
+    100,
+    101,
+    102
+  ],
+  "expected_outcome": "Increasing the robot's maximum linear velocity will reduce the time to goal.",
+  "candidate_rank": 1,
+  "expected_improvement": 0.5,
+  "information_gain": 1.0,
+  "acquisition_score": 0.65,
+  "selection_rationale": "Candidate robot.max_linear_velocity=1.2: Expected Improvement=0.50, Info Gain=1.00, Prior Influence=No direct prior bias. Mechanism: By increasing the robot's speed, it can reach the goal faster, reducing the overall time to complete the task.",
+  "prior_evidence_influence": "Evaluated against 26 compatible prior runs (0 incompatible runs excluded). No direct prior bias",
+  "is_validated": true,
+  "validation_messages": [],
+  "user_approved": true,
+  "status": "ready",
+  "created_at": 1793145209.0907574
+}

@@ -1,0 +1,28 @@
+{
+  "plan_id": "plan_7ff77fec",
+  "mission_id": "mission_2b5dc29f",
+  "hypothesis_id": "hypo_ec6998ea",
+  "title": "Experiment for: Increase Repulsion Gain",
+  "rationale": "Candidate task.policy.repulsion_gain=1.5: Expected Improvement=0.50, Info Gain=1.00, Prior Influence=No direct prior bias. Mechanism: The repulsion gain affects how strongly the robot avoids obstacles. A higher gain means the robot will steer away from obstacles more quickly and aggressively.",
+  "base_scenario_id": "scen_mvqgu87z",
+  "parameter_modifications": {
+    "task.policy.repulsion_gain": 1.5
+  },
+  "seeds": [
+    100,
+    101,
+    102
+  ],
+  "expected_outcome": "Increasing the repulsion gain will make the robot more responsive to obstacles, reducing the likelihood of collisions.",
+  "candidate_rank": 1,
+  "expected_improvement": 0.5,
+  "information_gain": 1.0,
+  "acquisition_score": 0.65,
+  "selection_rationale": "Candidate task.policy.repulsion_gain=1.5: Expected Improvement=0.50, Info Gain=1.00, Prior Influence=No direct prior bias. Mechanism: The repulsion gain affects how strongly the robot avoids obstacles. A higher gain means the robot will steer away from obstacles more quickly and aggressively.",
+  "prior_evidence_influence": "Evaluated against 33 compatible prior runs (0 incompatible runs excluded). No direct prior bias",
+  "is_validated": true,
+  "validation_messages": [],
+  "user_approved": true,
+  "status": "ready",
+  "created_at": 1793131922.615585
+}

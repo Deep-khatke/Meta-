@@ -1,0 +1,17 @@
+{
+  "hypothesis_id": "hypo_d34986b7",
+  "mission_id": "mission_b149d06b",
+  "title": "Reducing Repulsion Gain to Allow Closer Proximity to Obstacles",
+  "statement": "Decreasing the repulsion gain will allow the robot to get closer to obstacles, which can improve navigation efficiency and reduce the number of collisions.",
+  "mechanism": "task.policy.repulsion_gain",
+  "controlled_variable": "task.policy.repulsion_gain",
+  "baseline_value": 1.0,
+  "proposed_value": 0.6,
+  "status": "untested",
+  "confidence": 0.5,
+  "supporting_evidence": [],
+  "contradicting_evidence": [],
+  "experiment_ids": [],
+  "created_at": 1793138443.625673,
+  "updated_at": 1793138443.625673
+}

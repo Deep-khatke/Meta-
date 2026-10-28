@@ -656,6 +656,69 @@ class ExperimentManager:
             message=msg
         )
 
+    def run_multi_trial_experiment(self, scenario_id: str, num_trials: int = 5) -> Dict[str, Any]:
+        """Executes multiple independent experiment trials with seed variations and computes statistical metrics."""
+        scen = self.get_scenario(scenario_id)
+        if not scen:
+            raise ValueError(f"Scenario '{scenario_id}' not found.")
+
+        trial_results = []
+        successes = []
+        ttg_list = []
+        dist_list = []
+        col_list = []
+        energy_list = []
+
+        base_seed = scen.seed or 42
+        for t_idx in range(num_trials):
+            # Clone scenario with varied seed
+            trial_scen = scen.model_copy(deep=True)
+            trial_scen.seed = base_seed + t_idx * 17
+            run_res = self.run_experiment(trial_scen)
+            dist = run_res.metrics.total_distance_traveled
+            cols = run_res.metrics.total_collisions
+            energy = round(run_res.metrics.mean_linear_speed * run_res.metrics.total_duration, 3)
+
+            trial_results.append({
+                "trial": t_idx + 1,
+                "seed": trial_scen.seed,
+                "success": run_res.metrics.success,
+                "collisions": cols,
+                "time_to_goal": run_res.metrics.time_to_goal,
+                "distance": dist,
+                "energy_proxy": energy
+            })
+
+            successes.append(1.0 if run_res.metrics.success else 0.0)
+            if run_res.metrics.time_to_goal is not None:
+                ttg_list.append(run_res.metrics.time_to_goal)
+            dist_list.append(dist)
+            col_list.append(float(cols))
+            energy_list.append(energy)
+
+        def calc_stats(values: List[float]) -> Dict[str, float]:
+            if not values:
+                return {"mean": 0.0, "std": 0.0, "min": 0.0, "max": 0.0}
+            mean = float(np.mean(values))
+            std = float(np.std(values))
+            return {
+                "mean": round(mean, 3),
+                "std": round(std, 3),
+                "min": round(float(np.min(values)), 3),
+                "max": round(float(np.max(values)), 3)
+            }
+
+        return {
+            "scenario_id": scenario_id,
+            "num_trials": num_trials,
+            "success_rate": round(float(np.mean(successes)), 3),
+            "time_to_goal_stats": calc_stats(ttg_list),
+            "distance_stats": calc_stats(dist_list),
+            "collision_stats": calc_stats(col_list),
+            "energy_stats": calc_stats(energy_list),
+            "trials": trial_results
+        }
+
 # Global singleton instance
 experiment_manager = ExperimentManager()
 

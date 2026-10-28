@@ -52,6 +52,9 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
   // Snapping settings
   const [snapTranslate, setSnapTranslate] = useState<number>(0); // 0 (off), 0.1, 0.5, 1.0
   const [snapRotate, setSnapRotate] = useState<number>(0); // 0 (off), 15, 45, 90 deg
+  const [surfaceSnap, setSurfaceSnap] = useState<boolean>(true); // Ground and stacking surface snapping
+  const [attachmentSnap, setAttachmentSnap] = useState<boolean>(true); // Robot mount & EE flange snapping
+  const [snapNotification, setSnapNotification] = useState<string | null>(null);
 
   // Onboard Camera HUD Picture-in-Picture
   const [showCameraHUD, setShowCameraHUD] = useState<boolean>(true);
@@ -65,13 +68,20 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
   const onUpdateObjectRef = useRef(onUpdateObject);
   const onUpdateTargetRef = useRef(onUpdateTarget);
   const projectRef = useRef(project);
+  const surfaceSnapRef = useRef(surfaceSnap);
+  const attachmentSnapRef = useRef(attachmentSnap);
+  const liveEePoseRef = useRef<any>(null);
+  const simStateRef = useRef<SimulationState>(simState);
 
   useEffect(() => {
     selectedObjectIdRef.current = selectedObjectId;
     onUpdateObjectRef.current = onUpdateObject;
     onUpdateTargetRef.current = onUpdateTarget;
     projectRef.current = project;
-  }, [selectedObjectId, onUpdateObject, onUpdateTarget, project]);
+    surfaceSnapRef.current = surfaceSnap;
+    attachmentSnapRef.current = attachmentSnap;
+    simStateRef.current = simState;
+  }, [selectedObjectId, onUpdateObject, onUpdateTarget, project, surfaceSnap, attachmentSnap, simState]);
 
   // Mesh registries for fast per-frame update
   const robotGroupRef = useRef<THREE.Group | null>(null);
@@ -99,7 +109,8 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
 
   const leftWheelRef = useRef<THREE.Mesh | null>(null);
   const rightWheelRef = useRef<THREE.Mesh | null>(null);
-  const objectMeshesRef = useRef<Map<string, THREE.Mesh>>(new Map());
+  const objectMeshesRef = useRef<Map<string, THREE.Mesh | THREE.Group>>(new Map());
+  const droneRotorsRef = useRef<THREE.Mesh[]>([]);
 
   // Sensors and visualization refs
   const lidarTurretRef = useRef<THREE.Mesh | null>(null);
@@ -585,16 +596,207 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     objectMeshesRef.current.forEach((mesh, id) => {
       if (!currentObjectIds.has(id)) {
         obsGrp!.remove(mesh);
-        mesh.geometry.dispose();
-        if (Array.isArray(mesh.material)) mesh.material.forEach((m) => m.dispose());
-        else mesh.material.dispose();
+        mesh.traverse((child: any) => {
+          if (child.geometry) child.geometry.dispose();
+          if (child.material) {
+            if (Array.isArray(child.material)) child.material.forEach((m: any) => m.dispose());
+            else child.material.dispose();
+          }
+        });
         objectMeshesRef.current.delete(id);
       }
     });
 
+    // Clear previous drone rotors
+    droneRotorsRef.current = [];
+
     // Add or update existing objects
     proj.objects.forEach((obj: SceneObject) => {
       let mesh = objectMeshesRef.current.get(obj.id);
+      const isDrone = obj.name.toLowerCase().includes('drone') || obj.id.startsWith('drone');
+      const isSecondaryRobot = (obj.name.toLowerCase().includes('robot') || obj.id.startsWith('robot') || obj.name.toLowerCase().includes('forgebot')) && !isDrone;
+
+      const createDifferentialRobotGroup = (): THREE.Group => {
+        const rob = new THREE.Group();
+        rob.name = `obj_${obj.id}`;
+        (rob as any).userData = { id: obj.id, isSecondaryRobot: true, isObstacle: false };
+
+        const chassisColor = new THREE.Color(obj.color || '#06b6d4');
+
+        // 1. Sleek Main Chassis
+        const hx = 0.18, hy = 0.12, hz = 0.08;
+        const chassisGeo = new THREE.BoxGeometry(hx * 2, hy * 2, hz * 2);
+        const chassisMat = new THREE.MeshStandardMaterial({
+          color: chassisColor,
+          metalness: 0.4,
+          roughness: 0.35,
+        });
+        const chassisMesh = new THREE.Mesh(chassisGeo, chassisMat);
+        chassisMesh.castShadow = true;
+        chassisMesh.receiveShadow = true;
+        rob.add(chassisMesh);
+
+        // 2. High-visibility Forward Direction Nose
+        const noseGeo = new THREE.BoxGeometry(hx * 0.45, hy * 0.45, hz * 0.7);
+        const noseMat = new THREE.MeshStandardMaterial({
+          color: 0xf97316,
+          roughness: 0.3,
+          metalness: 0.2,
+        });
+        const noseMesh = new THREE.Mesh(noseGeo, noseMat);
+        noseMesh.position.set(hx * 0.85, 0, hz * 0.25);
+        noseMesh.castShadow = true;
+        rob.add(noseMesh);
+
+        // 3. Dual Drive Wheels
+        const wr = 0.045, ww = 0.024, wb = 0.28;
+        const wheelGeo = new THREE.CylinderGeometry(wr, wr, ww, 24);
+        const wheelMat = new THREE.MeshStandardMaterial({
+          color: 0x1e293b,
+          roughness: 0.8,
+          metalness: 0.2,
+        });
+        const leftWheel = new THREE.Mesh(wheelGeo, wheelMat);
+        leftWheel.rotation.x = Math.PI / 2;
+        leftWheel.position.set(0, wb * 0.5, -0.01);
+        leftWheel.castShadow = true;
+        rob.add(leftWheel);
+
+        const rightWheel = new THREE.Mesh(wheelGeo, wheelMat);
+        rightWheel.rotation.x = Math.PI / 2;
+        rightWheel.position.set(0, -wb * 0.5, -0.01);
+        rightWheel.castShadow = true;
+        rob.add(rightWheel);
+
+        // 4. Stabilizing Front & Rear Passive Casters
+        const casterGeo = new THREE.SphereGeometry(0.02, 16, 16);
+        const casterMat = new THREE.MeshStandardMaterial({
+          color: 0x94a3b8,
+          metalness: 0.9,
+          roughness: 0.1,
+        });
+        const frontCaster = new THREE.Mesh(casterGeo, casterMat);
+        frontCaster.position.set(hx * 0.75, 0, -hz - 0.005);
+        rob.add(frontCaster);
+
+        const rearCaster = new THREE.Mesh(casterGeo, casterMat);
+        rearCaster.position.set(-hx * 0.75, 0, -hz - 0.005);
+        rob.add(rearCaster);
+
+        // 5. 2D LiDAR Turret
+        const lidarGeo = new THREE.CylinderGeometry(0.035, 0.035, 0.03, 16);
+        const lidarMat = new THREE.MeshStandardMaterial({
+          color: 0x0f172a,
+          metalness: 0.8,
+          roughness: 0.2,
+        });
+        const lidarMesh = new THREE.Mesh(lidarGeo, lidarMat);
+        lidarMesh.position.set(0, 0, hz + 0.015);
+        lidarMesh.rotation.x = Math.PI / 2;
+        rob.add(lidarMesh);
+
+        // LiDAR Laser Emitter Ring
+        const ringGeo = new THREE.TorusGeometry(0.036, 0.004, 8, 24);
+        const ringMat = new THREE.MeshBasicMaterial({ color: 0x06b6d4 });
+        const ringMesh = new THREE.Mesh(ringGeo, ringMat);
+        ringMesh.position.set(0, 0, hz + 0.015);
+        rob.add(ringMesh);
+
+        return rob;
+      };
+
+      const createDroneGroup = (): THREE.Group => {
+        const drone = new THREE.Group();
+        drone.name = `obj_${obj.id}`;
+        (drone as any).userData = { id: obj.id, isDrone: true, isObstacle: false };
+
+        // 1. Central Avionics Fuselage
+        const bodyGeo = new THREE.BoxGeometry(0.18, 0.18, 0.07);
+        const bodyMat = new THREE.MeshStandardMaterial({
+          color: 0x0f172a,
+          metalness: 0.85,
+          roughness: 0.25,
+        });
+        const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
+        bodyMesh.castShadow = true;
+        drone.add(bodyMesh);
+
+        // Glowing Drone Status Core
+        const coreGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.02, 16);
+        const coreMat = new THREE.MeshStandardMaterial({
+          color: 0x38bdf8,
+          emissive: 0x38bdf8,
+          emissiveIntensity: 0.8,
+        });
+        const coreMesh = new THREE.Mesh(coreGeo, coreMat);
+        coreMesh.position.set(0, 0, 0.045);
+        drone.add(coreMesh);
+
+        // 2. Diagonal Carbon Fiber Arms & 4 Propeller Rotors
+        const armLength = 0.24;
+        const armGeo = new THREE.BoxGeometry(armLength * 2, 0.02, 0.015);
+        const armMat = new THREE.MeshStandardMaterial({
+          color: 0x334155,
+          metalness: 0.7,
+          roughness: 0.4,
+        });
+
+        const arm1 = new THREE.Mesh(armGeo, armMat);
+        arm1.rotation.z = Math.PI / 4;
+        drone.add(arm1);
+
+        const arm2 = new THREE.Mesh(armGeo, armMat);
+        arm2.rotation.z = -Math.PI / 4;
+        drone.add(arm2);
+
+        // Motor Hubs & Rotors at 4 corners
+        const dOffset = armLength * Math.cos(Math.PI / 4);
+        const motorPositions = [
+          [dOffset, dOffset],
+          [-dOffset, dOffset],
+          [-dOffset, -dOffset],
+          [dOffset, -dOffset],
+        ];
+
+        motorPositions.forEach(([mx, my]) => {
+          // Motor can
+          const motorGeo = new THREE.CylinderGeometry(0.02, 0.02, 0.03, 12);
+          const motorMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, metalness: 0.9, roughness: 0.2 });
+          const motor = new THREE.Mesh(motorGeo, motorMat);
+          motor.position.set(mx, my, 0.02);
+          motor.rotation.x = Math.PI / 2;
+          drone.add(motor);
+
+          // Translucent Spinning Rotor Disc
+          const rotorGeo = new THREE.CircleGeometry(0.12, 16);
+          const rotorMat = new THREE.MeshStandardMaterial({
+            color: 0x38bdf8,
+            transparent: true,
+            opacity: 0.45,
+            side: THREE.DoubleSide,
+          });
+          const rotorMesh = new THREE.Mesh(rotorGeo, rotorMat);
+          rotorMesh.position.set(mx, my, 0.04);
+          drone.add(rotorMesh);
+          droneRotorsRef.current.push(rotorMesh);
+        });
+
+        // 3. Ground Altitude Line & Landing Shadow
+        const altPoints = [new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, -obj.position[2])];
+        const altGeo = new THREE.BufferGeometry().setFromPoints(altPoints);
+        const altMat = new THREE.LineDashedMaterial({ color: 0x38bdf8, dashSize: 0.05, gapSize: 0.04, transparent: true, opacity: 0.6 });
+        const altLine = new THREE.Line(altGeo, altMat);
+        altLine.computeLineDistances();
+        drone.add(altLine);
+
+        const shadowGeo = new THREE.RingGeometry(0.15, 0.22, 24);
+        const shadowMat = new THREE.MeshBasicMaterial({ color: 0x0284c7, transparent: true, opacity: 0.4, side: THREE.DoubleSide });
+        const shadowMesh = new THREE.Mesh(shadowGeo, shadowMat);
+        shadowMesh.position.set(0, 0, -obj.position[2] + 0.005);
+        drone.add(shadowMesh);
+
+        return drone;
+      };
 
       const createGeometry = () => {
         if (obj.type === 'box') {
@@ -614,34 +816,55 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
       };
 
       if (!mesh) {
-        // Create brand new mesh for newly added object
-        const geo = createGeometry();
-        const mat = new THREE.MeshStandardMaterial({
-          color: new THREE.Color(obj.color || '#8892b0'),
-          roughness: 0.4,
-          metalness: 0.2,
-        });
+        if (isDrone) {
+          const droneGrp = createDroneGroup();
+          droneGrp.position.set(obj.position[0], obj.position[1], obj.position[2]);
+          droneGrp.visible = obj.visible !== false;
+          obsGrp!.add(droneGrp);
+          objectMeshesRef.current.set(obj.id, droneGrp as any);
+        } else if (isSecondaryRobot) {
+          const robGrp = createDifferentialRobotGroup();
+          robGrp.position.set(obj.position[0], obj.position[1], obj.position[2]);
+          robGrp.rotation.set(
+            ((obj.rotation[0] || 0) * Math.PI) / 180,
+            ((obj.rotation[1] || 0) * Math.PI) / 180,
+            ((obj.rotation[2] || 0) * Math.PI) / 180
+          );
+          robGrp.visible = obj.visible !== false;
+          obsGrp!.add(robGrp);
+          objectMeshesRef.current.set(obj.id, robGrp as any);
+        } else {
+          // Standard obstacle mesh
+          const geo = createGeometry();
+          const mat = new THREE.MeshStandardMaterial({
+            color: new THREE.Color(obj.color || '#8892b0'),
+            roughness: 0.4,
+            metalness: 0.2,
+          });
 
-        mesh = new THREE.Mesh(geo, mat);
-        mesh.name = `obj_${obj.id}`;
-        (mesh as any).userData = { id: obj.id, isObstacle: true };
-        mesh.castShadow = true;
-        mesh.receiveShadow = true;
+          mesh = new THREE.Mesh(geo, mat);
+          mesh.name = `obj_${obj.id}`;
+          (mesh as any).userData = { id: obj.id, isObstacle: true };
+          mesh.castShadow = true;
+          mesh.receiveShadow = true;
 
-        mesh.position.set(obj.position[0], obj.position[1], obj.position[2]);
-        mesh.rotation.set(
-          (obj.rotation[0] * Math.PI) / 180,
-          (obj.rotation[1] * Math.PI) / 180,
-          (obj.rotation[2] * Math.PI) / 180
-        );
-        mesh.visible = obj.visible !== false;
+          mesh.position.set(obj.position[0], obj.position[1], obj.position[2]);
+          mesh.rotation.set(
+            (obj.rotation[0] * Math.PI) / 180,
+            (obj.rotation[1] * Math.PI) / 180,
+            (obj.rotation[2] * Math.PI) / 180
+          );
+          mesh.visible = obj.visible !== false;
 
-        obsGrp!.add(mesh);
-        objectMeshesRef.current.set(obj.id, mesh);
+          obsGrp!.add(mesh);
+          objectMeshesRef.current.set(obj.id, mesh);
+        }
       } else {
         // Update color and visibility
-        const mat = mesh.material as THREE.MeshStandardMaterial;
-        mat.color.set(obj.color || '#8892b0');
+        if ((mesh as any).material) {
+          const mat = (mesh as any).material as THREE.MeshStandardMaterial;
+          mat.color?.set(obj.color || '#8892b0');
+        }
         mesh.visible = obj.visible !== false;
 
         // If not actively being dragged, update position & rotation to match project
@@ -772,14 +995,129 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
             mesh.scale.set(1, 1, 1);
           }
 
+          let finalX = mesh.position.x;
+          let finalY = mesh.position.y;
+          let finalZ = mesh.position.z;
+          let finalDegX = degX;
+          let finalDegY = degY;
+          let finalDegZ = degZ;
+
+          // Compute geometric vertical half-height and horizontal radii
+          let halfHeight = 0.1;
+          let halfX = 0.1;
+          let halfY = 0.1;
+          if (obj.type === 'box') {
+            halfX = newSize[0] || 0.1;
+            halfY = newSize[1] || 0.1;
+            halfHeight = newSize[2] || 0.1;
+          } else if (obj.type === 'cylinder') {
+            halfX = newSize[0] || 0.1;
+            halfY = newSize[0] || 0.1;
+            halfHeight = newSize[1] || 0.1;
+          } else if (obj.type === 'sphere') {
+            halfX = newSize[0] || 0.1;
+            halfY = newSize[0] || 0.1;
+            halfHeight = newSize[0] || 0.1;
+          }
+
+          let snapMsg: string | null = null;
+
+          // 1. Robot Attachment Snapping (if not static)
+          if (attachmentSnapRef.current && !obj.is_static) {
+            // A. Check mobile robot chassis mount point
+            const robotState = simStateRef.current?.robot;
+            const robotCfg = projectRef.current?.robot;
+            if (robotCfg) {
+              const rx = robotState?.position ? robotState.position[0] : robotCfg.initial_position[0];
+              const ry = robotState?.position ? robotState.position[1] : robotCfg.initial_position[1];
+              const rz = robotState?.position ? robotState.position[2] : robotCfg.initial_position[2];
+              const mountZ = rz + (robotCfg.chassis_size?.[2] || 0.1) + halfHeight;
+              const distXY = Math.hypot(finalX - rx, finalY - ry);
+              if (distXY < 0.35 && Math.abs(finalZ - mountZ) < 0.35) {
+                finalX = rx;
+                finalY = ry;
+                finalZ = parseFloat(mountZ.toFixed(3));
+                snapMsg = `Attached to Robot Mount (x=${finalX.toFixed(2)}, y=${finalY.toFixed(2)})`;
+              }
+            }
+
+            // B. Check Articulated Robot End-Effector Flange
+            if (!snapMsg && liveEePoseRef.current) {
+              const ee = liveEePoseRef.current;
+              const distEE = Math.hypot(finalX - ee.x, finalY - ee.y, finalZ - ee.z);
+              if (distEE < 0.35) {
+                finalX = parseFloat(ee.x.toFixed(3));
+                finalY = parseFloat(ee.y.toFixed(3));
+                finalZ = parseFloat(ee.z.toFixed(3));
+                finalDegX = parseFloat(ee.roll.toFixed(1));
+                finalDegY = parseFloat(ee.pitch.toFixed(1));
+                finalDegZ = parseFloat(ee.yaw.toFixed(1));
+                snapMsg = `Attached to Robot Flange (${ee.linkName})`;
+              }
+            }
+          }
+
+          // 2. Surface Snapping (Ground plane & Stacking on obstacles)
+          if (surfaceSnapRef.current && !snapMsg) {
+            const bottomZ = finalZ - halfHeight;
+            // Ground plane snap (z = 0)
+            if (Math.abs(bottomZ) < 0.15) {
+              finalZ = parseFloat(halfHeight.toFixed(3));
+              snapMsg = `Snapped to Ground (z=${finalZ.toFixed(3)}m)`;
+            } else {
+              // Stacking surface snap on other visible objects
+              const otherObjects = projectRef.current?.objects.filter((o) => o.id !== curSelected && o.visible !== false) || [];
+              for (const other of otherObjects) {
+                let otherHalfH = 0.1;
+                let otherHalfX = 0.1;
+                let otherHalfY = 0.1;
+                if (other.type === 'box') {
+                  otherHalfX = other.size[0];
+                  otherHalfY = other.size[1];
+                  otherHalfH = other.size[2];
+                } else if (other.type === 'cylinder') {
+                  otherHalfX = other.size[0];
+                  otherHalfY = other.size[0];
+                  otherHalfH = other.size[1];
+                } else if (other.type === 'sphere') {
+                  otherHalfX = other.size[0];
+                  otherHalfY = other.size[0];
+                  otherHalfH = other.size[0];
+                }
+
+                const topZ = other.position[2] + otherHalfH;
+                const distZ = Math.abs(bottomZ - topZ);
+                const overlapX = Math.abs(finalX - other.position[0]) <= (halfX + otherHalfX + 0.08);
+                const overlapY = Math.abs(finalY - other.position[1]) <= (halfY + otherHalfY + 0.08);
+
+                if (distZ < 0.20 && overlapX && overlapY) {
+                  finalZ = parseFloat((topZ + halfHeight).toFixed(3));
+                  if (Math.hypot(finalX - other.position[0], finalY - other.position[1]) < 0.14) {
+                    finalX = other.position[0];
+                    finalY = other.position[1];
+                  }
+                  snapMsg = `Stacked on ${other.name} (z=${finalZ.toFixed(3)}m)`;
+                  break;
+                }
+              }
+            }
+          }
+
+          if (snapMsg) {
+            setSnapNotification(snapMsg);
+            mesh.position.set(finalX, finalY, finalZ);
+            mesh.rotation.set((finalDegX * Math.PI) / 180, (finalDegY * Math.PI) / 180, (finalDegZ * Math.PI) / 180);
+            setTimeout(() => setSnapNotification(null), 3000);
+          }
+
           onUpdateObjectRef.current({
             ...obj,
             position: [
-              parseFloat(mesh.position.x.toFixed(3)),
-              parseFloat(mesh.position.y.toFixed(3)),
-              parseFloat(mesh.position.z.toFixed(3)),
+              parseFloat(finalX.toFixed(3)),
+              parseFloat(finalY.toFixed(3)),
+              parseFloat(finalZ.toFixed(3)),
             ],
-            rotation: [degX, degY, degZ],
+            rotation: [finalDegX, finalDegY, finalDegZ],
             size: newSize,
           });
         }
@@ -862,6 +1200,15 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
         if (rightWheelRef.current) {
           rightWheelRef.current.rotation.y += rightWheelVelocityRef.current * 0.02;
         }
+      }
+
+      // Rotate active aerial drone rotors
+      if (droneRotorsRef.current.length > 0) {
+        droneRotorsRef.current.forEach((rotor, idx) => {
+          // Counter-rotate alternate rotors for realistic quadcopter dynamics
+          const dir = idx % 2 === 0 ? 1 : -1;
+          rotor.rotation.z += dir * 0.35;
+        });
       }
 
       if (followRobotRef.current && robotGroupRef.current) {
@@ -1192,9 +1539,13 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     }
 
     objectMeshesRef.current.forEach((mesh, id) => {
-      const mat = mesh.material as THREE.MeshStandardMaterial;
-      mat.emissive.set(id === selectedObjectId ? 0xffa500 : 0x000000);
-      mat.emissiveIntensity = id === selectedObjectId ? 0.5 : 0.0;
+      mesh.traverse((child: any) => {
+        if (child.isMesh && child.material && 'emissive' in child.material) {
+          const mat = child.material as THREE.MeshStandardMaterial;
+          mat.emissive.set(id === selectedObjectId ? 0xffa500 : 0x000000);
+          mat.emissiveIntensity = id === selectedObjectId ? 0.5 : 0.0;
+        }
+      });
     });
   }, [selectedObjectId]);
 
@@ -1354,10 +1705,36 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
               e.stopPropagation();
               setSnapTranslate((prev) => (prev === 0 ? 0.1 : prev === 0.1 ? 0.5 : prev === 0.5 ? 1.0 : 0));
             }}
-            title="Grid Translation Snap"
+            title="Grid Translation Snap (0.1m, 0.5m, 1.0m)"
           >
             <Magnet size={12} />
-            <span>{snapTranslate === 0 ? 'Snap Off' : `${snapTranslate}m`}</span>
+            <span>{snapTranslate === 0 ? 'Grid Off' : `${snapTranslate}m`}</span>
+          </button>
+
+          <button
+            className={`rf-btn ${surfaceSnap ? 'rf-btn-primary' : ''}`}
+            style={{ padding: '4px 8px', fontSize: 11 }}
+            onClick={(e) => {
+              e.stopPropagation();
+              setSurfaceSnap(!surfaceSnap);
+            }}
+            title="Surface Stacking Snap: Snaps object flush to ground and obstacle top surfaces"
+          >
+            <Layers size={12} />
+            <span>Surface: {surfaceSnap ? 'ON' : 'OFF'}</span>
+          </button>
+
+          <button
+            className={`rf-btn ${attachmentSnap ? 'rf-btn-primary' : ''}`}
+            style={{ padding: '4px 8px', fontSize: 11 }}
+            onClick={(e) => {
+              e.stopPropagation();
+              setAttachmentSnap(!attachmentSnap);
+            }}
+            title="Robot Assembly & Flange Attachment Snap: Snaps object to robot chassis mount or EE flange"
+          >
+            <GitFork size={12} />
+            <span>Attach: {attachmentSnap ? 'ON' : 'OFF'}</span>
           </button>
 
           <button
@@ -1368,6 +1745,35 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
           >
             <X size={14} />
           </button>
+        </div>
+      )}
+
+      {/* Snap Notification Toast Indicator */}
+      {snapNotification && (
+        <div
+          style={{
+            position: 'absolute',
+            bottom: 24,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            backgroundColor: 'rgba(15, 23, 42, 0.90)',
+            backdropFilter: 'blur(8px)',
+            border: '1px solid var(--accent-blue)',
+            borderRadius: 8,
+            padding: '6px 14px',
+            color: '#38bdf8',
+            fontSize: 12,
+            fontWeight: 600,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.5)',
+            zIndex: 10,
+            animation: 'fadeIn 0.2s ease-in-out'
+          }}
+        >
+          <Magnet size={14} color="#38bdf8" />
+          <span>{snapNotification}</span>
         </div>
       )}
 

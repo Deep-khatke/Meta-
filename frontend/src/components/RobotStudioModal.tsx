@@ -12,7 +12,7 @@ import {
   Cpu, GitFork, CheckCircle2, AlertTriangle, AlertCircle, Plus, Trash2,
   ShieldCheck, X, Layers, Play, Save, Download, Copy, RefreshCw,
   Sliders, Target, Compass, Sparkles, Box, Wrench, Check, Upload, FileText,
-  RotateCcw, Info, Maximize2, Minimize2
+  RotateCcw, Info, Maximize2, Minimize2, Magnet
 } from 'lucide-react';
 
 interface RobotStudioModalProps {
@@ -1438,6 +1438,168 @@ export const RobotStudioModal: React.FC<RobotStudioModalProps> = ({
                               <option key={l.name} value={l.name}>{l.name}</option>
                             ))}
                           </select>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Joint Origin Frame & Link Assembly Snapping */}
+                    <div className="rf-prop-group">
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                        <div className="rf-prop-title" style={{ margin: 0 }}>Joint Origin Frame & Snapping</div>
+                        <span style={{ fontSize: 10, color: 'var(--accent-blue)', fontWeight: 600 }}>Parent Link Relative</span>
+                      </div>
+                      
+                      {/* Assembly Snapping Presets */}
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+                        <button
+                          className="rf-btn"
+                          style={{ fontSize: 10, padding: '3px 8px' }}
+                          title="Snap joint origin to parent link length extremity (+X end of parent visual geometry)"
+                          onClick={() => {
+                            const parentL = robot.links.find(l => l.name === curJoint.parent_link);
+                            if (!parentL || !parentL.visual) return;
+                            let snapX = 0.3;
+                            if (parentL.visual.type === 'box') snapX = parentL.visual.size[0] * 2.0;
+                            else if (parentL.visual.type === 'cylinder') snapX = parentL.visual.size[1] * 2.0;
+                            else if (parentL.visual.type === 'sphere') snapX = parentL.visual.size[0] * 2.0;
+                            const snappedPos: [number, number, number] = [parseFloat(snapX.toFixed(3)), 0, 0];
+                            const updatedJoints = robot.joints.map(j => j.name === curJoint.name ? { ...j, origin_pos: snappedPos } : j);
+                            setRobot({ ...robot, joints: updatedJoints });
+                          }}
+                        >
+                          <Magnet size={11} style={{ marginRight: 4 }} /> Snap Parent Tip (+X)
+                        </button>
+
+                        <button
+                          className="rf-btn"
+                          style={{ fontSize: 10, padding: '3px 8px' }}
+                          title="Snap joint origin to parent link top surface (+Z height of parent visual geometry)"
+                          onClick={() => {
+                            const parentL = robot.links.find(l => l.name === curJoint.parent_link);
+                            if (!parentL || !parentL.visual) return;
+                            let snapZ = 0.15;
+                            if (parentL.visual.type === 'box') snapZ = parentL.visual.size[2] * 2.0;
+                            else if (parentL.visual.type === 'cylinder') snapZ = parentL.visual.size[1] * 2.0;
+                            else if (parentL.visual.type === 'sphere') snapZ = parentL.visual.size[0] * 2.0;
+                            const snappedPos: [number, number, number] = [0, 0, parseFloat(snapZ.toFixed(3))];
+                            const updatedJoints = robot.joints.map(j => j.name === curJoint.name ? { ...j, origin_pos: snappedPos } : j);
+                            setRobot({ ...robot, joints: updatedJoints });
+                          }}
+                        >
+                          <Magnet size={11} style={{ marginRight: 4 }} /> Snap Parent Top (+Z)
+                        </button>
+
+                        <button
+                          className="rf-btn"
+                          style={{ fontSize: 10, padding: '3px 8px' }}
+                          title="Snap joint origin to parent link coordinate center (0, 0, 0)"
+                          onClick={() => {
+                            const updatedJoints = robot.joints.map(j => j.name === curJoint.name ? { ...j, origin_pos: [0, 0, 0] as [number, number, number] } : j);
+                            setRobot({ ...robot, joints: updatedJoints });
+                          }}
+                        >
+                          Snap Origin (0,0,0)
+                        </button>
+                      </div>
+
+                      {/* Origin Position (X, Y, Z in meters) */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 8 }}>
+                        <div>
+                          <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Origin X (m)</span>
+                          <input
+                            type="number"
+                            step="0.05"
+                            className="rf-input"
+                            value={curJoint.origin_pos[0]}
+                            onChange={(e) => {
+                              const val = parseFloat(e.target.value) || 0;
+                              const newPos: [number, number, number] = [val, curJoint.origin_pos[1], curJoint.origin_pos[2]];
+                              const updatedJoints = robot.joints.map(j => j.name === curJoint.name ? { ...j, origin_pos: newPos } : j);
+                              setRobot({ ...robot, joints: updatedJoints });
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Origin Y (m)</span>
+                          <input
+                            type="number"
+                            step="0.05"
+                            className="rf-input"
+                            value={curJoint.origin_pos[1]}
+                            onChange={(e) => {
+                              const val = parseFloat(e.target.value) || 0;
+                              const newPos: [number, number, number] = [curJoint.origin_pos[0], val, curJoint.origin_pos[2]];
+                              const updatedJoints = robot.joints.map(j => j.name === curJoint.name ? { ...j, origin_pos: newPos } : j);
+                              setRobot({ ...robot, joints: updatedJoints });
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Origin Z (m)</span>
+                          <input
+                            type="number"
+                            step="0.05"
+                            className="rf-input"
+                            value={curJoint.origin_pos[2]}
+                            onChange={(e) => {
+                              const val = parseFloat(e.target.value) || 0;
+                              const newPos: [number, number, number] = [curJoint.origin_pos[0], curJoint.origin_pos[1], val];
+                              const updatedJoints = robot.joints.map(j => j.name === curJoint.name ? { ...j, origin_pos: newPos } : j);
+                              setRobot({ ...robot, joints: updatedJoints });
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Origin RPY (Roll, Pitch, Yaw in degrees) */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+                        <div>
+                          <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Origin Roll (deg)</span>
+                          <input
+                            type="number"
+                            step="15"
+                            className="rf-input"
+                            value={Math.round((curJoint.origin_rpy[0] * 180) / Math.PI)}
+                            onChange={(e) => {
+                              const deg = parseFloat(e.target.value) || 0;
+                              const rad = (deg * Math.PI) / 180.0;
+                              const newRpy: [number, number, number] = [rad, curJoint.origin_rpy[1], curJoint.origin_rpy[2]];
+                              const updatedJoints = robot.joints.map(j => j.name === curJoint.name ? { ...j, origin_rpy: newRpy } : j);
+                              setRobot({ ...robot, joints: updatedJoints });
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Origin Pitch (deg)</span>
+                          <input
+                            type="number"
+                            step="15"
+                            className="rf-input"
+                            value={Math.round((curJoint.origin_rpy[1] * 180) / Math.PI)}
+                            onChange={(e) => {
+                              const deg = parseFloat(e.target.value) || 0;
+                              const rad = (deg * Math.PI) / 180.0;
+                              const newRpy: [number, number, number] = [curJoint.origin_rpy[0], rad, curJoint.origin_rpy[2]];
+                              const updatedJoints = robot.joints.map(j => j.name === curJoint.name ? { ...j, origin_rpy: newRpy } : j);
+                              setRobot({ ...robot, joints: updatedJoints });
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Origin Yaw (deg)</span>
+                          <input
+                            type="number"
+                            step="15"
+                            className="rf-input"
+                            value={Math.round((curJoint.origin_rpy[2] * 180) / Math.PI)}
+                            onChange={(e) => {
+                              const deg = parseFloat(e.target.value) || 0;
+                              const rad = (deg * Math.PI) / 180.0;
+                              const newRpy: [number, number, number] = [curJoint.origin_rpy[0], curJoint.origin_rpy[1], rad];
+                              const updatedJoints = robot.joints.map(j => j.name === curJoint.name ? { ...j, origin_rpy: newRpy } : j);
+                              setRobot({ ...robot, joints: updatedJoints });
+                            }}
+                          />
                         </div>
                       </div>
                     </div>

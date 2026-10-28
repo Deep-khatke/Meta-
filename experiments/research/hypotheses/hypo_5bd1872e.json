@@ -1,0 +1,21 @@
+{
+  "hypothesis_id": "hypo_5bd1872e",
+  "mission_id": "mission_34e7c4c0",
+  "title": "Increasing Tangential Gain",
+  "statement": "Increasing the tangential gain in the robot's policy will reduce the likelihood of collisions by making the robot more responsive to obstacles in its path.",
+  "mechanism": "task.policy.tangential_gain",
+  "controlled_variable": "task.policy.tangential_gain",
+  "baseline_value": 0.5,
+  "proposed_value": 0.8,
+  "status": "inconclusive",
+  "confidence": 0.45,
+  "supporting_evidence": [],
+  "contradicting_evidence": [
+    "Experiment plan_1f7cc73b: Observed delta=+0.000. Verdict: inconclusive (No statistically significant difference in collision count or success rate.). (Did not produce statistically distinguishable change)"
+  ],
+  "experiment_ids": [
+    "plan_1f7cc73b"
+  ],
+  "created_at": 1793134170.259543,
+  "updated_at": 1793134172.0491288
+}

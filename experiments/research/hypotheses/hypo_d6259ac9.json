@@ -1,0 +1,21 @@
+{
+  "hypothesis_id": "hypo_d6259ac9",
+  "mission_id": "mission_2b5dc29f",
+  "title": "Decrease Safety Margin",
+  "statement": "Reducing the safety margin will allow the robot to come closer to obstacles, potentially increasing its speed and efficiency, but at the risk of more frequent collisions.",
+  "mechanism": "The safety margin is a buffer zone that the robot maintains around obstacles to ensure safe navigation. Decreasing this margin can make the robot more aggressive in its path planning.",
+  "controlled_variable": "task.policy.safety_margin",
+  "baseline_value": 0.2,
+  "proposed_value": 0.1,
+  "status": "refuted",
+  "confidence": 0.15,
+  "supporting_evidence": [],
+  "contradicting_evidence": [
+    "Experiment plan_4d431e78: Observed delta=+1.000. Verdict: degraded (Collisions increased from 0.0 to 1.0 (+1.0).)."
+  ],
+  "experiment_ids": [
+    "plan_4d431e78"
+  ],
+  "created_at": 1793131921.7799165,
+  "updated_at": 1793131925.2430894
+}

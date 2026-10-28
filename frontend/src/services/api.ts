@@ -4,7 +4,8 @@ import {
   PolicyTrainingResult, RLTrainingConfig, RLTrainingStatus, RLModelMetadata,
   EvaluationSuiteResult, AIAssistantConfigResponse, HypothesisRefinementResult,
   AssetModel, ValidationResult, CreateAssetRequest, AssetCategory,
-  GenericRobotModel, RobotValidationResult, FKResult, IKRequest, IKResult
+  GenericRobotModel, RobotValidationResult, FKResult, IKRequest, IKResult,
+  AIChatRequest, AIChatResponse, AIApprovalRequest
 } from '../types';
 
 const API_BASE = '/api';
@@ -482,6 +483,18 @@ export async function executeRLPolicyLive(
   return res.json();
 }
 
+export async function fetchAIStatus(): Promise<{
+  active_provider: string;
+  has_credentials: boolean;
+  model: string;
+  tools_available: string[];
+  offline_mode: boolean;
+}> {
+  const res = await fetch(`${API_BASE}/ai/status`);
+  if (!res.ok) throw new Error('Failed to fetch AI status');
+  return res.json();
+}
+
 export async function interpretAIPrompt(prompt: string, baseScenarioId?: string): Promise<AIAssistantConfigResponse> {
   const res = await fetch(`${API_BASE}/ai/interpret-prompt`, {
     method: 'POST',
@@ -491,6 +504,63 @@ export async function interpretAIPrompt(prompt: string, baseScenarioId?: string)
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: 'AI assistant interpretation failed' }));
     throw new Error(err.detail || 'AI assistant interpretation failed');
+  }
+  return res.json();
+}
+
+export async function sendAIChatMessage(req: AIChatRequest): Promise<AIChatResponse> {
+  const res = await fetch(`${API_BASE}/ai/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'AI Chat reasoning request failed' }));
+    throw new Error(err.detail || 'AI Chat reasoning request failed');
+  }
+  return res.json();
+}
+
+export async function fetchAIChatHistory(sessionId: string = 'default_session', limit: number = 50): Promise<{ history: any[] }> {
+  const res = await fetch(`${API_BASE}/ai/chat/history?session_id=${encodeURIComponent(sessionId)}&limit=${limit}`);
+  if (!res.ok) {
+    return { history: [] };
+  }
+  return res.json();
+}
+
+export async function clearAIChatHistory(sessionId: string = 'default_session'): Promise<any> {
+  const res = await fetch(`${API_BASE}/ai/chat/history?session_id=${encodeURIComponent(sessionId)}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) {
+    return { status: 'error' };
+  }
+  return res.json();
+}
+
+export async function approveAIAction(req: AIApprovalRequest): Promise<AIChatResponse> {
+  const res = await fetch(`${API_BASE}/ai/approve-action`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Failed to execute supervisor approval action' }));
+    throw new Error(err.detail || 'Failed to execute supervisor approval action');
+  }
+  return res.json();
+}
+
+export async function cancelAIMission(missionId: string, reason?: string): Promise<any> {
+  const res = await fetch(`${API_BASE}/ai/cancel-mission`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mission_id: missionId, reason }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Failed to cancel research mission' }));
+    throw new Error(err.detail || 'Failed to cancel research mission');
   }
   return res.json();
 }

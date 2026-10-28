@@ -1,0 +1,65 @@
+{
+  "mission_id": "mission_72a2d04f",
+  "title": "Scientific Investigation: Test cancellation",
+  "goal_description": "Test cancellation",
+  "mode": "supervised",
+  "status": "cancelled",
+  "target_metric": "total_collisions",
+  "target_threshold": 0.0,
+  "optimization_direction": "minimize",
+  "constraints": [
+    "max_linear_velocity <= 1.5",
+    "timeout <= 25.0"
+  ],
+  "budget": {
+    "max_iterations": 5,
+    "max_experiments": 8,
+    "max_time_seconds": 120.0,
+    "used_iterations": 0,
+    "used_experiments": 0,
+    "elapsed_time": 0.0
+  },
+  "base_scenario_id": "scen_mvqgu87z",
+  "baseline_run_id": null,
+  "baseline_metrics": null,
+  "active_hypothesis_id": null,
+  "active_plan_id": null,
+  "best_candidate_plan_id": null,
+  "hypotheses": [],
+  "plans": [],
+  "outcomes": [],
+  "validation_report": null,
+  "action_log": [
+    {
+      "timestamp": 1793120849.4489498,
+      "step": "mission_compilation",
+      "action": "compile_objectives",
+      "status": "success",
+      "details": {
+        "target_metric": "total_collisions",
+        "target_threshold": 0.0,
+        "constraints": [
+          "max_linear_velocity <= 1.5",
+          "timeout <= 25.0"
+        ],
+        "base_scenario_id": "scen_mvqgu87z",
+        "reasoning_engine": "DeterministicRoboticsHeuristicEngine-v1"
+      },
+      "message": "Mission successfully compiled with target: total_collisions (minimize towards 0.0)."
+    },
+    {
+      "timestamp": 1793120849.456269,
+      "step": "mission_control",
+      "action": "cancel_mission",
+      "status": "cancelled",
+      "details": {
+        "reason": "User cancelled test"
+      },
+      "message": "Mission cancelled: User cancelled test."
+    }
+  ],
+  "final_report_markdown": null,
+  "error_message": "User cancelled test",
+  "created_at": 1793120849.4489498,
+  "updated_at": 1793120849.4489498
+}

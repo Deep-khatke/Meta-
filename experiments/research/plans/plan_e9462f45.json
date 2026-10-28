@@ -1,0 +1,28 @@
+{
+  "plan_id": "plan_e9462f45",
+  "mission_id": "mission_2746e388",
+  "hypothesis_id": "hypo_328b7600",
+  "title": "Experiment for: Increasing Maximum Linear Velocity",
+  "rationale": "Candidate robot.max_linear_velocity=1.25: Expected Improvement=0.50, Info Gain=1.00, Prior Influence=No direct prior bias. Mechanism: The robot's speed is directly proportional to its ability to cover distance in a shorter time, but higher speed can lead to less time for collision avoidance.",
+  "base_scenario_id": "scen_slalom_beta",
+  "parameter_modifications": {
+    "robot.max_linear_velocity": 1.25
+  },
+  "seeds": [
+    100,
+    101,
+    102
+  ],
+  "expected_outcome": "By increasing the maximum linear velocity, the robot can potentially reach the goal faster, but may increase the risk of collisions.",
+  "candidate_rank": 1,
+  "expected_improvement": 0.5,
+  "information_gain": 1.0,
+  "acquisition_score": 0.65,
+  "selection_rationale": "Candidate robot.max_linear_velocity=1.25: Expected Improvement=0.50, Info Gain=1.00, Prior Influence=No direct prior bias. Mechanism: The robot's speed is directly proportional to its ability to cover distance in a shorter time, but higher speed can lead to less time for collision avoidance.",
+  "prior_evidence_influence": "Evaluated against 35 compatible prior runs (0 incompatible runs excluded). No direct prior bias",
+  "is_validated": true,
+  "validation_messages": [],
+  "user_approved": false,
+  "status": "pending_approval",
+  "created_at": 1793131687.410667
+}

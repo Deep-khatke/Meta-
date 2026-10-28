@@ -488,6 +488,68 @@ export interface AIAssistantConfigResponse {
   validation_messages: string[];
   safety_summary: string;
   suggested_actions: string[];
+  assistant_reply?: string;
+  provider?: string;
+  is_model_inference?: boolean;
+  is_fallback?: boolean;
+  active_simulation_context?: any;
+  tools_invoked?: string[];
+  structured_mission?: any;
+  error_message?: string;
+}
+
+export interface AgentThoughtStep {
+  step: string;
+  title: string;
+  detail: string;
+  status: 'success' | 'running' | 'warning' | 'info';
+}
+
+export interface AIChatRequest {
+  prompt: string;
+  mode?: 'supervised' | 'autonomous';
+  mission_id?: string;
+  selected_scenario_id?: string;
+  max_iterations?: number;
+  max_experiments?: number;
+  session_id?: string;
+  chat_history?: Array<{
+    role: string;
+    content: string;
+    [key: string]: any;
+  }>;
+}
+
+export interface AIChatResponse {
+  reply: string;
+  provider: string;
+  is_model_inference: boolean;
+  is_fallback: boolean;
+  mode: 'supervised' | 'autonomous';
+  thought_steps: AgentThoughtStep[];
+  observed_facts: Record<string, any>;
+  tools_invoked: string[];
+  mission?: any | null;
+  awaiting_approval: boolean;
+  approval_plan?: any | null;
+  suggested_configuration?: any | null;
+  actions_executed?: Array<{
+    action: string;
+    status: string;
+    details?: string;
+    name?: string;
+    position?: number[];
+    obstacle_count?: number;
+    mission_id?: string;
+    [key: string]: any;
+  }>;
+  error_message?: string | null;
+}
+
+export interface AIApprovalRequest {
+  mission_id: string;
+  approved: boolean;
+  reason?: string;
 }
 
 export interface HypothesisRefinementResult {

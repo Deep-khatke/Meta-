@@ -1,0 +1,17 @@
+{
+  "hypothesis_id": "hypo_6f272377",
+  "mission_id": "mission_416fed4f",
+  "title": "Reducing Safety Margin",
+  "statement": "Reducing the safety margin will allow the robot to come closer to obstacles, potentially reducing the number of collisions.",
+  "mechanism": "By decreasing the safety margin, the robot can navigate more closely to obstacles, optimizing its path.",
+  "controlled_variable": "task.policy.safety_margin",
+  "baseline_value": 0.2,
+  "proposed_value": 0.15,
+  "status": "untested",
+  "confidence": 0.5,
+  "supporting_evidence": [],
+  "contradicting_evidence": [],
+  "experiment_ids": [],
+  "created_at": 1793145165.3448153,
+  "updated_at": 1793145165.3448153
+}

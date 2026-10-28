@@ -1,0 +1,21 @@
+{
+  "hypothesis_id": "hypo_3f859f42",
+  "mission_id": "mission_1db33248",
+  "title": "Velocity Scaling Optimization Hypothesis",
+  "statement": "Increasing linear velocity from 1.0 to 1.4 m/s will decrease time to goal without causing collision.",
+  "mechanism": "Straight-line transit speed increases while existing repulsive margin maintains clearance.",
+  "controlled_variable": "robot.max_linear_velocity",
+  "baseline_value": 1.0,
+  "proposed_value": 1.4,
+  "status": "inconclusive",
+  "confidence": 0.45,
+  "supporting_evidence": [],
+  "contradicting_evidence": [
+    "Experiment plan_0aae28bd: Observed delta=+0.000. Verdict: inconclusive (Time difference (+0.00s) is within experimental noise margin.). (Did not produce statistically distinguishable change)"
+  ],
+  "experiment_ids": [
+    "plan_0aae28bd"
+  ],
+  "created_at": 1793126187.4181619,
+  "updated_at": 1793126188.079631
+}

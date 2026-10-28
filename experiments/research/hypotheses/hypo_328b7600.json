@@ -1,0 +1,17 @@
+{
+  "hypothesis_id": "hypo_328b7600",
+  "mission_id": "mission_2746e388",
+  "title": "Increasing Maximum Linear Velocity",
+  "statement": "By increasing the maximum linear velocity, the robot can potentially reach the goal faster, but may increase the risk of collisions.",
+  "mechanism": "The robot's speed is directly proportional to its ability to cover distance in a shorter time, but higher speed can lead to less time for collision avoidance.",
+  "controlled_variable": "robot.max_linear_velocity",
+  "baseline_value": 0.837,
+  "proposed_value": 1.25,
+  "status": "untested",
+  "confidence": 0.5,
+  "supporting_evidence": [],
+  "contradicting_evidence": [],
+  "experiment_ids": [],
+  "created_at": 1793131686.6212468,
+  "updated_at": 1793131686.6212468
+}

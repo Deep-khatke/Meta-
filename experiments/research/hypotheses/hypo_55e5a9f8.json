@@ -1,0 +1,17 @@
+{
+  "hypothesis_id": "hypo_55e5a9f8",
+  "mission_id": "mission_blind_discovery_1793133997",
+  "title": "Increasing Repulsion Gain",
+  "statement": "Increasing the repulsion gain will make the robot more aggressive in avoiding obstacles, which could help it navigate the chicane more effectively.",
+  "mechanism": "By increasing the repulsion gain, the robot will be more sensitive to the presence of obstacles, allowing it to make quicker adjustments to its path.",
+  "controlled_variable": "task.policy.repulsion_gain",
+  "baseline_value": 1.6,
+  "proposed_value": 2.0,
+  "status": "untested",
+  "confidence": 0.5,
+  "supporting_evidence": [],
+  "contradicting_evidence": [],
+  "experiment_ids": [],
+  "created_at": 1793134004.8350706,
+  "updated_at": 1793134004.8350706
+}

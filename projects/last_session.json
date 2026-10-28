@@ -37,7 +37,10 @@
       "num_beams": 24,
       "fov_deg": 360.0,
       "max_range": 10.0,
-      "min_range": 0.05
+      "min_range": 0.05,
+      "noise_std": 0.0,
+      "dropout_prob": 0.0,
+      "channels": 1
     },
     "imu": {
       "enabled": true,
@@ -45,6 +48,18 @@
         0.0,
         0.0,
         0.05
+      ],
+      "accel_noise_std": 0.0,
+      "gyro_noise_std": 0.0,
+      "accel_bias": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "gyro_bias": [
+        0.0,
+        0.0,
+        0.0
       ]
     },
     "camera": {
@@ -97,7 +112,8 @@
         0.005,
         0.0001
       ],
-      "visible": true
+      "visible": true,
+      "is_locked": false
     },
     {
       "id": "pylon_nav_1",
@@ -125,7 +141,8 @@
         0.005,
         0.0001
       ],
-      "visible": true
+      "visible": true,
+      "is_locked": false
     },
     {
       "id": "box_nav_2",
@@ -154,7 +171,38 @@
         0.005,
         0.0001
       ],
-      "visible": true
+      "visible": true,
+      "is_locked": false
+    },
+    {
+      "id": "robot_04b624",
+      "name": "ForgeBot-DD2",
+      "type": "box",
+      "position": [
+        2.0,
+        0.55,
+        0.07
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "size": [
+        0.18,
+        0.12,
+        0.08
+      ],
+      "color": "#06b6d4",
+      "is_static": false,
+      "mass": 4.5,
+      "friction": [
+        1.0,
+        0.005,
+        0.0001
+      ],
+      "visible": true,
+      "is_locked": false
     }
   ],
   "settings": {

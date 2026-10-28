@@ -1,6 +1,6 @@
 """Pydantic schemas and metadata contracts for Reinforcement Learning in RoboForge."""
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Literal
 from pydantic import BaseModel, Field
 import time
 
@@ -109,6 +109,55 @@ class AIAssistantConfigResponse(BaseModel):
     validation_messages: List[str]
     safety_summary: str
     suggested_actions: List[str]
+    assistant_reply: str = ""
+    provider: str = "deterministic_rule_engine"
+    is_model_inference: bool = False
+    is_fallback: bool = True
+    active_simulation_context: Optional[Dict[str, Any]] = None
+    tools_invoked: List[str] = Field(default_factory=list)
+    structured_mission: Optional[Dict[str, Any]] = None
+    error_message: Optional[str] = None
+
+
+class AgentThoughtStep(BaseModel):
+    step: str
+    title: str
+    detail: str
+    status: Literal["success", "running", "warning", "info"] = "success"
+
+
+class AIChatRequest(BaseModel):
+    prompt: str
+    mode: Literal["supervised", "autonomous"] = "supervised"
+    session_id: Optional[str] = "default_session"
+    chat_history: List[Dict[str, Any]] = Field(default_factory=list)
+    mission_id: Optional[str] = None
+    selected_scenario_id: Optional[str] = None
+    max_iterations: int = 5
+    max_experiments: int = 8
+
+
+class AIChatResponse(BaseModel):
+    reply: str
+    provider: str
+    is_model_inference: bool
+    is_fallback: bool
+    mode: str
+    thought_steps: List[AgentThoughtStep] = Field(default_factory=list)
+    observed_facts: Dict[str, Any] = Field(default_factory=dict)
+    tools_invoked: List[str] = Field(default_factory=list)
+    mission: Optional[Dict[str, Any]] = None
+    awaiting_approval: bool = False
+    approval_plan: Optional[Dict[str, Any]] = None
+    suggested_configuration: Optional[Dict[str, Any]] = None
+    actions_executed: List[Dict[str, Any]] = Field(default_factory=list)
+    error_message: Optional[str] = None
+
+
+class AIApprovalRequest(BaseModel):
+    mission_id: str
+    approved: bool
+    reason: Optional[str] = None
 
 
 class HypothesisRefinementRequest(BaseModel):

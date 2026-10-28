@@ -1,0 +1,22 @@
+{
+  "plan_id": "plan_45ecdc49",
+  "mission_id": "mission_1a5cb1bc",
+  "hypothesis_id": "hypo_066faaf6",
+  "title": "Controlled Experiment for: Turn Rate Scaling",
+  "rationale": "Test causal effect of modifying task.policy.max_turn_rate to 4.5 while keeping all other physics and layout variables constant.",
+  "base_scenario_id": "scen_mvqgu87z",
+  "parameter_modifications": {
+    "task.policy.max_turn_rate": 4.5
+  },
+  "seeds": [
+    100,
+    101,
+    102
+  ],
+  "expected_outcome": "Observed metric improves relative to baseline.",
+  "is_validated": true,
+  "validation_messages": [],
+  "user_approved": true,
+  "status": "ready",
+  "created_at": 1793121089.7875626
+}

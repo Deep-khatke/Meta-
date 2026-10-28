@@ -1,0 +1,17 @@
+{
+  "hypothesis_id": "hypo_94a801bb",
+  "mission_id": "mission_2a1a1118",
+  "title": "Increasing Repulsion Gain for Improved Obstacle Avoidance",
+  "statement": "Increasing the repulsion gain will make the robot more responsive to obstacles, leading to better obstacle clearance.",
+  "mechanism": "The repulsion gain controls how strongly the robot reacts to obstacles in its path, influencing its ability to navigate around them.",
+  "controlled_variable": "task.policy.repulsion_gain",
+  "baseline_value": 1.0,
+  "proposed_value": 1.5,
+  "status": "untested",
+  "confidence": 0.5,
+  "supporting_evidence": [],
+  "contradicting_evidence": [],
+  "experiment_ids": [],
+  "created_at": 1793131696.588542,
+  "updated_at": 1793131696.588542
+}

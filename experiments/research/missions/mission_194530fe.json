@@ -1,0 +1,199 @@
+{
+  "mission_id": "mission_194530fe",
+  "title": "Scientific Investigation: Propose a supervised research mission for obstacle",
+  "goal_description": "Propose a supervised research mission for obstacle clearance",
+  "mode": "supervised",
+  "status": "cancelled",
+  "target_metric": "total_collisions",
+  "target_threshold": 0.0,
+  "optimization_direction": "minimize",
+  "constraints": [
+    "max_linear_velocity <= 1.5",
+    "timeout <= 25.0"
+  ],
+  "budget": {
+    "max_iterations": 5,
+    "max_experiments": 8,
+    "max_time_seconds": 120.0,
+    "used_iterations": 1,
+    "used_experiments": 1,
+    "elapsed_time": 0.0
+  },
+  "base_scenario_id": "scen_slalom_beta",
+  "baseline_run_id": "run_05d77d9b",
+  "baseline_metrics": {
+    "run_id": "run_05d77d9b",
+    "total_collisions": 0,
+    "success": false,
+    "time_to_goal": null,
+    "total_duration": 9.95,
+    "max_speed": 0.837,
+    "distance_traveled": 3.288
+  },
+  "active_hypothesis_id": "hypo_9bbefc8b",
+  "active_plan_id": "plan_ae540e1e",
+  "best_candidate_plan_id": null,
+  "hypotheses": [
+    {
+      "hypothesis_id": "hypo_9bbefc8b",
+      "mission_id": "mission_194530fe",
+      "title": "Velocity Scaling Optimization Hypothesis",
+      "statement": "Increasing linear velocity from 1.0 to 1.4 m/s will decrease time to goal without causing collision.",
+      "mechanism": "Straight-line transit speed increases while existing repulsive margin maintains clearance.",
+      "controlled_variable": "robot.max_linear_velocity",
+      "baseline_value": 1.0,
+      "proposed_value": 1.4,
+      "status": "untested",
+      "confidence": 0.5,
+      "supporting_evidence": [],
+      "contradicting_evidence": [],
+      "experiment_ids": [],
+      "created_at": 1793126191.855403,
+      "updated_at": 1793126191.855403
+    },
+    {
+      "hypothesis_id": "hypo_cf7f1206",
+      "mission_id": "mission_194530fe",
+      "title": "Tangential Circulation Gain Hypothesis",
+      "statement": "Increasing tangential circulation gain will reduce unnecessary deceleration near obstacles.",
+      "mechanism": "Higher vortex circulation guides robot smoothly around curvature without stopping.",
+      "controlled_variable": "task.policy.tangential_gain",
+      "baseline_value": 1.3,
+      "proposed_value": 1.8,
+      "status": "untested",
+      "confidence": 0.5,
+      "supporting_evidence": [],
+      "contradicting_evidence": [],
+      "experiment_ids": [],
+      "created_at": 1793126191.855403,
+      "updated_at": 1793126191.855403
+    }
+  ],
+  "plans": [
+    {
+      "plan_id": "plan_ae540e1e",
+      "mission_id": "mission_194530fe",
+      "hypothesis_id": "hypo_9bbefc8b",
+      "title": "Experiment for: Velocity Scaling Optimization Hypothesis",
+      "rationale": "Candidate robot.max_linear_velocity=1.4: Expected Improvement=0.50, Info Gain=1.00, Prior Influence=No direct prior bias. Mechanism: Straight-line transit speed increases while existing repulsive margin maintains clearance.",
+      "base_scenario_id": "scen_slalom_beta",
+      "parameter_modifications": {
+        "robot.max_linear_velocity": 1.4
+      },
+      "seeds": [
+        100,
+        101,
+        102
+      ],
+      "expected_outcome": "Increasing linear velocity from 1.0 to 1.4 m/s will decrease time to goal without causing collision.",
+      "candidate_rank": 1,
+      "expected_improvement": 0.5,
+      "information_gain": 1.0,
+      "acquisition_score": 0.65,
+      "selection_rationale": "Candidate robot.max_linear_velocity=1.4: Expected Improvement=0.50, Info Gain=1.00, Prior Influence=No direct prior bias. Mechanism: Straight-line transit speed increases while existing repulsive margin maintains clearance.",
+      "prior_evidence_influence": "Evaluated against 23 compatible prior runs (0 incompatible runs excluded). No direct prior bias",
+      "is_validated": true,
+      "validation_messages": [],
+      "user_approved": false,
+      "status": "pending_approval",
+      "created_at": 1793126192.2937303
+    }
+  ],
+  "outcomes": [],
+  "validation_report": null,
+  "action_log": [
+    {
+      "timestamp": 1793126191.7515297,
+      "step": "mission_compilation",
+      "action": "compile_objectives",
+      "status": "success",
+      "details": {
+        "target_metric": "total_collisions",
+        "target_threshold": 0.0,
+        "constraints": [
+          "max_linear_velocity <= 1.5",
+          "timeout <= 25.0"
+        ],
+        "base_scenario_id": "scen_slalom_beta",
+        "reasoning_engine": "DeterministicRoboticsHeuristicEngine-v1"
+      },
+      "message": "Mission successfully compiled with target: total_collisions (minimize towards 0.0)."
+    },
+    {
+      "timestamp": 1793126191.8548996,
+      "step": "baseline_collection",
+      "action": "run_baseline_simulation",
+      "status": "success",
+      "details": {
+        "run_id": "run_05d77d9b",
+        "total_collisions": 0,
+        "success": false,
+        "time_to_goal": null,
+        "total_duration": 9.95,
+        "max_speed": 0.837,
+        "distance_traveled": 3.288
+      },
+      "message": "Baseline established: 0 collisions, success=False, duration=9.95s."
+    },
+    {
+      "timestamp": 1793126191.855918,
+      "step": "hypothesis_formulation",
+      "action": "formulate_competing_hypotheses",
+      "status": "success",
+      "details": {
+        "hypotheses_count": 2,
+        "titles": [
+          "Velocity Scaling Optimization Hypothesis",
+          "Tangential Circulation Gain Hypothesis"
+        ],
+        "reasoning_engine": "DeterministicRoboticsHeuristicEngine-v1"
+      },
+      "message": "Formulated 2 competing testable hypotheses grounded in physical dynamics."
+    },
+    {
+      "timestamp": 1793126192.2942421,
+      "step": "experiment_design",
+      "action": "design_controlled_experiment",
+      "status": "success",
+      "details": {
+        "plan_id": "plan_ae540e1e",
+        "hypothesis_id": "hypo_9bbefc8b",
+        "modifications": {
+          "robot.max_linear_velocity": 1.4
+        },
+        "seeds": [
+          100,
+          101,
+          102
+        ],
+        "status": "pending_approval"
+      },
+      "message": "Designed experiment plan 'Experiment for: Velocity Scaling Optimization Hypothesis' with 3 trial seeds. Validation: PASSED."
+    },
+    {
+      "timestamp": 1793126192.311125,
+      "step": "mission_control",
+      "action": "cancel_mission",
+      "status": "cancelled",
+      "details": {
+        "reason": "Aborted by supervisor test"
+      },
+      "message": "Mission cancelled: Aborted by supervisor test."
+    }
+  ],
+  "final_report_markdown": null,
+  "error_message": "Aborted by supervisor test",
+  "task_signature": {
+    "robot_type": "differential_drive_robot",
+    "robot_mass": 8.5,
+    "control_mode": "goal_seeking",
+    "physics_timestep": 0.005,
+    "sensor_types": [
+      "lidar",
+      "imu",
+      "wheel_encoders"
+    ]
+  },
+  "created_at": 1793126191.7515297,
+  "updated_at": 1793126191.7515297
+}

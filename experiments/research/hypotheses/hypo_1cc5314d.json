@@ -1,0 +1,21 @@
+{
+  "hypothesis_id": "hypo_1cc5314d",
+  "mission_id": "mission_68c9bb1f",
+  "title": "Increasing Max Linear Velocity",
+  "statement": "Increasing the robot's maximum linear velocity will reduce the time to goal.",
+  "mechanism": "By increasing the robot's speed, it can reach the goal faster, reducing the overall time to complete the task.",
+  "controlled_variable": "robot.max_linear_velocity",
+  "baseline_value": 0.917,
+  "proposed_value": 1.2,
+  "status": "inconclusive",
+  "confidence": 0.45,
+  "supporting_evidence": [],
+  "contradicting_evidence": [
+    "Experiment plan_5dc21f4d: Observed delta=+0.000. Verdict: inconclusive (Candidate produced metrics indistinguishable from baseline.). (Did not produce statistically distinguishable change)"
+  ],
+  "experiment_ids": [
+    "plan_5dc21f4d"
+  ],
+  "created_at": 1793145208.0357819,
+  "updated_at": 1793145209.5296319
+}

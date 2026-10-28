@@ -7,10 +7,15 @@ from typing import Dict, List, Optional, Callable, Any
 import numpy as np
 import mujoco
 
+import zlib
+import struct
+import base64
+import uuid
+
 from backend.models import (
     Project, SceneObject, RobotConfig, GenericRobotModel, LinkModel, JointModel,
     SimulationSettings, SimulationState, RobotState, ObjectPhysicsState,
-    ContactInfo, LogMessage, TeleopCommand
+    ContactInfo, LogMessage, TeleopCommand, SimulationSnapshot, OdometryState
 )
 
 logger = logging.getLogger("roboforge.simulation")
@@ -62,6 +67,27 @@ def euler_deg_to_quat_str(euler_deg: List[float]) -> str:
     return f"{w:.6f} {x:.6f} {y_q:.6f} {z:.6f}"
 
 
+def rgb_to_png(rgb_array: np.ndarray) -> bytes:
+    """Encode an RGB uint8 numpy array to a valid PNG byte stream using standard library."""
+    h, w, _ = rgb_array.shape
+    raw_data = bytearray()
+    for row in rgb_array:
+        raw_data.append(0)  # filter type 0 (None)
+        raw_data.extend(row.tobytes())
+    compressed = zlib.compress(bytes(raw_data))
+
+    def make_chunk(chunk_type: bytes, data: bytes) -> bytes:
+        crc = zlib.crc32(chunk_type + data) & 0xFFFFFFFF
+        return struct.pack(">I", len(data)) + chunk_type + data + struct.pack(">I", crc)
+
+    header = b"\x89PNG\r\n\x1a\n"
+    ihdr_data = struct.pack(">IIBBBBB", w, h, 8, 2, 0, 0, 0)
+    ihdr = make_chunk(b"IHDR", ihdr_data)
+    idat = make_chunk(b"IDAT", compressed)
+    iend = make_chunk(b"IEND", b"")
+    return header + ihdr + idat + iend
+
+
 class MuJoCoEngine:
     def __init__(self, project: Project, log_callback: Optional[Callable[[LogMessage], Any]] = None):
         self.project = project
@@ -99,7 +125,25 @@ class MuJoCoEngine:
         
         # Object mapping: scene_object_id -> body_name & geom_name
         self.object_body_ids: Dict[str, int] = {}
-        
+
+        # Snapshots
+        self.snapshots: Dict[str, SimulationSnapshot] = {}
+
+        # Real-time factor metrics
+        self._last_step_wall_time: float = time.perf_counter()
+        self.real_time_factor: float = 1.0
+
+        # Odometry tracking (dead-reckoning)
+        self._odom_x: float = 0.0
+        self._odom_y: float = 0.0
+        self._odom_yaw: float = 0.0
+        self._last_lw_pos: Optional[float] = None
+        self._last_rw_pos: Optional[float] = None
+        self._distance_traveled: float = 0.0
+
+        # Offscreen camera renderer
+        self._renderer: Optional[mujoco.Renderer] = None
+
         # Build initial MuJoCo model
         self.rebuild_model()
 
@@ -588,13 +632,22 @@ class MuJoCoEngine:
                 self.data.ctrl[act_id] = clamped_target
 
     def step(self):
-        """Advances physics by one simulation timestep."""
+        """Advances physics by one simulation timestep and computes rolling real-time factor."""
         if not self.model or not self.data:
             return
         
         try:
             self.apply_control()
             mujoco.mj_step(self.model, self.data)
+            
+            # Compute rolling real-time factor
+            now_wall = time.perf_counter()
+            dt_wall = now_wall - self._last_step_wall_time
+            self._last_step_wall_time = now_wall
+            if dt_wall > 1e-6:
+                instant_rtf = (self.project.settings.timestep * self.project.settings.speed_multiplier) / dt_wall
+                self.real_time_factor = float(0.95 * self.real_time_factor + 0.05 * instant_rtf)
+
             if np.isnan(self.data.qpos[0]) or np.isnan(self.data.qvel[0]):
                 self.reset()
                 self.log("warning", "Physics numerical divergence detected; state restored to initial conditions.")
@@ -607,6 +660,7 @@ class MuJoCoEngine:
 
     def play(self):
         self.status = "running"
+        self._last_step_wall_time = time.perf_counter()
         self.log("info", "Simulation started.")
 
     def pause(self):
@@ -618,9 +672,216 @@ class MuJoCoEngine:
         self.teleop_cmd.linear = 0.0
         self.teleop_cmd.angular = 0.0
         self.joint_targets.clear()
+        self._odom_x = 0.0
+        self._odom_y = 0.0
+        self._odom_yaw = 0.0
+        self._last_lw_pos = None
+        self._last_rw_pos = None
+        self._distance_traveled = 0.0
+        self.real_time_factor = 1.0
         self.rebuild_model()
         self.status = "stopped"
         self.log("info", "Simulation reset to initial conditions.")
+
+    def save_snapshot(self, snapshot_id: Optional[str] = None) -> SimulationSnapshot:
+        """Captures an authoritative simulation state snapshot for reproducible rollbacks."""
+        if not self.model or not self.data:
+            raise RuntimeError("Simulation model not initialized")
+        
+        sid = snapshot_id or str(uuid.uuid4())[:8]
+        act_vals = [float(x) for x in self.data.act] if self.model.na > 0 else []
+        snapshot = SimulationSnapshot(
+            snapshot_id=sid,
+            timestamp=time.time(),
+            sim_time=self.sim_time,
+            step_count=self.step_count,
+            qpos=[float(x) for x in self.data.qpos],
+            qvel=[float(x) for x in self.data.qvel],
+            act=act_vals,
+            joint_targets=dict(self.joint_targets),
+            teleop_linear=self.teleop_cmd.linear,
+            teleop_angular=self.teleop_cmd.angular
+        )
+        self.snapshots[sid] = snapshot
+        self.log("info", f"Saved simulation snapshot '{sid}' at t={self.sim_time:.3f}s")
+        return snapshot
+
+    def restore_snapshot(self, snapshot: Union[str, SimulationSnapshot]) -> bool:
+        """Restores authoritative physics state from a previously saved snapshot."""
+        if not self.model or not self.data:
+            return False
+
+        if isinstance(snapshot, str):
+            if snapshot not in self.snapshots:
+                self.log("error", f"Snapshot '{snapshot}' not found.")
+                return False
+            snap_obj = self.snapshots[snapshot]
+        else:
+            snap_obj = snapshot
+
+        try:
+            if len(snap_obj.qpos) == len(self.data.qpos):
+                self.data.qpos[:] = snap_obj.qpos
+            if len(snap_obj.qvel) == len(self.data.qvel):
+                self.data.qvel[:] = snap_obj.qvel
+            if self.model.na > 0 and len(snap_obj.act) == len(self.data.act):
+                self.data.act[:] = snap_obj.act
+            
+            self.data.time = snap_obj.sim_time
+            self.sim_time = snap_obj.sim_time
+            self.step_count = snap_obj.step_count
+            self.joint_targets = dict(snap_obj.joint_targets)
+            self.teleop_cmd.linear = snap_obj.teleop_linear
+            self.teleop_cmd.angular = snap_obj.teleop_angular
+            
+            mujoco.mj_forward(self.model, self.data)
+            self.log("info", f"Restored simulation snapshot '{snap_obj.snapshot_id}' to t={self.sim_time:.3f}s")
+            return True
+        except Exception as e:
+            self.log("error", f"Failed to restore snapshot: {e}")
+            return False
+
+    def list_snapshots(self) -> List[SimulationSnapshot]:
+        return list(self.snapshots.values())
+
+    def delete_snapshot(self, snapshot_id: str) -> bool:
+        if snapshot_id in self.snapshots:
+            del self.snapshots[snapshot_id]
+            return True
+        return False
+
+    def capture_camera_frame(
+        self,
+        width: int = 320,
+        height: int = 240,
+        camera_name: Optional[str] = None,
+        render_depth: bool = False,
+        render_segmentation: bool = False
+    ) -> Dict[str, Any]:
+        """Renders an offscreen camera frame using MuJoCo Renderer with optional depth and true geom-ID semantic segmentation."""
+        if not self.model or not self.data:
+            raise RuntimeError("Simulation model not initialized")
+
+        renderer = mujoco.Renderer(self.model, height=height, width=width)
+        try:
+            cam_id = -1
+            if camera_name:
+                cam_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_CAMERA, camera_name)
+            
+            # Ensure kinematics are fully evaluated prior to rendering
+            mujoco.mj_forward(self.model, self.data)
+
+            # 1. RGB Image Render
+            if cam_id >= 0:
+                renderer.update_scene(self.data, camera=cam_id)
+            else:
+                renderer.update_scene(self.data)
+
+            rgb_img = renderer.render()
+            png_bytes = rgb_to_png(rgb_img)
+            b64_rgb = base64.b64encode(png_bytes).decode("ascii")
+            data_url = f"data:image/png;base64,{b64_rgb}"
+
+            # 2. Depth Buffer Render
+            depth_data = None
+            if render_depth:
+                renderer.enable_depth_rendering()
+                renderer.update_scene(self.data, camera=cam_id if cam_id >= 0 else -1)
+                depth_img = renderer.render()
+                depth_data = {
+                    "min_m": float(np.min(depth_img)),
+                    "max_m": float(np.max(depth_img)),
+                    "mean_m": float(np.mean(depth_img)),
+                    "center_distance_m": float(depth_img[height // 2, width // 2])
+                }
+
+            # 3. Genuine MuJoCo Pixel-Level Geom-ID Semantic Segmentation
+            seg_data = None
+            if render_segmentation:
+                renderer.enable_segmentation_rendering()
+                renderer.update_scene(self.data, camera=cam_id if cam_id >= 0 else -1)
+                seg_raw = renderer.render()  # Shape: (height, width, 2), dtype int32
+                geom_ids = seg_raw[:, :, 0]  # Channel 0 contains the exact geom ID (-1 for background)
+
+                palette = [
+                    (0, 0, 0),         # -1 Background (Black)
+                    (230, 76, 60),     # Red
+                    (52, 152, 219),    # Blue
+                    (46, 204, 113),    # Green
+                    (241, 196, 15),    # Yellow
+                    (155, 89, 182),    # Purple
+                    (26, 188, 156),    # Teal
+                    (230, 126, 34),    # Orange
+                    (52, 73, 94),      # Dark Slate
+                    (236, 240, 241),   # Off-White
+                    (149, 165, 166),   # Gray
+                    (255, 107, 129),   # Coral
+                    (112, 161, 255),   # Sky
+                    (123, 237, 159),   # Mint
+                    (255, 165, 2),     # Amber
+                    (164, 176, 190)    # Slate
+                ]
+
+                seg_rgb = np.zeros((height, width, 3), dtype=np.uint8)
+                label_mapping: Dict[str, Any] = {}
+                total_pixels = height * width
+
+                unique_gids = np.unique(geom_ids)
+                for gid in unique_gids:
+                    gid_int = int(gid)
+                    pixel_mask = (geom_ids == gid)
+                    count = int(np.sum(pixel_mask))
+                    pct = round((count / total_pixels) * 100.0, 2)
+
+                    if gid_int == -1:
+                        color = palette[0]
+                        label_name = "background"
+                        body_name = "none"
+                        obj_id = None
+                    else:
+                        color = palette[(gid_int % (len(palette) - 1)) + 1]
+                        label_name = mujoco.mj_id2name(self.model, mujoco.mjtObj.mjOBJ_GEOM, gid_int) or f"geom_{gid_int}"
+                        body_id = int(self.model.geom_bodyid[gid_int])
+                        body_name = mujoco.mj_id2name(self.model, mujoco.mjtObj.mjOBJ_BODY, body_id) or f"body_{body_id}"
+                        
+                        # Match to project SceneObject if applicable
+                        obj_id = None
+                        for so in self.project.objects:
+                            if so.id in label_name or so.name == label_name or f"obj_{so.id}" == body_name:
+                                obj_id = so.id
+                                break
+
+                    seg_rgb[pixel_mask] = color
+                    label_mapping[str(gid_int)] = {
+                        "geom_id": gid_int,
+                        "geom_name": label_name,
+                        "body_name": body_name,
+                        "scene_object_id": obj_id,
+                        "pixel_count": count,
+                        "pixel_percentage": pct,
+                        "color_rgb": list(color)
+                    }
+
+                seg_png = rgb_to_png(seg_rgb)
+                b64_seg = base64.b64encode(seg_png).decode("ascii")
+                seg_data = {
+                    "image_data_url": f"data:image/png;base64,{b64_seg}",
+                    "labels": label_mapping,
+                    "total_pixels": total_pixels,
+                    "unique_geometries": len(label_mapping)
+                }
+
+            return {
+                "width": width,
+                "height": height,
+                "camera_name": camera_name or "free_camera",
+                "sim_time": self.sim_time,
+                "image_data_url": data_url,
+                "depth_info": depth_data,
+                "segmentation_info": seg_data
+            }
+        finally:
+            renderer.close()
 
     def get_state(self) -> SimulationState:
         """Extracts current physics state, robot pose, velocities, contacts, LiDAR, and IMU data."""
@@ -667,21 +928,33 @@ class MuJoCoEngine:
                     quaternion=quat
                 )
 
-        # Contacts / Collisions
+        # Contacts / Collisions with MuJoCo contact normal & tangent forces and penetration
         contacts: List[ContactInfo] = []
-        ncon = min(int(self.data.ncon), 25)
+        ncon = min(int(self.data.ncon), 50)
+        c_force_buf = np.zeros(6, dtype=np.float64)
         for i in range(ncon):
             con = self.data.contact[i]
             g1_name = mujoco.mj_id2name(self.model, mujoco.mjtObj.mjOBJ_GEOM, con.geom1) or f"geom_{con.geom1}"
             g2_name = mujoco.mj_id2name(self.model, mujoco.mjtObj.mjOBJ_GEOM, con.geom2) or f"geom_{con.geom2}"
+            try:
+                mujoco.mj_contactForce(self.model, self.data, i, c_force_buf)
+                fn = float(abs(c_force_buf[0]))
+                ft = float(math.sqrt(c_force_buf[1]**2 + c_force_buf[2]**2))
+            except Exception:
+                fn = 0.0
+                ft = 0.0
+            penetration = float(max(0.0, -float(con.dist)))
             contacts.append(ContactInfo(
                 geom1=g1_name,
                 geom2=g2_name,
                 position=[float(x) for x in con.pos],
-                distance=float(con.dist)
+                distance=float(con.dist),
+                force_normal=fn,
+                force_tangent=ft,
+                penetration=penetration
             ))
 
-        # Ground-Truth LiDAR Simulation using real MuJoCo mj_ray
+        # Ground-Truth LiDAR Simulation using real MuJoCo mj_ray with noise & dropout
         lidar_readings: List[float] = []
         lidar_angles: List[float] = []
         l_cfg = self.project.sensors.lidar
@@ -707,21 +980,66 @@ class MuJoCoEngine:
                 vec = np.array([math.cos(beam_yaw), math.sin(beam_yaw), 0.0], dtype=np.float64)
                 dist = mujoco.mj_ray(self.model, self.data, ray_origin, vec, None, 1, self.robot_body_id, geomid_buf)
                 if dist >= l_cfg.min_range and dist <= l_cfg.max_range:
-                    lidar_readings.append(float(dist))
+                    measured = float(dist)
                 elif dist > l_cfg.max_range or dist < 0:
-                    lidar_readings.append(float(l_cfg.max_range))
+                    measured = float(l_cfg.max_range)
                 else:
-                    lidar_readings.append(float(l_cfg.min_range))
+                    measured = float(l_cfg.min_range)
+
+                # Apply sensor noise if configured
+                if l_cfg.noise_std > 0.0:
+                    measured = float(np.clip(measured + np.random.normal(0.0, l_cfg.noise_std), l_cfg.min_range, l_cfg.max_range))
+
+                # Apply sensor dropout if configured
+                if l_cfg.dropout_prob > 0.0 and np.random.random() < l_cfg.dropout_prob:
+                    measured = float(l_cfg.max_range)
+
+                lidar_readings.append(measured)
                 lidar_angles.append(float(math.degrees(a)))
 
-        # Ground-Truth IMU Data from MuJoCo Accelerometer and Gyro (if enabled)
+        # Ground-Truth IMU Data with bias and noise modeling
         imu_acc = None
         imu_gyr = None
-        if getattr(self.project.sensors, "imu", None) and self.project.sensors.imu.enabled:
+        imu_cfg = getattr(self.project.sensors, "imu", None)
+        if imu_cfg and imu_cfg.enabled:
             if self.imu_accel_adr >= 0:
-                imu_acc = [float(x) for x in self.data.sensordata[self.imu_accel_adr:self.imu_accel_adr + 3]]
+                raw_acc = [float(x) for x in self.data.sensordata[self.imu_accel_adr:self.imu_accel_adr + 3]]
+                imu_acc = [
+                    raw_acc[i] + (imu_cfg.accel_bias[i] if len(imu_cfg.accel_bias) > i else 0.0) +
+                    (float(np.random.normal(0.0, imu_cfg.accel_noise_std)) if imu_cfg.accel_noise_std > 0.0 else 0.0)
+                    for i in range(3)
+                ]
             if self.imu_gyro_adr >= 0:
-                imu_gyr = [float(x) for x in self.data.sensordata[self.imu_gyro_adr:self.imu_gyro_adr + 3]]
+                raw_gyr = [float(x) for x in self.data.sensordata[self.imu_gyro_adr:self.imu_gyro_adr + 3]]
+                imu_gyr = [
+                    raw_gyr[i] + (imu_cfg.gyro_bias[i] if len(imu_cfg.gyro_bias) > i else 0.0) +
+                    (float(np.random.normal(0.0, imu_cfg.gyro_noise_std)) if imu_cfg.gyro_noise_std > 0.0 else 0.0)
+                    for i in range(3)
+                ]
+
+        # Dead-reckoning odometry computation from wheel encoder rotations
+        odometry_state = None
+        if self.left_wheel_joint_qposadr >= 0 and self.right_wheel_joint_qposadr >= 0:
+            lw_cur = float(self.data.qpos[self.left_wheel_joint_qposadr])
+            rw_cur = float(self.data.qpos[self.right_wheel_joint_qposadr])
+            if self._last_lw_pos is not None and self._last_rw_pos is not None:
+                dl = (lw_cur - self._last_lw_pos) * self.project.robot.wheel_radius
+                dr = (rw_cur - self._last_rw_pos) * self.project.robot.wheel_radius
+                dc = (dl + dr) * 0.5
+                dtheta = (dr - dl) / max(0.01, self.project.robot.wheel_base)
+                self._odom_yaw += dtheta
+                self._odom_x += dc * math.cos(self._odom_yaw)
+                self._odom_y += dc * math.sin(self._odom_yaw)
+                self._distance_traveled += abs(dc)
+            self._last_lw_pos = lw_cur
+            self._last_rw_pos = rw_cur
+            odometry_state = OdometryState(
+                position=[self._odom_x, self._odom_y, self.project.robot.wheel_radius],
+                yaw=self._odom_yaw,
+                linear_velocity=r_lvel,
+                angular_velocity=r_avel,
+                distance_traveled=self._distance_traveled
+            )
 
         # Joint telemetry for all model joints
         joint_positions: Dict[str, float] = {}
@@ -755,7 +1073,9 @@ class MuJoCoEngine:
             sim_time=self.sim_time,
             wall_time=wall_time,
             step_count=self.step_count,
+            real_time_factor=self.real_time_factor,
             robot=robot_state,
+            odometry=odometry_state,
             objects=objects_state,
             contacts=contacts,
             errors=self.errors,

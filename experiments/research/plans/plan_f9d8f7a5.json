@@ -1,0 +1,28 @@
+{
+  "plan_id": "plan_f9d8f7a5",
+  "mission_id": "mission_c84c4e10",
+  "hypothesis_id": "hypo_1216ee60",
+  "title": "Experiment for: Tangential Circulation Gain Hypothesis",
+  "rationale": "Candidate task.policy.tangential_gain=1.8: Expected Improvement=0.50, Info Gain=1.00, Prior Influence=No direct prior bias. Mechanism: Higher vortex circulation guides robot smoothly around curvature without stopping.",
+  "base_scenario_id": "scen_mvqgu87z",
+  "parameter_modifications": {
+    "task.policy.tangential_gain": 1.8
+  },
+  "seeds": [
+    100,
+    101,
+    102
+  ],
+  "expected_outcome": "Increasing tangential circulation gain will reduce unnecessary deceleration near obstacles.",
+  "candidate_rank": 1,
+  "expected_improvement": 0.5,
+  "information_gain": 1.0,
+  "acquisition_score": 0.65,
+  "selection_rationale": "Candidate task.policy.tangential_gain=1.8: Expected Improvement=0.50, Info Gain=1.00, Prior Influence=No direct prior bias. Mechanism: Higher vortex circulation guides robot smoothly around curvature without stopping.",
+  "prior_evidence_influence": "Evaluated against 15 compatible prior runs (0 incompatible runs excluded). No direct prior bias",
+  "is_validated": true,
+  "validation_messages": [],
+  "user_approved": true,
+  "status": "ready",
+  "created_at": 1793124189.4381192
+}

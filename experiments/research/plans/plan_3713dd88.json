@@ -1,0 +1,22 @@
+{
+  "plan_id": "plan_3713dd88",
+  "mission_id": "mission_a13ad7e1",
+  "hypothesis_id": "hypo_956f90a1",
+  "title": "Controlled Experiment for: Goal Attraction Gain Hypothesis",
+  "rationale": "Test causal effect of modifying task.policy.attraction_gain to 1.6 while keeping all other physics and layout variables constant.",
+  "base_scenario_id": "scen_mvqgu87z",
+  "parameter_modifications": {
+    "task.policy.attraction_gain": 1.6
+  },
+  "seeds": [
+    100,
+    101,
+    102
+  ],
+  "expected_outcome": "Observed metric improves relative to baseline.",
+  "is_validated": true,
+  "validation_messages": [],
+  "user_approved": true,
+  "status": "ready",
+  "created_at": 1793120994.9969475
+}

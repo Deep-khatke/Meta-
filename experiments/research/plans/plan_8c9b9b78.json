@@ -1,0 +1,28 @@
+{
+  "plan_id": "plan_8c9b9b78",
+  "mission_id": "mission_4689cc61",
+  "hypothesis_id": "hypo_19cba94e",
+  "title": "Experiment for: Reducing Safety Margin",
+  "rationale": "Candidate task.policy.safety_margin=0.1: Expected Improvement=0.50, Info Gain=1.00, Prior Influence=No direct prior bias. Mechanism: The safety margin is a buffer zone that the robot maintains to avoid obstacles. Decreasing this margin can make the robot more aggressive in its path planning.",
+  "base_scenario_id": "scen_mvqgu87z",
+  "parameter_modifications": {
+    "task.policy.safety_margin": 0.1
+  },
+  "seeds": [
+    100,
+    101,
+    102
+  ],
+  "expected_outcome": "Reducing the safety margin will encourage the robot to take more direct paths to the goal, potentially reducing the number of collisions by allowing it to come closer to obstacles.",
+  "candidate_rank": 1,
+  "expected_improvement": 0.5,
+  "information_gain": 1.0,
+  "acquisition_score": 0.65,
+  "selection_rationale": "Candidate task.policy.safety_margin=0.1: Expected Improvement=0.50, Info Gain=1.00, Prior Influence=No direct prior bias. Mechanism: The safety margin is a buffer zone that the robot maintains to avoid obstacles. Decreasing this margin can make the robot more aggressive in its path planning.",
+  "prior_evidence_influence": "Evaluated against 32 compatible prior runs (0 incompatible runs excluded). No direct prior bias",
+  "is_validated": true,
+  "validation_messages": [],
+  "user_approved": true,
+  "status": "ready",
+  "created_at": 1793138542.9287708
+}

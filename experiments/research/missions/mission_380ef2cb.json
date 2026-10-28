@@ -1,0 +1,136 @@
+{
+  "mission_id": "mission_380ef2cb",
+  "title": "Scientific Investigation: Safely navigate dense obstacle field",
+  "goal_description": "Safely navigate dense obstacle field",
+  "mode": "autonomous",
+  "status": "created",
+  "target_metric": "total_collisions",
+  "target_threshold": 0.0,
+  "optimization_direction": "minimize",
+  "constraints": [
+    "max_linear_velocity <= 1.5",
+    "timeout <= 25.0",
+    "success == True"
+  ],
+  "budget": {
+    "max_iterations": 5,
+    "max_experiments": 8,
+    "max_time_seconds": 120.0,
+    "used_iterations": 0,
+    "used_experiments": 0,
+    "elapsed_time": 0.0
+  },
+  "base_scenario_id": "scen_mvqgu87z",
+  "baseline_run_id": null,
+  "baseline_metrics": null,
+  "active_hypothesis_id": null,
+  "active_plan_id": null,
+  "best_candidate_plan_id": null,
+  "hypotheses": [
+    {
+      "hypothesis_id": "hypo_7a6d2771",
+      "mission_id": "mission_380ef2cb",
+      "title": "Repulsive Safety Margin Hypothesis",
+      "statement": "Increasing obstacle repulsion clearance margin will eliminate collision contacts during obstacle swerving.",
+      "mechanism": "A larger safety margin initiates repulsive steering earlier, preventing corner clipping.",
+      "controlled_variable": "task.policy.safety_margin",
+      "baseline_value": 0.7,
+      "proposed_value": 0.95,
+      "status": "untested",
+      "confidence": 0.5,
+      "supporting_evidence": [],
+      "contradicting_evidence": [],
+      "experiment_ids": [],
+      "created_at": 1793126454.8808353,
+      "updated_at": 1793126454.8808353
+    },
+    {
+      "hypothesis_id": "hypo_590382b1",
+      "mission_id": "mission_380ef2cb",
+      "title": "Angular Agility Saturation Hypothesis",
+      "statement": "Increasing maximum turn rate will allow the robot to negotiate tight turns without sliding into obstacles.",
+      "mechanism": "Higher angular rate prevents control saturation during rapid avoidance maneuvers.",
+      "controlled_variable": "task.policy.max_turn_rate",
+      "baseline_value": 3.0,
+      "proposed_value": 4.5,
+      "status": "untested",
+      "confidence": 0.5,
+      "supporting_evidence": [],
+      "contradicting_evidence": [],
+      "experiment_ids": [],
+      "created_at": 1793126454.8813472,
+      "updated_at": 1793126454.8813472
+    },
+    {
+      "hypothesis_id": "hypo_7936b22d",
+      "mission_id": "mission_380ef2cb",
+      "title": "Cornering Speed Regulation Hypothesis",
+      "statement": "Lowering maximum cruise velocity during avoidance will decrease inertia and stopping distance.",
+      "mechanism": "Reduced linear momentum decreases the centripetal force required to round obstacle boundaries.",
+      "controlled_variable": "robot.max_linear_velocity",
+      "baseline_value": 1.2,
+      "proposed_value": 0.85,
+      "status": "untested",
+      "confidence": 0.5,
+      "supporting_evidence": [],
+      "contradicting_evidence": [],
+      "experiment_ids": [],
+      "created_at": 1793126454.8818629,
+      "updated_at": 1793126454.8818629
+    }
+  ],
+  "plans": [],
+  "outcomes": [],
+  "validation_report": null,
+  "action_log": [
+    {
+      "timestamp": 1793126454.880253,
+      "step": "mission_compilation",
+      "action": "compile_objectives",
+      "status": "success",
+      "details": {
+        "target_metric": "total_collisions",
+        "target_threshold": 0.0,
+        "constraints": [
+          "max_linear_velocity <= 1.5",
+          "timeout <= 25.0",
+          "success == True"
+        ],
+        "base_scenario_id": "scen_mvqgu87z",
+        "reasoning_engine": "DeterministicRoboticsHeuristicEngine-v1"
+      },
+      "message": "Mission successfully compiled with target: total_collisions (minimize towards 0.0)."
+    },
+    {
+      "timestamp": 1793126454.8824303,
+      "step": "hypothesis_formulation",
+      "action": "formulate_competing_hypotheses",
+      "status": "success",
+      "details": {
+        "hypotheses_count": 3,
+        "titles": [
+          "Repulsive Safety Margin Hypothesis",
+          "Angular Agility Saturation Hypothesis",
+          "Cornering Speed Regulation Hypothesis"
+        ],
+        "reasoning_engine": "DeterministicRoboticsHeuristicEngine-v1"
+      },
+      "message": "Formulated 3 competing testable hypotheses grounded in physical dynamics."
+    }
+  ],
+  "final_report_markdown": null,
+  "error_message": null,
+  "task_signature": {
+    "robot_type": "differential_drive_robot",
+    "robot_mass": 8.5,
+    "control_mode": "goal_seeking",
+    "physics_timestep": 0.005,
+    "sensor_types": [
+      "lidar",
+      "imu",
+      "wheel_encoders"
+    ]
+  },
+  "created_at": 1793126454.880253,
+  "updated_at": 1793126454.880253
+}

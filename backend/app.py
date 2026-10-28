@@ -19,13 +19,23 @@ from backend.models import (
     Project, SceneObject, SimulationState, LogMessage, TeleopCommand,
     SimulationSettings, RobotConfig, GenericRobotModel, URDFImportResult,
     FKRequest, FKResult, IKRequest, IKResult, RobotValidationResult, RobotDiagnostic,
-    LinkModel, JointModel, JointLimit, LinkGeom, LinkInertial
+    LinkModel, JointModel, JointLimit, LinkGeom, LinkInertial,
+    SimulationSnapshot, OdometryState, MJCFImportResult
 )
-from backend.simulation import MuJoCoEngine
+from backend.simulation import MuJoCoEngine, quat_to_yaw
 from backend.urdf_importer import parse_urdf_string, export_robot_urdf
+from backend.mjcf_importer import export_robot_mjcf, parse_mjcf_string
 from backend.kinematics import compute_forward_kinematics, solve_inverse_kinematics
 from backend.robot_validator import validate_generic_robot, auto_calculate_robot_inertials
 from backend.project_manager import ProjectManager
+from backend.scene_validator import validate_scene, SceneValidationReport
+from backend.motion_planning import plan_collision_free_path, PathPlanningRequest, PathPlanningResult, TrajectoryExecutionState
+from backend.synthetic_data import SyntheticDataGenerator, DomainRandomizationConfig, COCODataset
+from backend.ros2_bridge import ROS2Bridge
+from backend.agent_interface import (
+    AgentSimulationInterface, EnvironmentInspectionResult, TelemetryObservation,
+    PerceptionObservation, ReproducibleRecord
+)
 from backend.experiment_models import (
     ExperimentConfig, TaskObjective, ExperimentRunResult, RunComparison
 )
@@ -33,16 +43,20 @@ from backend.experiment_manager import ExperimentManager
 from backend.rl_env import RoboForgeGymEnv
 from backend.rl_models import (
     RLTrainingConfig, RLTrainingStatus, RLEvaluationRequest, AIAssistantPromptRequest,
-    HypothesisRefinementRequest, ExecuteRLPolicyRequest
+    HypothesisRefinementRequest, ExecuteRLPolicyRequest,
+    AIChatRequest, AIChatResponse, AIApprovalRequest
 )
 from backend.rl_training_manager import training_manager
 from backend.rl_evaluator import RLEvaluator
 from backend.ai_assistant import AIExperimentAssistant
+from backend.ai_reasoning_service import get_ai_reasoning_service
 from backend.rl_refinement import HypothesisRefinementEngine
+from backend.chat_memory import chat_memory
 from backend.asset_models import (
     AssetModel, ValidationResult, CreateAssetRequest, ApplyAssetRequest
 )
 from backend.asset_library import AssetLibrary
+from backend.research.research_api import router as research_router
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("roboforge.server")
@@ -70,6 +84,7 @@ def handle_engine_log(log_msg: LogMessage):
         pass
 
 engine = MuJoCoEngine(project_manager.get_current(), log_callback=handle_engine_log)
+agent_interface = AgentSimulationInterface(project_manager, engine, experiment_manager)
 
 simulation_task: Optional[asyncio.Task] = None
 
@@ -206,6 +221,56 @@ async def simulation_loop():
                             engine.log("info", f"Live experiment '{cfg.name}' completed: {reason_str}")
                     except Exception as ex:
                         logger.exception("Error in active live experiment step: %s", ex)
+                elif agent_interface.active_trajectory_controller and (time.time() - engine.last_teleop_time > 0.35):
+                    try:
+                        r_pos = np.array(engine.data.qpos[engine.robot_qpos_adr:engine.robot_qpos_adr + 2])
+                        r_quat = [float(x) for x in engine.data.qpos[engine.robot_qpos_adr + 3:engine.robot_qpos_adr + 7]]
+                        ryaw = quat_to_yaw(r_quat)
+                        ctrl = agent_interface.active_trajectory_controller
+                        cmd_v, cmd_w = ctrl.update(r_pos[0], r_pos[1], ryaw, dt_wall)
+
+                        # Collision monitoring during trajectory execution
+                        ncon = int(engine.data.ncon)
+                        hit_obs = False
+                        for i in range(ncon):
+                            con = engine.data.contact[i]
+                            g1 = mujoco.mj_id2name(engine.model, mujoco.mjtObj.mjOBJ_GEOM, con.geom1) or ""
+                            g2 = mujoco.mj_id2name(engine.model, mujoco.mjtObj.mjOBJ_GEOM, con.geom2) or ""
+                            if "robot" in g1 or "robot" in g2:
+                                other = g2 if "robot" in g1 else g1
+                                if other and other != "ground" and "wheel" not in other and "caster" not in other:
+                                    hit_obs = True
+                                    break
+
+                        if hit_obs:
+                            ctrl.is_failed = True
+                            ctrl.failure_reason = "Obstacle collision detected along trajectory."
+
+                        if ctrl.is_completed:
+                            agent_interface.trajectory_state.status = "completed"
+                            agent_interface.trajectory_state.status_message = "Target reached successfully."
+                            agent_interface.trajectory_state.progress_pct = 100.0
+                            engine.set_teleop(0.0, 0.0)
+                            agent_interface.active_trajectory_controller = None
+                            await broadcast_json({"type": "trajectory_completed", "data": agent_interface.trajectory_state.model_dump()})
+                            engine.log("info", "Continuous trajectory execution completed successfully.")
+                        elif ctrl.is_failed:
+                            agent_interface.trajectory_state.status = "failed"
+                            agent_interface.trajectory_state.status_message = ctrl.failure_reason
+                            agent_interface.trajectory_state.collision_detected = True
+                            engine.set_teleop(0.0, 0.0)
+                            agent_interface.active_trajectory_controller = None
+                            await broadcast_json({"type": "trajectory_failed", "data": agent_interface.trajectory_state.model_dump()})
+                            engine.log("error", f"Continuous trajectory execution failed: {ctrl.failure_reason}")
+                        else:
+                            total_w = max(1, len(ctrl.waypoints))
+                            agent_interface.trajectory_state.current_waypoint_index = ctrl.current_index
+                            agent_interface.trajectory_state.progress_pct = round((ctrl.current_index / total_w) * 100.0, 1)
+                            final_pt = ctrl.waypoints[-1]
+                            agent_interface.trajectory_state.distance_to_goal = round(math.sqrt((final_pt[0] - r_pos[0])**2 + (final_pt[1] - r_pos[1])**2), 3)
+                            engine.set_teleop(cmd_v, cmd_w)
+                    except Exception as e:
+                        logger.exception("Error in continuous trajectory step: %s", e)
                 elif auto_drive_active and (time.time() - engine.last_teleop_time > 0.35):
                     # Autonomous navigation towards target waypoint
                     try:
@@ -274,6 +339,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(research_router)
+
 
 # Request Models
 class ControlRequest(BaseModel):
@@ -326,6 +393,38 @@ class JointControlRequest(BaseModel):
     joint_name: Optional[str] = None
     target: Optional[float] = None
     targets: Optional[dict[str, float]] = None
+
+class SnapshotRestoreRequest(BaseModel):
+    snapshot_id: str
+
+class MJCFImportRequest(BaseModel):
+    mjcf_xml: str
+    set_as_active_robot: bool = True
+
+class CameraCaptureRequest(BaseModel):
+    width: int = Field(default=320, ge=64, le=1280)
+    height: int = Field(default=240, ge=64, le=720)
+    camera_name: Optional[str] = None
+    render_depth: bool = False
+    render_segmentation: bool = False
+
+class TrajectoryExecuteRequest(BaseModel):
+    target_pos: List[float]
+    grid_resolution: float = Field(default=0.15, ge=0.05, le=1.0)
+    robot_radius: float = Field(default=0.30, ge=0.05, le=2.0)
+
+class AgentExperimentRunRequest(BaseModel):
+    scenario_id: str
+    seed: Optional[int] = None
+
+class MultiTrialRequest(BaseModel):
+    scenario_id: str
+    num_trials: int = Field(default=5, ge=2, le=20)
+
+class SyntheticExportRequest(BaseModel):
+    num_samples: int = Field(default=5, ge=1, le=50)
+    width: int = Field(default=320, ge=64, le=1280)
+    height: int = Field(default=240, ge=64, le=720)
 
 
 @app.get("/api/health")
@@ -444,6 +543,192 @@ def control_simulation(req: ControlRequest):
 def send_teleop(cmd: TeleopCommand):
     engine.set_teleop(cmd.linear, cmd.angular)
     return {"status": "ok", "teleop": engine.teleop_cmd}
+
+
+# --- Simulation Snapshots ---
+
+@app.post("/api/simulation/snapshot")
+def create_simulation_snapshot():
+    snap = engine.save_snapshot()
+    return {"status": "ok", "snapshot": snap}
+
+@app.get("/api/simulation/snapshots")
+def list_simulation_snapshots():
+    return {"snapshots": engine.list_snapshots()}
+
+@app.post("/api/simulation/snapshot/restore")
+def restore_simulation_snapshot(req: SnapshotRestoreRequest):
+    success = engine.restore_snapshot(req.snapshot_id)
+    if not success:
+        raise HTTPException(status_code=404, detail=f"Snapshot '{req.snapshot_id}' not found or could not be restored.")
+    return {"status": "ok", "snapshot_id": req.snapshot_id}
+
+@app.delete("/api/simulation/snapshot/{snapshot_id}")
+def delete_simulation_snapshot(snapshot_id: str):
+    deleted = engine.delete_snapshot(snapshot_id)
+    return {"status": "ok", "deleted": deleted}
+
+
+# --- Offscreen Camera Rendering & Semantic Segmentation ---
+
+@app.post("/api/simulation/camera/capture")
+def capture_camera_frame(req: CameraCaptureRequest):
+    try:
+        res = engine.capture_camera_frame(
+            width=req.width,
+            height=req.height,
+            camera_name=req.camera_name,
+            render_depth=req.render_depth,
+            render_segmentation=req.render_segmentation
+        )
+        return res
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Camera rendering failed: {str(e)}")
+
+@app.api_route("/api/simulation/camera/segmentation", methods=["GET", "POST"])
+def capture_segmentation_mask(
+    req: Optional[CameraCaptureRequest] = None,
+    width: Optional[int] = None,
+    height: Optional[int] = None,
+    camera_name: Optional[str] = None
+):
+    try:
+        w = (req.width if req else None) or width or 320
+        h = (req.height if req else None) or height or 240
+        cam = (req.camera_name if req else None) or camera_name
+        res = engine.capture_camera_frame(
+            width=w,
+            height=h,
+            camera_name=cam,
+            render_depth=False,
+            render_segmentation=True
+        )
+        if not res.get("segmentation_info"):
+            raise HTTPException(status_code=500, detail="Segmentation rendering failed.")
+        return {
+            "status": "ok",
+            "width": w,
+            "height": h,
+            **res["segmentation_info"]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Segmentation failed: {str(e)}")
+
+
+# --- Scene Validation & Diagnostics ---
+
+@app.post("/api/scene/validate")
+def validate_active_scene():
+    report = validate_scene(project_manager.get_current())
+    return report
+
+
+# --- Native MJCF Robot Import & Export ---
+
+@app.post("/api/robot/export-mjcf")
+def export_robot_to_mjcf():
+    robot = project_manager.get_current().generic_robot
+    if not robot:
+        raise HTTPException(status_code=400, detail="No generic articulated robot in active scene to export.")
+    xml_str = export_robot_mjcf(robot)
+    return {"robot_name": robot.name, "mjcf_xml": xml_str}
+
+@app.post("/api/robot/import-mjcf")
+async def import_robot_from_mjcf(req: MJCFImportRequest):
+    result = parse_mjcf_string(req.mjcf_xml)
+    if result.status == "error" or not result.robot:
+        return result
+
+    if req.set_as_active_robot and result.robot:
+        current = project_manager.get_current()
+        current.generic_robot = result.robot
+        project_manager.update_project(current)
+        engine.project = current
+        engine.rebuild_model(preserve_state=False)
+        await broadcast_json({"type": "project_updated", "data": engine.project.model_dump()})
+
+    return result
+
+
+# --- Collision-Aware Motion Planning ---
+
+@app.post("/api/motion/plan-path")
+def plan_motion_path(req: PathPlanningRequest):
+    result = plan_collision_free_path(project_manager.get_current(), req)
+    return result
+
+
+# --- Synthetic Data & Perception Pipeline ---
+
+@app.post("/api/synthetic/capture-frame")
+def capture_synthetic_labeled_frame(req: CameraCaptureRequest = CameraCaptureRequest()):
+    generator = SyntheticDataGenerator(project_manager.get_current())
+    frame = generator.capture_labeled_frame(width=req.width, height=req.height)
+    return frame
+
+@app.post("/api/synthetic/export-coco")
+def export_synthetic_coco_dataset(req: SyntheticExportRequest = SyntheticExportRequest()):
+    generator = SyntheticDataGenerator(project_manager.get_current())
+    coco = generator.generate_coco_dataset(num_samples=req.num_samples, width=req.width, height=req.height)
+    return coco
+
+
+# --- ROS 2 Robotics Interoperability Bridge ---
+
+@app.get("/api/ros2/topics")
+def list_ros2_topics():
+    return {
+        "topics": [
+            {"topic": "/cmd_vel", "type": "geometry_msgs/msg/Twist", "mode": "subscription"},
+            {"topic": "/odom", "type": "nav_msgs/msg/Odometry", "mode": "publication"},
+            {"topic": "/scan", "type": "sensor_msgs/msg/LaserScan", "mode": "publication"},
+            {"topic": "/imu/data", "type": "sensor_msgs/msg/Imu", "mode": "publication"},
+            {"topic": "/joint_states", "type": "sensor_msgs/msg/JointState", "mode": "publication"},
+            {"topic": "/clock", "type": "rosgraph_msgs/msg/Clock", "mode": "publication"}
+        ]
+    }
+
+@app.get("/api/ros2/messages/{topic_name:path}")
+def get_ros2_message(topic_name: str):
+    state = engine.get_state()
+    t = topic_name.strip("/")
+    if t == "odom":
+        return ROS2Bridge.serialize_odometry(state)
+    elif t == "scan":
+        msg = ROS2Bridge.serialize_laser_scan(state)
+        if not msg:
+            raise HTTPException(status_code=404, detail="No active laser scan data")
+        return msg
+    elif t in ("imu", "imu/data"):
+        msg = ROS2Bridge.serialize_imu(state)
+        if not msg:
+            raise HTTPException(status_code=404, detail="IMU sensor not enabled")
+        return msg
+    elif t == "joint_states":
+        return ROS2Bridge.serialize_joint_states(state)
+    elif t == "clock":
+        return ROS2Bridge.serialize_clock(state.sim_time)
+    else:
+        raise HTTPException(status_code=404, detail=f"Topic '/{t}' not recognized.")
+
+@app.post("/api/ros2/cmd_vel")
+def send_ros2_cmd_vel(twist_payload: dict):
+    cmd = ROS2Bridge.parse_cmd_vel(twist_payload)
+    engine.set_teleop(cmd.linear, cmd.angular)
+    return {"status": "ok", "teleop": engine.teleop_cmd}
+
+
+# --- Multi-Trial Experimentation ---
+
+@app.post("/api/experiments/multi-trial")
+def run_multi_trial(req: MultiTrialRequest):
+    try:
+        res = experiment_manager.run_multi_trial_experiment(req.scenario_id, num_trials=req.num_trials)
+        return res
+    except ValueError as ve:
+        raise HTTPException(status_code=404, detail=str(ve))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/api/scene/objects")
@@ -1340,6 +1625,28 @@ async def execute_rl_policy_live(req: ExecuteRLPolicyRequest):
 # AI Experiment Assistant & Refinement Routes
 # ==========================================
 
+@app.get("/api/ai/status")
+def get_ai_status():
+    """Returns AI reasoning provider configuration, credentials presence, and available tools."""
+    service = get_ai_reasoning_service()
+    return service.get_provider_status()
+
+
+@app.get("/api/ai/models")
+def get_ai_models():
+    """Exposes discovered local and cloud models and active provider endpoint."""
+    service = get_ai_reasoning_service()
+    status = service.get_provider_status()
+    return {
+        "active_provider": status.get("active_provider"),
+        "model": status.get("model"),
+        "endpoint": status.get("endpoint", "local"),
+        "available_models": status.get("available_models", []),
+        "provider_type": status.get("provider_type"),
+        "offline_mode": status.get("offline_mode", True),
+    }
+
+
 @app.post("/api/ai/interpret-prompt")
 def interpret_experiment_prompt(req: AIAssistantPromptRequest):
     try:
@@ -1348,6 +1655,75 @@ def interpret_experiment_prompt(req: AIAssistantPromptRequest):
     except Exception as e:
         logger.exception("AI assistant interpretation error: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/ai/chat", response_model=AIChatResponse)
+def ai_conversational_chat(req: AIChatRequest):
+    """Executes a telemetry-grounded conversational agent loop supporting supervised & autonomous modes, with multi-turn memory."""
+    try:
+        session_id = req.session_id or "default_session"
+        # If frontend didn't supply chat_history, load from persistent memory
+        if not req.chat_history:
+            req.chat_history = chat_memory.get_history(session_id, limit=20)
+
+        # Record user turn
+        chat_memory.append_message(session_id=session_id, role="user", content=req.prompt)
+
+        service = get_ai_reasoning_service(project_manager)
+        res = service.chat(req)
+
+        # Record assistant reply and actions
+        chat_memory.append_message(
+            session_id=session_id,
+            role="assistant",
+            content=res.reply,
+            response_data=res.model_dump(),
+            actions_executed=res.actions_executed
+        )
+        return res
+    except Exception as e:
+        logger.exception("AI chat reasoning error: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/ai/chat/history")
+def get_ai_chat_history(session_id: str = "default_session", limit: int = 50):
+    """Retrieves stored multi-turn conversation messages for a session."""
+    return {"history": chat_memory.get_history(session_id, limit=limit)}
+
+
+@app.delete("/api/ai/chat/history")
+def delete_ai_chat_history(session_id: str = "default_session"):
+    """Clears stored multi-turn conversation messages for a session."""
+    chat_memory.clear_history(session_id)
+    return {"status": "cleared", "session_id": session_id}
+
+
+@app.post("/api/ai/approve-action", response_model=AIChatResponse)
+def ai_approve_action(req: AIApprovalRequest):
+    """Handles supervisor approval or rejection for a paused experiment plan."""
+    try:
+        service = get_ai_reasoning_service()
+        return service.approve_action(req)
+    except Exception as e:
+        logger.exception("AI approval execution error: %s", e)
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/ai/cancel-mission")
+async def ai_cancel_mission(request: Request):
+    """Cancels an active or pending research mission from the chat workspace."""
+    try:
+        data = await request.json()
+        mission_id = data.get("mission_id")
+        reason = data.get("reason", "Cancelled by user in AI chat")
+        if not mission_id:
+            raise HTTPException(status_code=400, detail="mission_id is required")
+        service = get_ai_reasoning_service()
+        return service.cancel_mission(mission_id, reason)
+    except Exception as e:
+        logger.exception("AI mission cancel error: %s", e)
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @app.post("/api/ai/apply-config")
@@ -1565,6 +1941,84 @@ def save_current_scene_template(req: dict):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+
+
+# =====================================================================
+# RoboForge Scientific Intelligence Agent API Interface
+# =====================================================================
+
+@app.get("/api/agent/inspect", response_model=EnvironmentInspectionResult)
+def agent_inspect_environment():
+    return agent_interface.inspect_environment()
+
+@app.get("/api/agent/telemetry", response_model=TelemetryObservation)
+def agent_get_telemetry():
+    return agent_interface.get_telemetry()
+
+@app.api_route("/api/agent/perception", methods=["GET", "POST"], response_model=PerceptionObservation)
+def agent_capture_perception(
+    req: Optional[CameraCaptureRequest] = None,
+    width: Optional[int] = None,
+    height: Optional[int] = None,
+    include_segmentation: bool = True,
+    include_depth: bool = True
+):
+    w = (req.width if req else None) or width or 320
+    h = (req.height if req else None) or height or 240
+    seg = req.render_segmentation if req else include_segmentation
+    depth = req.render_depth if req else include_depth
+    return agent_interface.capture_perception(
+        width=w,
+        height=h,
+        include_segmentation=seg,
+        include_depth=depth
+    )
+
+@app.post("/api/agent/trajectory/execute", response_model=TrajectoryExecutionState)
+def agent_execute_trajectory(req: TrajectoryExecuteRequest):
+    state = agent_interface.execute_motion_trajectory(
+        target_pos=req.target_pos,
+        grid_resolution=req.grid_resolution,
+        robot_radius=req.robot_radius
+    )
+    return state
+
+@app.get("/api/agent/trajectory/status", response_model=TrajectoryExecutionState)
+def agent_trajectory_status():
+    return agent_interface.trajectory_state
+
+@app.post("/api/agent/trajectory/cancel")
+def agent_cancel_trajectory():
+    success = agent_interface.cancel_motion_trajectory()
+    return {"status": "cancelled", "success": success}
+
+@app.post("/api/agent/experiments/validate")
+def agent_validate_experiment(config: ExperimentConfig):
+    return agent_interface.validate_experiment_config(config)
+
+@app.post("/api/agent/experiments/run")
+def agent_run_experiment(req: AgentExperimentRunRequest):
+    try:
+        result = agent_interface.start_experiment(scenario_id=req.scenario_id, seed=req.seed)
+        return result
+    except ValueError as ve:
+        raise HTTPException(status_code=404, detail=str(ve))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/agent/experiments/compare")
+def agent_compare_experiments(req: CompareRunsRequest):
+    try:
+        return agent_interface.compare_runs(req.run_a_id, req.run_b_id)
+    except ValueError as ve:
+        raise HTTPException(status_code=404, detail=str(ve))
+
+@app.get("/api/agent/records/{run_id}")
+def agent_export_record(run_id: str):
+    try:
+        return agent_interface.export_reproducible_record(run_id)
+    except ValueError as ve:
+        raise HTTPException(status_code=404, detail=str(ve))
 
 
 # WebSocket Endpoint for real-time simulation state, teleop commands, and logs

@@ -1,0 +1,60 @@
+{
+  "mission_id": "m_delta_test",
+  "title": "Delta Comparison Test",
+  "goal_description": "Test candidate comparison explanation",
+  "mode": "autonomous",
+  "status": "created",
+  "target_metric": "collision_rate",
+  "target_threshold": 0.0,
+  "optimization_direction": "minimize",
+  "constraints": [],
+  "budget": {
+    "max_iterations": 1,
+    "max_experiments": 2,
+    "max_time_seconds": 120.0,
+    "used_iterations": 0,
+    "used_experiments": 0,
+    "elapsed_time": 0.0
+  },
+  "base_scenario_id": "scen_slalom_beta",
+  "baseline_run_id": null,
+  "baseline_metrics": null,
+  "active_hypothesis_id": null,
+  "active_plan_id": null,
+  "best_candidate_plan_id": null,
+  "hypotheses": [],
+  "plans": [],
+  "outcomes": [
+    {
+      "outcome_id": "out_df8be0c1",
+      "plan_id": "plan_delta_1",
+      "hypothesis_id": "hyp_delta_1",
+      "run_ids": [],
+      "metrics_summary": {},
+      "baseline_deltas": {
+        "delta_collisions": -2.0,
+        "delta_duration": -1.4
+      },
+      "empirical_verdict": "improved",
+      "verdict_explanation": "Increasing repulsion gain by 0.6 successfully reduced collisions from 2 to 0 with faster corner clearance.",
+      "timestamp": 1793146980.1872973
+    }
+  ],
+  "validation_report": null,
+  "action_log": [],
+  "final_report_markdown": null,
+  "error_message": null,
+  "task_signature": {
+    "robot_type": "differential_drive_robot",
+    "robot_mass": 8.5,
+    "control_mode": "goal_seeking",
+    "physics_timestep": 0.005,
+    "sensor_types": [
+      "lidar",
+      "imu",
+      "wheel_encoders"
+    ]
+  },
+  "created_at": 1793146980.1872973,
+  "updated_at": 1793146980.1872973
+}

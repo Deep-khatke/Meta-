@@ -1,0 +1,21 @@
+{
+  "hypothesis_id": "hypo_78779032",
+  "mission_id": "mission_34e7c4c0",
+  "title": "Reducing Safety Margin",
+  "statement": "Reducing the safety margin in the robot's policy will make the robot take tighter turns around obstacles, potentially reducing the total distance traveled and the time to reach the goal.",
+  "mechanism": "task.policy.safety_margin",
+  "controlled_variable": "task.policy.safety_margin",
+  "baseline_value": 0.2,
+  "proposed_value": 0.1,
+  "status": "inconclusive",
+  "confidence": 0.45,
+  "supporting_evidence": [],
+  "contradicting_evidence": [
+    "Experiment plan_8d862d4e: Observed delta=+0.000. Verdict: inconclusive (No statistically significant difference in collision count or success rate.). (Did not produce statistically distinguishable change)"
+  ],
+  "experiment_ids": [
+    "plan_8d862d4e"
+  ],
+  "created_at": 1793134170.2605639,
+  "updated_at": 1793134173.984063
+}

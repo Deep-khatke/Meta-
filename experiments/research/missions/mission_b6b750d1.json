@@ -1,0 +1,80 @@
+{
+  "mission_id": "mission_b6b750d1",
+  "title": "Obstacle Course Challenge - Test Cancellation",
+  "goal_description": "Test cancellation",
+  "mode": "supervised",
+  "status": "cancelled",
+  "target_metric": "time_to_goal",
+  "target_threshold": 5.0,
+  "optimization_direction": "minimize",
+  "constraints": [
+    "max_linear_velocity <= 1.5",
+    "total_collisions == 0",
+    "max_angular_velocity <= 3.0",
+    "ForgeBot-DD1 initial_position [0.0, 0.0, 0.08]"
+  ],
+  "budget": {
+    "max_iterations": 5,
+    "max_experiments": 8,
+    "max_time_seconds": 120.0,
+    "used_iterations": 0,
+    "used_experiments": 0,
+    "elapsed_time": 0.0
+  },
+  "base_scenario_id": "scen_mvqgu87z",
+  "baseline_run_id": null,
+  "baseline_metrics": null,
+  "active_hypothesis_id": null,
+  "active_plan_id": null,
+  "best_candidate_plan_id": null,
+  "hypotheses": [],
+  "plans": [],
+  "outcomes": [],
+  "validation_report": null,
+  "action_log": [
+    {
+      "timestamp": 1793134275.3922398,
+      "step": "mission_compilation",
+      "action": "compile_objectives",
+      "status": "success",
+      "details": {
+        "target_metric": "time_to_goal",
+        "target_threshold": 5.0,
+        "constraints": [
+          "max_linear_velocity <= 1.5",
+          "total_collisions == 0",
+          "max_angular_velocity <= 3.0",
+          "ForgeBot-DD1 initial_position [0.0, 0.0, 0.08]"
+        ],
+        "base_scenario_id": "scen_mvqgu87z",
+        "reasoning_engine": "Ollama (qwen2.5:7b)"
+      },
+      "message": "Mission successfully compiled with target: time_to_goal (minimize towards 5.0)."
+    },
+    {
+      "timestamp": 1793134275.398135,
+      "step": "mission_control",
+      "action": "cancel_mission",
+      "status": "cancelled",
+      "details": {
+        "reason": "User cancelled test"
+      },
+      "message": "Mission cancelled: User cancelled test."
+    }
+  ],
+  "final_report_markdown": null,
+  "error_message": "User cancelled test",
+  "task_signature": {
+    "robot_type": "differential_drive_robot",
+    "robot_mass": 8.5,
+    "control_mode": "goal_seeking",
+    "physics_timestep": 0.005,
+    "sensor_types": [
+      "lidar",
+      "imu",
+      "wheel_encoders"
+    ]
+  },
+  "created_at": 1793134275.3922398,
+  "updated_at": 1793134275.3922398
+}

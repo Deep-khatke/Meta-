@@ -1,0 +1,117 @@
+{
+  "mission_id": "mission_e30552c0",
+  "title": "Scientific Investigation: Reduce collisions",
+  "goal_description": "Reduce collisions",
+  "mode": "autonomous",
+  "status": "created",
+  "target_metric": "total_collisions",
+  "target_threshold": 0.0,
+  "optimization_direction": "minimize",
+  "constraints": [
+    "max_linear_velocity <= 1.5",
+    "timeout <= 25.0",
+    "success == True"
+  ],
+  "budget": {
+    "max_iterations": 5,
+    "max_experiments": 8,
+    "max_time_seconds": 120.0,
+    "used_iterations": 0,
+    "used_experiments": 0,
+    "elapsed_time": 0.0
+  },
+  "base_scenario_id": "scen_mvqgu87z",
+  "baseline_run_id": null,
+  "baseline_metrics": null,
+  "active_hypothesis_id": null,
+  "active_plan_id": "plan_5886518d",
+  "best_candidate_plan_id": null,
+  "hypotheses": [],
+  "plans": [
+    {
+      "plan_id": "plan_5886518d",
+      "mission_id": "mission_e30552c0",
+      "hypothesis_id": "hypo_c6b7b55e",
+      "title": "Experiment for: Turn Rate Scaling",
+      "rationale": "Candidate task.policy.max_turn_rate=4.5: Expected Improvement=0.50, Info Gain=1.00, Prior Influence=No direct prior bias. Mechanism: Faster angular response",
+      "base_scenario_id": "scen_mvqgu87z",
+      "parameter_modifications": {
+        "task.policy.max_turn_rate": 4.5
+      },
+      "seeds": [
+        100,
+        101,
+        102
+      ],
+      "expected_outcome": "Increasing turn rate improves swerving",
+      "candidate_rank": 1,
+      "expected_improvement": 0.5,
+      "information_gain": 1.0,
+      "acquisition_score": 0.65,
+      "selection_rationale": "Candidate task.policy.max_turn_rate=4.5: Expected Improvement=0.50, Info Gain=1.00, Prior Influence=No direct prior bias. Mechanism: Faster angular response",
+      "prior_evidence_influence": "Evaluated against 20 compatible prior runs (0 incompatible runs excluded). No direct prior bias",
+      "is_validated": true,
+      "validation_messages": [],
+      "user_approved": true,
+      "status": "ready",
+      "created_at": 1793122783.8618536
+    }
+  ],
+  "outcomes": [],
+  "validation_report": null,
+  "action_log": [
+    {
+      "timestamp": 1793122783.4811058,
+      "step": "mission_compilation",
+      "action": "compile_objectives",
+      "status": "success",
+      "details": {
+        "target_metric": "total_collisions",
+        "target_threshold": 0.0,
+        "constraints": [
+          "max_linear_velocity <= 1.5",
+          "timeout <= 25.0",
+          "success == True"
+        ],
+        "base_scenario_id": "scen_mvqgu87z",
+        "reasoning_engine": "DeterministicRoboticsHeuristicEngine-v1"
+      },
+      "message": "Mission successfully compiled with target: total_collisions (minimize towards 0.0)."
+    },
+    {
+      "timestamp": 1793122783.8628588,
+      "step": "experiment_design",
+      "action": "design_controlled_experiment",
+      "status": "success",
+      "details": {
+        "plan_id": "plan_5886518d",
+        "hypothesis_id": "hypo_c6b7b55e",
+        "modifications": {
+          "task.policy.max_turn_rate": 4.5
+        },
+        "seeds": [
+          100,
+          101,
+          102
+        ],
+        "status": "ready"
+      },
+      "message": "Designed experiment plan 'Experiment for: Turn Rate Scaling' with 3 trial seeds. Validation: PASSED."
+    }
+  ],
+  "final_report_markdown": null,
+  "error_message": null,
+  "task_signature": {
+    "robot_type": "differential_drive_robot",
+    "robot_mass": 8.5,
+    "control_mode": "goal_seeking",
+    "physics_timestep": 0.005,
+    "sensor_types": [
+      "lidar",
+      "imu",
+      "wheel_encoders"
+    ]
+  },
+  "created_at": 1793122783.4811058,
+  "updated_at": 1793122783.4811058
+}

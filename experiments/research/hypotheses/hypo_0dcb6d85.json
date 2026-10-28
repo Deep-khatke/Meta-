@@ -1,0 +1,17 @@
+{
+  "hypothesis_id": "hypo_0dcb6d85",
+  "mission_id": "mission_7e0e8ce9",
+  "title": "Cornering Speed Regulation Hypothesis",
+  "statement": "Lowering maximum cruise velocity during avoidance will decrease inertia and stopping distance.",
+  "mechanism": "Reduced linear momentum decreases the centripetal force required to round obstacle boundaries.",
+  "controlled_variable": "robot.max_linear_velocity",
+  "baseline_value": 1.2,
+  "proposed_value": 0.85,
+  "status": "untested",
+  "confidence": 0.5,
+  "supporting_evidence": [],
+  "contradicting_evidence": [],
+  "experiment_ids": [],
+  "created_at": 1793122459.9585483,
+  "updated_at": 1793122459.9585483
+}

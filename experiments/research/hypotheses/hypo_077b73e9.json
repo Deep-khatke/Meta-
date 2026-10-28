@@ -1,0 +1,21 @@
+{
+  "hypothesis_id": "hypo_077b73e9",
+  "mission_id": "mission_blind_discovery_1793133997",
+  "title": "Increasing Tangential Gain",
+  "statement": "Increasing the tangential gain will help the robot navigate the tight turns of the chicane more effectively.",
+  "mechanism": "By increasing the tangential gain, the robot will be more responsive to the tangential forces, allowing it to make tighter turns without stalling.",
+  "controlled_variable": "task.policy.tangential_gain",
+  "baseline_value": 1.3,
+  "proposed_value": 1.8,
+  "status": "inconclusive",
+  "confidence": 0.45,
+  "supporting_evidence": [],
+  "contradicting_evidence": [
+    "Experiment plan_blind_1: Observed delta=+0.000. Verdict: inconclusive (). (Did not produce statistically distinguishable change)"
+  ],
+  "experiment_ids": [
+    "plan_blind_1"
+  ],
+  "created_at": 1793134004.8333104,
+  "updated_at": 1793134007.7109911
+}

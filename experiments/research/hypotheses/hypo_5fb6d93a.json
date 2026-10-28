@@ -1,0 +1,21 @@
+{
+  "hypothesis_id": "hypo_5fb6d93a",
+  "mission_id": "mission_blind_discovery_1793134039",
+  "title": "Decrease Safety Margin to Improve Maneuverability",
+  "statement": "Reducing the safety margin will allow the robot to get closer to the obstacles, potentially enabling tighter turns and smoother traversal.",
+  "mechanism": "A smaller safety margin means the robot will operate closer to the obstacles, which can improve its maneuverability in tight spaces.",
+  "controlled_variable": "task.policy.safety_margin",
+  "baseline_value": 0.65,
+  "proposed_value": 0.4,
+  "status": "inconclusive",
+  "confidence": 0.45,
+  "supporting_evidence": [],
+  "contradicting_evidence": [
+    "Experiment plan_blind_2: Observed delta=+0.000. Verdict: inconclusive (). (Did not produce statistically distinguishable change)"
+  ],
+  "experiment_ids": [
+    "plan_blind_2"
+  ],
+  "created_at": 1793134044.8043153,
+  "updated_at": 1793134047.0893488
+}

@@ -1,0 +1,17 @@
+{
+  "hypothesis_id": "hypo_961ef5df",
+  "mission_id": "mission_2746e388",
+  "title": "Reducing Safety Margin",
+  "statement": "Reducing the safety margin can make the robot more aggressive in its path planning, potentially increasing its speed but also increasing the risk of collisions.",
+  "mechanism": "A smaller safety margin allows the robot to navigate closer to obstacles, which can increase its speed but also the risk of collisions.",
+  "controlled_variable": "task.policy.safety_margin",
+  "baseline_value": 0.25,
+  "proposed_value": 0.15,
+  "status": "untested",
+  "confidence": 0.5,
+  "supporting_evidence": [],
+  "contradicting_evidence": [],
+  "experiment_ids": [],
+  "created_at": 1793131686.6217616,
+  "updated_at": 1793131686.6217616
+}

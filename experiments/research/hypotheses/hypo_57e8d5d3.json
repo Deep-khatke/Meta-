@@ -1,0 +1,24 @@
+{
+  "hypothesis_id": "hypo_57e8d5d3",
+  "mission_id": "mission_58d3edd4",
+  "title": "Safety Margin Increase",
+  "statement": "Increasing safety margin eliminates collisions",
+  "mechanism": "Earlier repulsion",
+  "controlled_variable": "task.policy.safety_margin",
+  "baseline_value": 0.7,
+  "proposed_value": 0.95,
+  "status": "refuted",
+  "confidence": 0.45,
+  "supporting_evidence": [
+    "Experiment plan_test_1: Observed delta=-2.000. Verdict: improved (Collisions reduced to 0)."
+  ],
+  "contradicting_evidence": [
+    "Experiment plan_test_2: Observed delta=+3.000. Verdict: degraded (Collisions increased)."
+  ],
+  "experiment_ids": [
+    "plan_test_1",
+    "plan_test_2"
+  ],
+  "created_at": 1793122502.1083422,
+  "updated_at": 1793122502.1238167
+}

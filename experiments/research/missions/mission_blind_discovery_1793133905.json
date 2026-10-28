@@ -1,0 +1,96 @@
+{
+  "mission_id": "mission_blind_discovery_1793133905",
+  "title": "Blind Discovery: Chicane Obstacle Traversal",
+  "goal_description": "Discover control parameters enabling smooth traversal through chicane obstacles without timeout or collision.",
+  "mode": "autonomous",
+  "status": "created",
+  "target_metric": "time_to_goal",
+  "target_threshold": 11.0,
+  "optimization_direction": "minimize",
+  "constraints": [],
+  "budget": {
+    "max_iterations": 5,
+    "max_experiments": 8,
+    "max_time_seconds": 120.0,
+    "used_iterations": 0,
+    "used_experiments": 0,
+    "elapsed_time": 0.0
+  },
+  "base_scenario_id": "scen_mvqgu87z",
+  "baseline_run_id": null,
+  "baseline_metrics": null,
+  "active_hypothesis_id": null,
+  "active_plan_id": null,
+  "best_candidate_plan_id": null,
+  "hypotheses": [
+    {
+      "hypothesis_id": "hypo_13e25f5d",
+      "mission_id": "mission_blind_discovery_1793133905",
+      "title": "Increasing Tangential Gain",
+      "statement": "Increase the tangential gain to allow the robot to navigate tighter turns more effectively.",
+      "mechanism": "The tangential gain influences the robot's ability to maintain a straight path while turning, which is crucial for navigating tight turns in a chicane.",
+      "controlled_variable": "task.policy.tangential_gain",
+      "baseline_value": 1.3,
+      "proposed_value": 1.8,
+      "status": "untested",
+      "confidence": 0.5,
+      "supporting_evidence": [],
+      "contradicting_evidence": [],
+      "experiment_ids": [],
+      "created_at": 1793133910.1670766,
+      "updated_at": 1793133910.1670766
+    },
+    {
+      "hypothesis_id": "hypo_90358d9e",
+      "mission_id": "mission_blind_discovery_1793133905",
+      "title": "Reducing Safety Margin",
+      "statement": "Decrease the safety margin to allow the robot to get closer to the obstacles, potentially reducing the turning radius and improving maneuverability.",
+      "mechanism": "A smaller safety margin means the robot can approach the obstacles more closely, which can help in making tighter turns and avoiding stalling.",
+      "controlled_variable": "task.policy.safety_margin",
+      "baseline_value": 0.65,
+      "proposed_value": 0.5,
+      "status": "untested",
+      "confidence": 0.5,
+      "supporting_evidence": [],
+      "contradicting_evidence": [],
+      "experiment_ids": [],
+      "created_at": 1793133910.1676292,
+      "updated_at": 1793133910.1676292
+    }
+  ],
+  "plans": [],
+  "outcomes": [],
+  "validation_report": null,
+  "action_log": [
+    {
+      "timestamp": 1793133910.168171,
+      "step": "hypothesis_formulation",
+      "action": "formulate_competing_hypotheses",
+      "status": "success",
+      "details": {
+        "hypotheses_count": 2,
+        "titles": [
+          "Increasing Tangential Gain",
+          "Reducing Safety Margin"
+        ],
+        "reasoning_engine": "Ollama (qwen2.5:7b)"
+      },
+      "message": "Formulated 2 competing testable hypotheses grounded in physical dynamics."
+    }
+  ],
+  "final_report_markdown": null,
+  "error_message": null,
+  "task_signature": {
+    "robot_type": "differential_drive_robot",
+    "robot_mass": 8.5,
+    "control_mode": "goal_seeking",
+    "physics_timestep": 0.005,
+    "sensor_types": [
+      "lidar",
+      "imu",
+      "wheel_encoders"
+    ]
+  },
+  "created_at": 1793133905.3397133,
+  "updated_at": 1793133905.3397133
+}

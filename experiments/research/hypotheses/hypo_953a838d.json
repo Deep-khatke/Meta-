@@ -1,0 +1,17 @@
+{
+  "hypothesis_id": "hypo_953a838d",
+  "mission_id": "mission_ff8b6959",
+  "title": "Reducing Max Turn Rate",
+  "statement": "Reducing the maximum turn rate will allow the robot to move more smoothly and reduce the sharpness of its turns, thereby decreasing the likelihood of collisions with obstacles.",
+  "mechanism": "The max turn rate limits how quickly the robot can change direction. Lowering this value will make the robot's movements more gradual, which can help in maintaining a safer distance from obstacles.",
+  "controlled_variable": "task.policy.max_turn_rate",
+  "baseline_value": 0.5,
+  "proposed_value": 0.3,
+  "status": "untested",
+  "confidence": 0.5,
+  "supporting_evidence": [],
+  "contradicting_evidence": [],
+  "experiment_ids": [],
+  "created_at": 1793131727.4375665,
+  "updated_at": 1793131727.4375665
+}

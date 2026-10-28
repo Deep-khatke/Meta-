@@ -1,0 +1,17 @@
+{
+  "hypothesis_id": "hypo_b66bc3a0",
+  "mission_id": "test_syn",
+  "title": "Reducing Safety Margin",
+  "statement": "Reducing the safety margin will allow the robot to take more aggressive turns, potentially improving its ability to navigate the chicane.",
+  "mechanism": "A smaller safety margin means the robot can come closer to the obstacles, which might be necessary to navigate the tight turns in the chicane.",
+  "controlled_variable": "task.policy.safety_margin",
+  "baseline_value": 0.2,
+  "proposed_value": 0.1,
+  "status": "untested",
+  "confidence": 0.5,
+  "supporting_evidence": [],
+  "contradicting_evidence": [],
+  "experiment_ids": [],
+  "created_at": 1793133796.5365338,
+  "updated_at": 1793133796.5365338
+}

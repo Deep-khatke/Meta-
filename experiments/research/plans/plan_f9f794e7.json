@@ -1,0 +1,28 @@
+{
+  "plan_id": "plan_f9f794e7",
+  "mission_id": "mission_3e4c6d57",
+  "hypothesis_id": "hypo_3a9c6322",
+  "title": "Experiment for: Turn Rate Scaling",
+  "rationale": "Candidate task.policy.max_turn_rate=2.625: Expected Improvement=0.41, Info Gain=1.00, Prior Influence=No direct prior bias. Mechanism: Faster angular response",
+  "base_scenario_id": "scen_mvqgu87z",
+  "parameter_modifications": {
+    "task.policy.max_turn_rate": 2.625
+  },
+  "seeds": [
+    100,
+    101,
+    102
+  ],
+  "expected_outcome": "Increasing turn rate improves swerving",
+  "candidate_rank": 1,
+  "expected_improvement": 0.406,
+  "information_gain": 1.0,
+  "acquisition_score": 0.603,
+  "selection_rationale": "Candidate task.policy.max_turn_rate=2.625: Expected Improvement=0.41, Info Gain=1.00, Prior Influence=No direct prior bias. Mechanism: Faster angular response",
+  "prior_evidence_influence": "Evaluated against 25 compatible prior runs (0 incompatible runs excluded). No direct prior bias",
+  "is_validated": true,
+  "validation_messages": [],
+  "user_approved": true,
+  "status": "ready",
+  "created_at": 1793122392.299684
+}

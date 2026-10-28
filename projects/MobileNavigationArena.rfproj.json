@@ -1,0 +1,196 @@
+{
+  "schema_version": "1.0.0",
+  "name": "Mobile Navigation Arena",
+  "description": "Open arena with boundary walls, waypoint targets, and scattered cargo props for path planning.",
+  "robot": {
+    "id": "robot_nav",
+    "name": "ForgeBot-DD1",
+    "initial_position": [
+      0.0,
+      0.0,
+      0.07
+    ],
+    "initial_yaw": 0.0,
+    "chassis_size": [
+      0.2,
+      0.14,
+      0.05
+    ],
+    "wheel_radius": 0.06,
+    "wheel_width": 0.03,
+    "wheel_base": 0.28,
+    "caster_radius": 0.025,
+    "chassis_mass": 3.5,
+    "wheel_mass": 0.5,
+    "max_linear_velocity": 1.5,
+    "max_angular_velocity": 3.0
+  },
+  "generic_robot": null,
+  "sensors": {
+    "lidar": {
+      "enabled": false,
+      "mount_pos": [
+        0.1,
+        0.0,
+        0.09
+      ],
+      "num_beams": 24,
+      "fov_deg": 360.0,
+      "max_range": 10.0,
+      "min_range": 0.05,
+      "noise_std": 0.0,
+      "dropout_prob": 0.0,
+      "channels": 1
+    },
+    "imu": {
+      "enabled": false,
+      "mount_pos": [
+        0.0,
+        0.0,
+        0.05
+      ],
+      "accel_noise_std": 0.0,
+      "gyro_noise_std": 0.0,
+      "accel_bias": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "gyro_bias": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "camera": {
+      "enabled": true,
+      "mount_pos": [
+        0.18,
+        0.0,
+        0.08
+      ],
+      "mount_rpy": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "width": 320,
+      "height": 240,
+      "fov_deg": 75.0
+    },
+    "encoders": {
+      "enabled": true,
+      "ticks_per_rev": 1024,
+      "noise_std": 0.0
+    }
+  },
+  "objects": [
+    {
+      "id": "box_nav_1",
+      "name": "Cargo Alpha",
+      "type": "box",
+      "position": [
+        1.372,
+        0.659,
+        0.533
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "size": [
+        0.25,
+        0.25,
+        0.2
+      ],
+      "color": "#e06c75",
+      "is_static": true,
+      "mass": 2.5,
+      "friction": [
+        1.0,
+        0.005,
+        0.0001
+      ],
+      "visible": true,
+      "is_locked": false
+    },
+    {
+      "id": "pylon_nav_1",
+      "name": "Pylon Center",
+      "type": "cylinder",
+      "position": [
+        2.2,
+        -1.0,
+        0.35
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "size": [
+        0.16,
+        0.35
+      ],
+      "color": "#98c379",
+      "is_static": true,
+      "mass": 12.0,
+      "friction": [
+        1.0,
+        0.005,
+        0.0001
+      ],
+      "visible": true,
+      "is_locked": false
+    },
+    {
+      "id": "box_nav_2",
+      "name": "Cargo Beta",
+      "type": "box",
+      "position": [
+        2.8,
+        1.2,
+        0.2
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "size": [
+        0.2,
+        0.2,
+        0.2
+      ],
+      "color": "#38bdf8",
+      "is_static": false,
+      "mass": 2.0,
+      "friction": [
+        1.0,
+        0.005,
+        0.0001
+      ],
+      "visible": true,
+      "is_locked": false
+    }
+  ],
+  "settings": {
+    "timestep": 0.005,
+    "speed_multiplier": 1.0,
+    "gravity": [
+      0.0,
+      0.0,
+      -9.81
+    ],
+    "world_boundaries": [
+      -15.0,
+      15.0,
+      -15.0,
+      15.0,
+      0.0,
+      8.0
+    ],
+    "enable_boundaries": true
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "hypothesis_id": "hypo_90358d9e",
+  "mission_id": "mission_blind_discovery_1793133905",
+  "title": "Reducing Safety Margin",
+  "statement": "Decrease the safety margin to allow the robot to get closer to the obstacles, potentially reducing the turning radius and improving maneuverability.",
+  "mechanism": "A smaller safety margin means the robot can approach the obstacles more closely, which can help in making tighter turns and avoiding stalling.",
+  "controlled_variable": "task.policy.safety_margin",
+  "baseline_value": 0.65,
+  "proposed_value": 0.5,
+  "status": "inconclusive",
+  "confidence": 0.45,
+  "supporting_evidence": [],
+  "contradicting_evidence": [
+    "Experiment plan_blind_2: Observed delta=+0.000. Verdict: inconclusive (). (Did not produce statistically distinguishable change)"
+  ],
+  "experiment_ids": [
+    "plan_blind_2"
+  ],
+  "created_at": 1793133910.1676292,
+  "updated_at": 1793133913.345675
+}

@@ -1,0 +1,17 @@
+{
+  "hypothesis_id": "hypo_d931f2ef",
+  "mission_id": "mission_b8a3fe46",
+  "title": "Reducing Safety Margin for Enhanced Speed",
+  "statement": "Reducing the safety margin will allow the robot to travel closer to obstacles, potentially increasing its speed and efficiency in obstacle clearance.",
+  "mechanism": "The safety margin is the buffer distance the robot maintains from obstacles to ensure safe navigation. Reducing this margin can increase the robot's speed but may also increase the risk of collisions.",
+  "controlled_variable": "task.policy.safety_margin",
+  "baseline_value": 0.2,
+  "proposed_value": 0.1,
+  "status": "untested",
+  "confidence": 0.5,
+  "supporting_evidence": [],
+  "contradicting_evidence": [],
+  "experiment_ids": [],
+  "created_at": 1793131757.7160044,
+  "updated_at": 1793131757.7160044
+}

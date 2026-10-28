@@ -1,0 +1,70 @@
+{
+  "mission_id": "mission_855bcb39",
+  "title": "Scientific Investigation: Eliminate collisions around obstacles and reach go",
+  "goal_description": "Eliminate collisions around obstacles and reach goal under 15 seconds",
+  "mode": "autonomous",
+  "status": "created",
+  "target_metric": "total_collisions",
+  "target_threshold": 0.0,
+  "optimization_direction": "minimize",
+  "constraints": [
+    "max_linear_velocity <= 1.5",
+    "timeout <= 25.0",
+    "success == True",
+    "time_to_goal <= 15.0"
+  ],
+  "budget": {
+    "max_iterations": 5,
+    "max_experiments": 8,
+    "max_time_seconds": 120.0,
+    "used_iterations": 0,
+    "used_experiments": 0,
+    "elapsed_time": 0.0
+  },
+  "base_scenario_id": "scen_mvqgu87z",
+  "baseline_run_id": null,
+  "baseline_metrics": null,
+  "active_hypothesis_id": null,
+  "active_plan_id": null,
+  "best_candidate_plan_id": null,
+  "hypotheses": [],
+  "plans": [],
+  "outcomes": [],
+  "validation_report": null,
+  "action_log": [
+    {
+      "timestamp": 1793124185.0317123,
+      "step": "mission_compilation",
+      "action": "compile_objectives",
+      "status": "success",
+      "details": {
+        "target_metric": "total_collisions",
+        "target_threshold": 0.0,
+        "constraints": [
+          "max_linear_velocity <= 1.5",
+          "timeout <= 25.0",
+          "success == True",
+          "time_to_goal <= 15.0"
+        ],
+        "base_scenario_id": "scen_mvqgu87z",
+        "reasoning_engine": "DeterministicRoboticsHeuristicEngine-v1"
+      },
+      "message": "Mission successfully compiled with target: total_collisions (minimize towards 0.0)."
+    }
+  ],
+  "final_report_markdown": null,
+  "error_message": null,
+  "task_signature": {
+    "robot_type": "differential_drive_robot",
+    "robot_mass": 8.5,
+    "control_mode": "goal_seeking",
+    "physics_timestep": 0.005,
+    "sensor_types": [
+      "lidar",
+      "imu",
+      "wheel_encoders"
+    ]
+  },
+  "created_at": 1793124185.0317123,
+  "updated_at": 1793124185.0317123
+}

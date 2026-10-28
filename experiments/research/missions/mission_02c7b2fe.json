@@ -1,0 +1,117 @@
+{
+  "mission_id": "mission_02c7b2fe",
+  "title": "Scientific Investigation: Generalization test",
+  "goal_description": "Generalization test",
+  "mode": "autonomous",
+  "status": "created",
+  "target_metric": "total_collisions",
+  "target_threshold": 0.0,
+  "optimization_direction": "minimize",
+  "constraints": [
+    "max_linear_velocity <= 1.5",
+    "timeout <= 25.0"
+  ],
+  "budget": {
+    "max_iterations": 5,
+    "max_experiments": 8,
+    "max_time_seconds": 120.0,
+    "used_iterations": 0,
+    "used_experiments": 0,
+    "elapsed_time": 0.0
+  },
+  "base_scenario_id": "scen_mvqgu87z",
+  "baseline_run_id": null,
+  "baseline_metrics": null,
+  "active_hypothesis_id": null,
+  "active_plan_id": null,
+  "best_candidate_plan_id": null,
+  "hypotheses": [],
+  "plans": [],
+  "outcomes": [],
+  "validation_report": {
+    "report_id": "val_68fd0b47",
+    "mission_id": "mission_02c7b2fe",
+    "candidate_plan_id": "plan_05a3fe69",
+    "held_out_scenarios": [
+      "scen_ai_557726",
+      "scen_mvpxm8ub"
+    ],
+    "trial_results": [
+      {
+        "scenario_id": "scen_ai_557726",
+        "scenario_name": "AI Challenge: hey",
+        "baseline_success": false,
+        "candidate_success": false,
+        "baseline_collisions": 0,
+        "candidate_collisions": 0,
+        "baseline_time": 9.95,
+        "candidate_time": 9.95,
+        "verdict": "failed"
+      },
+      {
+        "scenario_id": "scen_mvpxm8ub",
+        "scenario_name": "Obstacle Course Challenge",
+        "baseline_success": true,
+        "candidate_success": true,
+        "baseline_collisions": 0,
+        "candidate_collisions": 0,
+        "baseline_time": 14.07,
+        "candidate_time": 17.18,
+        "verdict": "passed"
+      }
+    ],
+    "generalization_verdict": "overfit",
+    "summary": "Candidate passed 1/2 held-out scenarios; improvements on the baseline scenario did not fully transfer to novel geometry.",
+    "timestamp": 1793122504.6132932
+  },
+  "action_log": [
+    {
+      "timestamp": 1793122504.0909474,
+      "step": "mission_compilation",
+      "action": "compile_objectives",
+      "status": "success",
+      "details": {
+        "target_metric": "total_collisions",
+        "target_threshold": 0.0,
+        "constraints": [
+          "max_linear_velocity <= 1.5",
+          "timeout <= 25.0"
+        ],
+        "base_scenario_id": "scen_mvqgu87z",
+        "reasoning_engine": "DeterministicRoboticsHeuristicEngine-v1"
+      },
+      "message": "Mission successfully compiled with target: total_collisions (minimize towards 0.0)."
+    },
+    {
+      "timestamp": 1793122504.6132932,
+      "step": "held_out_validation",
+      "action": "evaluate_generalization",
+      "status": "warning",
+      "details": {
+        "held_out_scenarios": [
+          "scen_ai_557726",
+          "scen_mvpxm8ub"
+        ],
+        "passed_count": 1,
+        "total_count": 2,
+        "verdict": "overfit"
+      },
+      "message": "Candidate passed 1/2 held-out scenarios; improvements on the baseline scenario did not fully transfer to novel geometry."
+    }
+  ],
+  "final_report_markdown": null,
+  "error_message": null,
+  "task_signature": {
+    "robot_type": "differential_drive_robot",
+    "robot_mass": 8.5,
+    "control_mode": "goal_seeking",
+    "physics_timestep": 0.005,
+    "sensor_types": [
+      "lidar",
+      "imu",
+      "wheel_encoders"
+    ]
+  },
+  "created_at": 1793122504.0909474,
+  "updated_at": 1793122504.0909474
+}

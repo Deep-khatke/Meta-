@@ -1,0 +1,21 @@
+{
+  "hypothesis_id": "hypo_579f8d52",
+  "mission_id": "mission_f931557b",
+  "title": "Increasing Repulsion Gain",
+  "statement": "Increasing the repulsion gain will make the robot more responsive to obstacles, potentially reducing the time to goal.",
+  "mechanism": "The repulsion gain affects how strongly the robot avoids obstacles, which can influence its path planning and speed.",
+  "controlled_variable": "task.policy.repulsion_gain",
+  "baseline_value": 1.0,
+  "proposed_value": 1.5,
+  "status": "inconclusive",
+  "confidence": 0.45,
+  "supporting_evidence": [],
+  "contradicting_evidence": [
+    "Experiment plan_102d2b6a: Observed delta=+0.000. Verdict: inconclusive (Time difference (+0.33s) is within experimental noise margin.). (Did not produce statistically distinguishable change)"
+  ],
+  "experiment_ids": [
+    "plan_102d2b6a"
+  ],
+  "created_at": 1793131900.5179827,
+  "updated_at": 1793131902.2532544
+}

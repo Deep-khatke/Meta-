@@ -1,0 +1,21 @@
+{
+  "hypothesis_id": "hypo_57ffdc14",
+  "mission_id": "mission_blind_discovery_1793138395",
+  "title": "Reduce Safety Margin to Allow Closer Proximity to Obstacles",
+  "statement": "Reducing the safety margin will allow the robot to get closer to the obstacles, potentially enabling it to make tighter turns and avoid stalling.",
+  "mechanism": "The safety margin defines the minimum distance the robot maintains from obstacles to avoid collisions.",
+  "controlled_variable": "task.policy.safety_margin",
+  "baseline_value": 0.65,
+  "proposed_value": 0.45,
+  "status": "inconclusive",
+  "confidence": 0.45,
+  "supporting_evidence": [],
+  "contradicting_evidence": [
+    "Experiment plan_blind_2: Observed delta=+0.000. Verdict: inconclusive (). (Did not produce statistically distinguishable change)"
+  ],
+  "experiment_ids": [
+    "plan_blind_2"
+  ],
+  "created_at": 1793138402.9916875,
+  "updated_at": 1793138407.4329126
+}

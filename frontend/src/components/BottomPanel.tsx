@@ -2,10 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Activity, Terminal, ChevronUp, ChevronDown, Trash2,
   Copy, Check, AlertTriangle, Info, AlertCircle, FlaskConical,
-  ShieldAlert, Play, Pause, RotateCcw, CircleDot
+  ShieldAlert, Play, Pause, RotateCcw, CircleDot, Brain, Sparkles
 } from 'lucide-react';
 import { SimulationState, LogMessage, Project, ExperimentRunResult } from '../types';
 import { ExperimentPanel } from './ExperimentPanel';
+import { ResearchDashboard } from './ResearchDashboard';
+import { AIAssistantChat } from './AIAssistantChat';
 
 export interface TrajectoryPoint {
   time: number;
@@ -58,7 +60,7 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
   forcedTab = null,
 }) => {
   const [isExpanded, setIsExpanded] = useState(Boolean(forcedTab));
-  const [activeTab, setActiveTab] = useState<'telemetry' | 'contacts' | 'console' | 'experiments'>('experiments');
+  const [activeTab, setActiveTab] = useState<'telemetry' | 'contacts' | 'console' | 'experiments' | 'research' | 'ai_studio'>('experiments');
   const [copied, setCopied] = useState(false);
   const [logFilter, setLogFilter] = useState<'all' | 'info' | 'warning' | 'error'>('all');
   const [panelHeight, setPanelHeight] = useState<number>(240);
@@ -286,6 +288,48 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
             <FlaskConical size={13} />
             <span>Experiments</span>
           </div>
+
+          <div
+            onClick={(e) => {
+              e.stopPropagation();
+              setActiveTab('research');
+              setIsExpanded(true);
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+              padding: '3px 8px',
+              borderRadius: 4,
+              backgroundColor: activeTab === 'research' ? 'var(--bg-panel-hover)' : 'transparent',
+              color: activeTab === 'research' ? 'var(--accent-blue)' : 'var(--text-secondary)',
+            }}
+          >
+            <Brain size={13} />
+            <span>Research Agent</span>
+          </div>
+
+          <div
+            onClick={(e) => {
+              e.stopPropagation();
+              setActiveTab('ai_studio');
+              setIsExpanded(true);
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+              padding: '3px 8px',
+              borderRadius: 4,
+              backgroundColor: activeTab === 'ai_studio' ? 'rgba(168, 85, 247, 0.2)' : 'transparent',
+              color: activeTab === 'ai_studio' ? '#c084fc' : 'var(--text-secondary)',
+              cursor: 'pointer',
+            }}
+            title="RoboForge Autonomous AI Studio (Natural Language & Self-Driving Experimentation)"
+          >
+            <Sparkles size={13} color="#c084fc" />
+            <span>Autonomous AI</span>
+          </div>
         </div>
 
         {/* Trajectory Playback Scrubber & Quick Control */}
@@ -378,7 +422,25 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
       {/* Expanded Content Body */}
       {isExpanded && (
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden', padding: '6px 12px' }}>
-          {activeTab === 'experiments' ? (
+          {activeTab === 'ai_studio' ? (
+            <div style={{ flex: 1, overflow: 'hidden' }}>
+              <AIAssistantChat
+                onShowToast={onShowToast}
+                selectedScenarioId="scen_slalom_beta"
+                targetPosition={targetPosition}
+                onProjectLoaded={onProjectLoaded}
+                onSelectTarget={onSelectTarget}
+                onSwitchView={(v) => {
+                  if (v === 'hypotheses') setActiveTab('research');
+                  else setActiveTab('experiments');
+                }}
+              />
+            </div>
+          ) : activeTab === 'research' ? (
+            <div style={{ flex: 1, overflow: 'hidden' }}>
+              <ResearchDashboard onShowToast={onShowToast} />
+            </div>
+          ) : activeTab === 'experiments' ? (
             <div style={{ flex: 1, overflow: 'hidden' }}>
               <ExperimentPanel
                 currentProject={currentProject}

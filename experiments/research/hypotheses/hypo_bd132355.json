@@ -1,0 +1,17 @@
+{
+  "hypothesis_id": "hypo_bd132355",
+  "mission_id": "mission_68c9bb1f",
+  "title": "Reducing Safety Margin",
+  "statement": "Reducing the safety margin will allow the robot to navigate closer to obstacles, potentially reducing the distance traveled.",
+  "mechanism": "By decreasing the safety margin, the robot can approach obstacles more closely, which might reduce the total distance it needs to travel to reach the goal.",
+  "controlled_variable": "task.policy.safety_margin",
+  "baseline_value": 0.2,
+  "proposed_value": 0.1,
+  "status": "untested",
+  "confidence": 0.5,
+  "supporting_evidence": [],
+  "contradicting_evidence": [],
+  "experiment_ids": [],
+  "created_at": 1793145208.0362918,
+  "updated_at": 1793145208.0362918
+}

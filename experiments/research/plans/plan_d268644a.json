@@ -1,0 +1,28 @@
+{
+  "plan_id": "plan_d268644a",
+  "mission_id": "mission_3f621d71",
+  "hypothesis_id": "hypo_65450212",
+  "title": "Experiment for: Velocity Scaling Optimization Hypothesis",
+  "rationale": "Candidate robot.max_linear_velocity=0.9: Expected Improvement=0.42, Info Gain=0.69, Prior Influence=No direct prior bias. Mechanism: Straight-line transit speed increases while existing repulsive margin maintains clearance.",
+  "base_scenario_id": "scen_mvqgu87z",
+  "parameter_modifications": {
+    "robot.max_linear_velocity": 0.9
+  },
+  "seeds": [
+    100,
+    101,
+    102
+  ],
+  "expected_outcome": "Increasing linear velocity from 1.0 to 1.4 m/s will decrease time to goal without causing collision.",
+  "candidate_rank": 1,
+  "expected_improvement": 0.418,
+  "information_gain": 0.69,
+  "acquisition_score": 0.516,
+  "selection_rationale": "Candidate robot.max_linear_velocity=0.9: Expected Improvement=0.42, Info Gain=0.69, Prior Influence=No direct prior bias. Mechanism: Straight-line transit speed increases while existing repulsive margin maintains clearance.",
+  "prior_evidence_influence": "Evaluated against 26 compatible prior runs (0 incompatible runs excluded). No direct prior bias",
+  "is_validated": true,
+  "validation_messages": [],
+  "user_approved": true,
+  "status": "ready",
+  "created_at": 1793122392.6815624
+}

@@ -1,0 +1,17 @@
+{
+  "hypothesis_id": "hypo_b854ccb0",
+  "mission_id": "test_blind_discovery_diag",
+  "title": "Reducing Safety Margin",
+  "statement": "Reducing the safety margin will allow the robot to come closer to obstacles, potentially reducing the total duration and improving the proximity to the target.",
+  "mechanism": "The safety margin defines the minimum distance the robot should maintain from obstacles to ensure safety. Lowering this value can make the robot more aggressive in its path planning.",
+  "controlled_variable": "task.policy.safety_margin",
+  "baseline_value": 0.2,
+  "proposed_value": 0.1,
+  "status": "untested",
+  "confidence": 0.5,
+  "supporting_evidence": [],
+  "contradicting_evidence": [],
+  "experiment_ids": [],
+  "created_at": 1793133397.1024153,
+  "updated_at": 1793133397.1024153
+}

@@ -1,0 +1,96 @@
+{
+  "mission_id": "mission_blind_discovery_1793133854",
+  "title": "Blind Discovery: Chicane Obstacle Traversal",
+  "goal_description": "Discover control parameters enabling smooth traversal through chicane obstacles without timeout or collision.",
+  "mode": "autonomous",
+  "status": "created",
+  "target_metric": "time_to_goal",
+  "target_threshold": 11.0,
+  "optimization_direction": "minimize",
+  "constraints": [],
+  "budget": {
+    "max_iterations": 5,
+    "max_experiments": 8,
+    "max_time_seconds": 120.0,
+    "used_iterations": 0,
+    "used_experiments": 0,
+    "elapsed_time": 0.0
+  },
+  "base_scenario_id": "scen_mvqgu87z",
+  "baseline_run_id": null,
+  "baseline_metrics": null,
+  "active_hypothesis_id": null,
+  "active_plan_id": null,
+  "best_candidate_plan_id": null,
+  "hypotheses": [
+    {
+      "hypothesis_id": "hypo_6c736785",
+      "mission_id": "mission_blind_discovery_1793133854",
+      "title": "Increasing Tangential Gain for Improved Maneuverability",
+      "statement": "Increasing the tangential gain will allow the robot to more precisely follow the path through the chicane obstacles.",
+      "mechanism": "The tangential gain affects the robot's ability to turn and follow the path accurately.",
+      "controlled_variable": "task.policy.tangential_gain",
+      "baseline_value": 0.5,
+      "proposed_value": 0.8,
+      "status": "untested",
+      "confidence": 0.5,
+      "supporting_evidence": [],
+      "contradicting_evidence": [],
+      "experiment_ids": [],
+      "created_at": 1793133858.8344157,
+      "updated_at": 1793133858.8344157
+    },
+    {
+      "hypothesis_id": "hypo_1793f01b",
+      "mission_id": "mission_blind_discovery_1793133854",
+      "title": "Reducing Safety Margin for Increased Speed",
+      "statement": "Reducing the safety margin will allow the robot to travel faster, potentially reducing the time to traverse the chicane.",
+      "mechanism": "The safety margin controls how close the robot can get to obstacles while still considering the path safe.",
+      "controlled_variable": "task.policy.safety_margin",
+      "baseline_value": 0.3,
+      "proposed_value": 0.1,
+      "status": "untested",
+      "confidence": 0.5,
+      "supporting_evidence": [],
+      "contradicting_evidence": [],
+      "experiment_ids": [],
+      "created_at": 1793133858.834987,
+      "updated_at": 1793133858.834987
+    }
+  ],
+  "plans": [],
+  "outcomes": [],
+  "validation_report": null,
+  "action_log": [
+    {
+      "timestamp": 1793133858.8355134,
+      "step": "hypothesis_formulation",
+      "action": "formulate_competing_hypotheses",
+      "status": "success",
+      "details": {
+        "hypotheses_count": 2,
+        "titles": [
+          "Increasing Tangential Gain for Improved Maneuverability",
+          "Reducing Safety Margin for Increased Speed"
+        ],
+        "reasoning_engine": "Ollama (qwen2.5:7b)"
+      },
+      "message": "Formulated 2 competing testable hypotheses grounded in physical dynamics."
+    }
+  ],
+  "final_report_markdown": null,
+  "error_message": null,
+  "task_signature": {
+    "robot_type": "differential_drive_robot",
+    "robot_mass": 8.5,
+    "control_mode": "goal_seeking",
+    "physics_timestep": 0.005,
+    "sensor_types": [
+      "lidar",
+      "imu",
+      "wheel_encoders"
+    ]
+  },
+  "created_at": 1793133854.3158953,
+  "updated_at": 1793133854.3158953
+}

@@ -1,0 +1,21 @@
+{
+  "hypothesis_id": "hypo_d976e258",
+  "mission_id": "mission_a0b4ce8e",
+  "title": "Increasing Max Linear Velocity",
+  "statement": "Increasing the maximum linear velocity of the robot will reduce the total duration of the mission, thereby optimizing navigation speed and minimizing transit time.",
+  "mechanism": "The robot will be able to cover more distance in a shorter time, reducing the overall transit time.",
+  "controlled_variable": "robot.max_linear_velocity",
+  "baseline_value": 0.837,
+  "proposed_value": 1.0,
+  "status": "inconclusive",
+  "confidence": 0.45,
+  "supporting_evidence": [],
+  "contradicting_evidence": [
+    "Experiment plan_e9818e25: Observed delta=+0.000. Verdict: inconclusive (Time difference (+0.00s) is within experimental noise margin.). (Did not produce statistically distinguishable change)"
+  ],
+  "experiment_ids": [
+    "plan_e9818e25"
+  ],
+  "created_at": 1793131653.645241,
+  "updated_at": 1793131655.0569153
+}

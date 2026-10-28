@@ -1,0 +1,201 @@
+{
+  "mission_id": "mission_b8a3fe46",
+  "title": "Obstacle Course Challenge for ForgeBot-DD1",
+  "goal_description": "Propose a supervised research mission for obstacle clearance",
+  "mode": "supervised",
+  "status": "cancelled",
+  "target_metric": "time_to_clear_obstacles",
+  "target_threshold": 5.0,
+  "optimization_direction": "minimize",
+  "constraints": [
+    "max_linear_velocity <= 1.5",
+    "max_angular_velocity <= 3.0",
+    "total_collisions == 0"
+  ],
+  "budget": {
+    "max_iterations": 5,
+    "max_experiments": 8,
+    "max_time_seconds": 120.0,
+    "used_iterations": 1,
+    "used_experiments": 1,
+    "elapsed_time": 0.0
+  },
+  "base_scenario_id": "scen_slalom_beta",
+  "baseline_run_id": "run_bb949fae",
+  "baseline_metrics": {
+    "run_id": "run_bb949fae",
+    "total_collisions": 0,
+    "success": false,
+    "time_to_goal": null,
+    "total_duration": 9.95,
+    "max_speed": 0.837,
+    "distance_traveled": 3.288
+  },
+  "active_hypothesis_id": "hypo_bca9ece6",
+  "active_plan_id": "plan_3b4582ad",
+  "best_candidate_plan_id": null,
+  "hypotheses": [
+    {
+      "hypothesis_id": "hypo_bca9ece6",
+      "mission_id": "mission_b8a3fe46",
+      "title": "Increasing Repulsion Gain for Improved Obstacle Avoidance",
+      "statement": "Increasing the repulsion gain will make the robot more responsive to obstacles, leading to better obstacle clearance.",
+      "mechanism": "The repulsion gain determines how strongly the robot reacts to obstacles in its path, influencing its ability to navigate around them.",
+      "controlled_variable": "task.policy.repulsion_gain",
+      "baseline_value": 0.5,
+      "proposed_value": 1.0,
+      "status": "untested",
+      "confidence": 0.5,
+      "supporting_evidence": [],
+      "contradicting_evidence": [],
+      "experiment_ids": [],
+      "created_at": 1793131757.715459,
+      "updated_at": 1793131757.715459
+    },
+    {
+      "hypothesis_id": "hypo_d931f2ef",
+      "mission_id": "mission_b8a3fe46",
+      "title": "Reducing Safety Margin for Enhanced Speed",
+      "statement": "Reducing the safety margin will allow the robot to travel closer to obstacles, potentially increasing its speed and efficiency in obstacle clearance.",
+      "mechanism": "The safety margin is the buffer distance the robot maintains from obstacles to ensure safe navigation. Reducing this margin can increase the robot's speed but may also increase the risk of collisions.",
+      "controlled_variable": "task.policy.safety_margin",
+      "baseline_value": 0.2,
+      "proposed_value": 0.1,
+      "status": "untested",
+      "confidence": 0.5,
+      "supporting_evidence": [],
+      "contradicting_evidence": [],
+      "experiment_ids": [],
+      "created_at": 1793131757.7160044,
+      "updated_at": 1793131757.7160044
+    }
+  ],
+  "plans": [
+    {
+      "plan_id": "plan_3b4582ad",
+      "mission_id": "mission_b8a3fe46",
+      "hypothesis_id": "hypo_bca9ece6",
+      "title": "Experiment for: Increasing Repulsion Gain for Improved Obstacle Avoidance",
+      "rationale": "Candidate task.policy.repulsion_gain=1.0: Expected Improvement=0.50, Info Gain=1.00, Prior Influence=No direct prior bias. Mechanism: The repulsion gain determines how strongly the robot reacts to obstacles in its path, influencing its ability to navigate around them.",
+      "base_scenario_id": "scen_slalom_beta",
+      "parameter_modifications": {
+        "task.policy.repulsion_gain": 1.0
+      },
+      "seeds": [
+        100,
+        101,
+        102
+      ],
+      "expected_outcome": "Increasing the repulsion gain will make the robot more responsive to obstacles, leading to better obstacle clearance.",
+      "candidate_rank": 1,
+      "expected_improvement": 0.5,
+      "information_gain": 1.0,
+      "acquisition_score": 0.65,
+      "selection_rationale": "Candidate task.policy.repulsion_gain=1.0: Expected Improvement=0.50, Info Gain=1.00, Prior Influence=No direct prior bias. Mechanism: The repulsion gain determines how strongly the robot reacts to obstacles in its path, influencing its ability to navigate around them.",
+      "prior_evidence_influence": "Evaluated against 37 compatible prior runs (0 incompatible runs excluded). No direct prior bias",
+      "is_validated": true,
+      "validation_messages": [],
+      "user_approved": false,
+      "status": "pending_approval",
+      "created_at": 1793131758.4190693
+    }
+  ],
+  "outcomes": [],
+  "validation_report": null,
+  "action_log": [
+    {
+      "timestamp": 1793131752.428013,
+      "step": "mission_compilation",
+      "action": "compile_objectives",
+      "status": "success",
+      "details": {
+        "target_metric": "time_to_clear_obstacles",
+        "target_threshold": 5.0,
+        "constraints": [
+          "max_linear_velocity <= 1.5",
+          "max_angular_velocity <= 3.0",
+          "total_collisions == 0"
+        ],
+        "base_scenario_id": "scen_slalom_beta",
+        "reasoning_engine": "Ollama (qwen2.5:7b)"
+      },
+      "message": "Mission successfully compiled with target: time_to_clear_obstacles (minimize towards 5.0)."
+    },
+    {
+      "timestamp": 1793131752.676224,
+      "step": "baseline_collection",
+      "action": "run_baseline_simulation",
+      "status": "success",
+      "details": {
+        "run_id": "run_bb949fae",
+        "total_collisions": 0,
+        "success": false,
+        "time_to_goal": null,
+        "total_duration": 9.95,
+        "max_speed": 0.837,
+        "distance_traveled": 3.288
+      },
+      "message": "Baseline established: 0 collisions, success=False, duration=9.95s."
+    },
+    {
+      "timestamp": 1793131757.7160044,
+      "step": "hypothesis_formulation",
+      "action": "formulate_competing_hypotheses",
+      "status": "success",
+      "details": {
+        "hypotheses_count": 2,
+        "titles": [
+          "Increasing Repulsion Gain for Improved Obstacle Avoidance",
+          "Reducing Safety Margin for Enhanced Speed"
+        ],
+        "reasoning_engine": "Ollama (qwen2.5:7b)"
+      },
+      "message": "Formulated 2 competing testable hypotheses grounded in physical dynamics."
+    },
+    {
+      "timestamp": 1793131758.420597,
+      "step": "experiment_design",
+      "action": "design_controlled_experiment",
+      "status": "success",
+      "details": {
+        "plan_id": "plan_3b4582ad",
+        "hypothesis_id": "hypo_bca9ece6",
+        "modifications": {
+          "task.policy.repulsion_gain": 1.0
+        },
+        "seeds": [
+          100,
+          101,
+          102
+        ],
+        "status": "pending_approval"
+      },
+      "message": "Designed experiment plan 'Experiment for: Increasing Repulsion Gain for Improved Obstacle Avoidance' with 3 trial seeds. Validation: PASSED."
+    },
+    {
+      "timestamp": 1793131758.4433932,
+      "step": "mission_control",
+      "action": "cancel_mission",
+      "status": "cancelled",
+      "details": {
+        "reason": "Aborted by supervisor test"
+      },
+      "message": "Mission cancelled: Aborted by supervisor test."
+    }
+  ],
+  "final_report_markdown": null,
+  "error_message": "Aborted by supervisor test",
+  "task_signature": {
+    "robot_type": "differential_drive_robot",
+    "robot_mass": 8.5,
+    "control_mode": "goal_seeking",
+    "physics_timestep": 0.005,
+    "sensor_types": [
+      "lidar",
+      "imu",
+      "wheel_encoders"
+    ]
+  },
+  "created_at": 1793131752.428013,
+  "updated_at": 1793131752.428013
+}

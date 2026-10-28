@@ -1,0 +1,118 @@
+{
+  "mission_id": "mission_c27a3426",
+  "title": "Obstacle Course Challenge",
+  "goal_description": "Safely navigate dense obstacle field",
+  "mode": "autonomous",
+  "status": "created",
+  "target_metric": "time_to_goal",
+  "target_threshold": 30.0,
+  "optimization_direction": "minimize",
+  "constraints": [
+    "max_linear_velocity <= 1.5",
+    "total_collisions == 0",
+    "max_angular_velocity <= 3.0"
+  ],
+  "budget": {
+    "max_iterations": 5,
+    "max_experiments": 8,
+    "max_time_seconds": 120.0,
+    "used_iterations": 0,
+    "used_experiments": 0,
+    "elapsed_time": 0.0
+  },
+  "base_scenario_id": "scen_mvqgu87z",
+  "baseline_run_id": null,
+  "baseline_metrics": null,
+  "active_hypothesis_id": null,
+  "active_plan_id": null,
+  "best_candidate_plan_id": null,
+  "hypotheses": [
+    {
+      "hypothesis_id": "hypo_a04c7d84",
+      "mission_id": "mission_c27a3426",
+      "title": "Increasing Tangential Gain",
+      "statement": "Increasing the tangential gain will help the robot navigate more closely around obstacles without colliding.",
+      "mechanism": "The robot will be able to make tighter turns, reducing the distance to obstacles and thus the risk of collision.",
+      "controlled_variable": "task.policy.tangential_gain",
+      "baseline_value": 0.5,
+      "proposed_value": 0.8,
+      "status": "untested",
+      "confidence": 0.5,
+      "supporting_evidence": [],
+      "contradicting_evidence": [],
+      "experiment_ids": [],
+      "created_at": 1793138500.1903946,
+      "updated_at": 1793138500.1903946
+    },
+    {
+      "hypothesis_id": "hypo_d0560dba",
+      "mission_id": "mission_c27a3426",
+      "title": "Reducing Safety Margin",
+      "statement": "Reducing the safety margin will allow the robot to come closer to obstacles, potentially reducing the total time to navigate the field.",
+      "mechanism": "By reducing the safety margin, the robot can make more aggressive maneuvers, which might reduce the time to reach the goal.",
+      "controlled_variable": "task.policy.safety_margin",
+      "baseline_value": 0.2,
+      "proposed_value": 0.1,
+      "status": "untested",
+      "confidence": 0.5,
+      "supporting_evidence": [],
+      "contradicting_evidence": [],
+      "experiment_ids": [],
+      "created_at": 1793138500.1915064,
+      "updated_at": 1793138500.1915064
+    }
+  ],
+  "plans": [],
+  "outcomes": [],
+  "validation_report": null,
+  "action_log": [
+    {
+      "timestamp": 1793138495.5975037,
+      "step": "mission_compilation",
+      "action": "compile_objectives",
+      "status": "success",
+      "details": {
+        "target_metric": "time_to_goal",
+        "target_threshold": 30.0,
+        "constraints": [
+          "max_linear_velocity <= 1.5",
+          "total_collisions == 0",
+          "max_angular_velocity <= 3.0"
+        ],
+        "base_scenario_id": "scen_mvqgu87z",
+        "reasoning_engine": "Ollama (qwen2.5:7b)"
+      },
+      "message": "Mission successfully compiled with target: time_to_goal (minimize towards 30.0)."
+    },
+    {
+      "timestamp": 1793138500.1915064,
+      "step": "hypothesis_formulation",
+      "action": "formulate_competing_hypotheses",
+      "status": "success",
+      "details": {
+        "hypotheses_count": 2,
+        "titles": [
+          "Increasing Tangential Gain",
+          "Reducing Safety Margin"
+        ],
+        "reasoning_engine": "Ollama (qwen2.5:7b)"
+      },
+      "message": "Formulated 2 competing testable hypotheses grounded in physical dynamics."
+    }
+  ],
+  "final_report_markdown": null,
+  "error_message": null,
+  "task_signature": {
+    "robot_type": "differential_drive_robot",
+    "robot_mass": 8.5,
+    "control_mode": "goal_seeking",
+    "physics_timestep": 0.005,
+    "sensor_types": [
+      "lidar",
+      "imu",
+      "wheel_encoders"
+    ]
+  },
+  "created_at": 1793138495.5975037,
+  "updated_at": 1793138495.5975037
+}

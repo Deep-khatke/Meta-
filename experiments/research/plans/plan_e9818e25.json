@@ -1,0 +1,28 @@
+{
+  "plan_id": "plan_e9818e25",
+  "mission_id": "mission_a0b4ce8e",
+  "hypothesis_id": "hypo_d976e258",
+  "title": "Experiment for: Increasing Max Linear Velocity",
+  "rationale": "Candidate robot.max_linear_velocity=1.0: Expected Improvement=0.50, Info Gain=1.00, Prior Influence=No direct prior bias. Mechanism: The robot will be able to cover more distance in a shorter time, reducing the overall transit time.",
+  "base_scenario_id": "scen_slalom_beta",
+  "parameter_modifications": {
+    "robot.max_linear_velocity": 1.0
+  },
+  "seeds": [
+    100,
+    101,
+    102
+  ],
+  "expected_outcome": "Increasing the maximum linear velocity of the robot will reduce the total duration of the mission, thereby optimizing navigation speed and minimizing transit time.",
+  "candidate_rank": 1,
+  "expected_improvement": 0.5,
+  "information_gain": 1.0,
+  "acquisition_score": 0.65,
+  "selection_rationale": "Candidate robot.max_linear_velocity=1.0: Expected Improvement=0.50, Info Gain=1.00, Prior Influence=No direct prior bias. Mechanism: The robot will be able to cover more distance in a shorter time, reducing the overall transit time.",
+  "prior_evidence_influence": "Evaluated against 34 compatible prior runs (0 incompatible runs excluded). No direct prior bias",
+  "is_validated": true,
+  "validation_messages": [],
+  "user_approved": true,
+  "status": "ready",
+  "created_at": 1793131654.3030722
+}

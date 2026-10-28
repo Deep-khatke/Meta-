@@ -1,0 +1,28 @@
+{
+  "plan_id": "plan_7ddfce39",
+  "mission_id": "mission_0884289e",
+  "hypothesis_id": "hypo_25276a0f",
+  "title": "Experiment for: Adjusting Repulsion Gain",
+  "rationale": "Candidate task.policy.repulsion_gain=0.8: Expected Improvement=0.50, Info Gain=1.00, Prior Influence=No direct prior bias. Mechanism: By fine-tuning the repulsion gain, the robot can better balance between avoiding obstacles and maintaining its intended path, which could lead to a more direct and faster route to the goal.",
+  "base_scenario_id": "scen_ai_58baf1",
+  "parameter_modifications": {
+    "task.policy.repulsion_gain": 0.8
+  },
+  "seeds": [
+    100,
+    101,
+    102
+  ],
+  "expected_outcome": "Adjusting the repulsion gain parameter will help the robot navigate more efficiently around obstacles, potentially reducing the time spent in collision avoidance maneuvers and thus optimizing navigation speed.",
+  "candidate_rank": 1,
+  "expected_improvement": 0.5,
+  "information_gain": 1.0,
+  "acquisition_score": 0.65,
+  "selection_rationale": "Candidate task.policy.repulsion_gain=0.8: Expected Improvement=0.50, Info Gain=1.00, Prior Influence=No direct prior bias. Mechanism: By fine-tuning the repulsion gain, the robot can better balance between avoiding obstacles and maintaining its intended path, which could lead to a more direct and faster route to the goal.",
+  "prior_evidence_influence": "Evaluated against 36 compatible prior runs (0 incompatible runs excluded). No direct prior bias",
+  "is_validated": true,
+  "validation_messages": [],
+  "user_approved": true,
+  "status": "ready",
+  "created_at": 1793132132.5191367
+}

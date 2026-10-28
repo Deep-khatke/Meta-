@@ -1,0 +1,191 @@
+{
+  "mission_id": "mission_ff8b6959",
+  "title": "Obstacle Course Challenge for ForgeBot-DD1",
+  "goal_description": "Propose a supervised research mission to improve safety margin and avoid obstacles",
+  "mode": "supervised",
+  "status": "awaiting_approval",
+  "target_metric": "total_collisions",
+  "target_threshold": 0.0,
+  "optimization_direction": "minimize",
+  "constraints": [
+    "max_linear_velocity <= 1.5",
+    "max_angular_velocity <= 3.0",
+    "total_collisions == 0"
+  ],
+  "budget": {
+    "max_iterations": 2,
+    "max_experiments": 4,
+    "max_time_seconds": 120.0,
+    "used_iterations": 1,
+    "used_experiments": 1,
+    "elapsed_time": 0.0
+  },
+  "base_scenario_id": "scen_slalom_beta",
+  "baseline_run_id": "run_ebe193af",
+  "baseline_metrics": {
+    "run_id": "run_ebe193af",
+    "total_collisions": 0,
+    "success": false,
+    "time_to_goal": null,
+    "total_duration": 9.95,
+    "max_speed": 0.837,
+    "distance_traveled": 3.288
+  },
+  "active_hypothesis_id": "hypo_70736c61",
+  "active_plan_id": "plan_4cabb3d5",
+  "best_candidate_plan_id": null,
+  "hypotheses": [
+    {
+      "hypothesis_id": "hypo_70736c61",
+      "mission_id": "mission_ff8b6959",
+      "title": "Increasing Repulsion Gain",
+      "statement": "Increasing the repulsion gain will make the robot more responsive to obstacles, reducing the risk of collision.",
+      "mechanism": "The repulsion gain parameter controls how strongly the robot avoids obstacles. A higher value will cause the robot to deviate more sharply from its path to avoid obstacles.",
+      "controlled_variable": "task.policy.repulsion_gain",
+      "baseline_value": 0.5,
+      "proposed_value": 1.0,
+      "status": "untested",
+      "confidence": 0.5,
+      "supporting_evidence": [],
+      "contradicting_evidence": [],
+      "experiment_ids": [],
+      "created_at": 1793131727.4370537,
+      "updated_at": 1793131727.4370537
+    },
+    {
+      "hypothesis_id": "hypo_953a838d",
+      "mission_id": "mission_ff8b6959",
+      "title": "Reducing Max Turn Rate",
+      "statement": "Reducing the maximum turn rate will allow the robot to move more smoothly and reduce the sharpness of its turns, thereby decreasing the likelihood of collisions with obstacles.",
+      "mechanism": "The max turn rate limits how quickly the robot can change direction. Lowering this value will make the robot's movements more gradual, which can help in maintaining a safer distance from obstacles.",
+      "controlled_variable": "task.policy.max_turn_rate",
+      "baseline_value": 0.5,
+      "proposed_value": 0.3,
+      "status": "untested",
+      "confidence": 0.5,
+      "supporting_evidence": [],
+      "contradicting_evidence": [],
+      "experiment_ids": [],
+      "created_at": 1793131727.4375665,
+      "updated_at": 1793131727.4375665
+    }
+  ],
+  "plans": [
+    {
+      "plan_id": "plan_4cabb3d5",
+      "mission_id": "mission_ff8b6959",
+      "hypothesis_id": "hypo_70736c61",
+      "title": "Experiment for: Increasing Repulsion Gain",
+      "rationale": "Candidate task.policy.repulsion_gain=1.0: Expected Improvement=0.50, Info Gain=1.00, Prior Influence=No direct prior bias. Mechanism: The repulsion gain parameter controls how strongly the robot avoids obstacles. A higher value will cause the robot to deviate more sharply from its path to avoid obstacles.",
+      "base_scenario_id": "scen_slalom_beta",
+      "parameter_modifications": {
+        "task.policy.repulsion_gain": 1.0
+      },
+      "seeds": [
+        100,
+        101,
+        102
+      ],
+      "expected_outcome": "Increasing the repulsion gain will make the robot more responsive to obstacles, reducing the risk of collision.",
+      "candidate_rank": 1,
+      "expected_improvement": 0.5,
+      "information_gain": 1.0,
+      "acquisition_score": 0.65,
+      "selection_rationale": "Candidate task.policy.repulsion_gain=1.0: Expected Improvement=0.50, Info Gain=1.00, Prior Influence=No direct prior bias. Mechanism: The repulsion gain parameter controls how strongly the robot avoids obstacles. A higher value will cause the robot to deviate more sharply from its path to avoid obstacles.",
+      "prior_evidence_influence": "Evaluated against 36 compatible prior runs (0 incompatible runs excluded). No direct prior bias",
+      "is_validated": true,
+      "validation_messages": [],
+      "user_approved": false,
+      "status": "pending_approval",
+      "created_at": 1793131728.3586884
+    }
+  ],
+  "outcomes": [],
+  "validation_report": null,
+  "action_log": [
+    {
+      "timestamp": 1793131721.9786215,
+      "step": "mission_compilation",
+      "action": "compile_objectives",
+      "status": "success",
+      "details": {
+        "target_metric": "total_collisions",
+        "target_threshold": 0.0,
+        "constraints": [
+          "max_linear_velocity <= 1.5",
+          "max_angular_velocity <= 3.0",
+          "total_collisions == 0"
+        ],
+        "base_scenario_id": "scen_slalom_beta",
+        "reasoning_engine": "Ollama (qwen2.5:7b)"
+      },
+      "message": "Mission successfully compiled with target: total_collisions (minimize towards 0.0)."
+    },
+    {
+      "timestamp": 1793131722.2992733,
+      "step": "baseline_collection",
+      "action": "run_baseline_simulation",
+      "status": "success",
+      "details": {
+        "run_id": "run_ebe193af",
+        "total_collisions": 0,
+        "success": false,
+        "time_to_goal": null,
+        "total_duration": 9.95,
+        "max_speed": 0.837,
+        "distance_traveled": 3.288
+      },
+      "message": "Baseline established: 0 collisions, success=False, duration=9.95s."
+    },
+    {
+      "timestamp": 1793131727.4380822,
+      "step": "hypothesis_formulation",
+      "action": "formulate_competing_hypotheses",
+      "status": "success",
+      "details": {
+        "hypotheses_count": 2,
+        "titles": [
+          "Increasing Repulsion Gain",
+          "Reducing Max Turn Rate"
+        ],
+        "reasoning_engine": "Ollama (qwen2.5:7b)"
+      },
+      "message": "Formulated 2 competing testable hypotheses grounded in physical dynamics."
+    },
+    {
+      "timestamp": 1793131728.3586884,
+      "step": "experiment_design",
+      "action": "design_controlled_experiment",
+      "status": "success",
+      "details": {
+        "plan_id": "plan_4cabb3d5",
+        "hypothesis_id": "hypo_70736c61",
+        "modifications": {
+          "task.policy.repulsion_gain": 1.0
+        },
+        "seeds": [
+          100,
+          101,
+          102
+        ],
+        "status": "pending_approval"
+      },
+      "message": "Designed experiment plan 'Experiment for: Increasing Repulsion Gain' with 3 trial seeds. Validation: PASSED."
+    }
+  ],
+  "final_report_markdown": null,
+  "error_message": null,
+  "task_signature": {
+    "robot_type": "differential_drive_robot",
+    "robot_mass": 8.5,
+    "control_mode": "goal_seeking",
+    "physics_timestep": 0.005,
+    "sensor_types": [
+      "lidar",
+      "imu",
+      "wheel_encoders"
+    ]
+  },
+  "created_at": 1793131721.9786215,
+  "updated_at": 1793131721.9786215
+}

@@ -1,0 +1,96 @@
+{
+  "mission_id": "test_syn",
+  "title": "Test Synthesis",
+  "goal_description": "Navigate through chicane obstacles",
+  "mode": "autonomous",
+  "status": "created",
+  "target_metric": "time_to_goal",
+  "target_threshold": 11.0,
+  "optimization_direction": "minimize",
+  "constraints": [],
+  "budget": {
+    "max_iterations": 5,
+    "max_experiments": 8,
+    "max_time_seconds": 120.0,
+    "used_iterations": 0,
+    "used_experiments": 0,
+    "elapsed_time": 0.0
+  },
+  "base_scenario_id": "scen_mvqgu87z",
+  "baseline_run_id": null,
+  "baseline_metrics": null,
+  "active_hypothesis_id": null,
+  "active_plan_id": null,
+  "best_candidate_plan_id": null,
+  "hypotheses": [
+    {
+      "hypothesis_id": "hypo_5d8dff26",
+      "mission_id": "test_syn",
+      "title": "Increasing Tangential Gain",
+      "statement": "Increasing the tangential gain will help the robot navigate tighter turns in the chicane obstacles.",
+      "mechanism": "The tangential gain affects the robot's ability to follow a path accurately, especially in tight turns.",
+      "controlled_variable": "task.policy.tangential_gain",
+      "baseline_value": 0.5,
+      "proposed_value": 0.8,
+      "status": "untested",
+      "confidence": 0.5,
+      "supporting_evidence": [],
+      "contradicting_evidence": [],
+      "experiment_ids": [],
+      "created_at": 1793133796.5352585,
+      "updated_at": 1793133796.5352585
+    },
+    {
+      "hypothesis_id": "hypo_b66bc3a0",
+      "mission_id": "test_syn",
+      "title": "Reducing Safety Margin",
+      "statement": "Reducing the safety margin will allow the robot to take more aggressive turns, potentially improving its ability to navigate the chicane.",
+      "mechanism": "A smaller safety margin means the robot can come closer to the obstacles, which might be necessary to navigate the tight turns in the chicane.",
+      "controlled_variable": "task.policy.safety_margin",
+      "baseline_value": 0.2,
+      "proposed_value": 0.1,
+      "status": "untested",
+      "confidence": 0.5,
+      "supporting_evidence": [],
+      "contradicting_evidence": [],
+      "experiment_ids": [],
+      "created_at": 1793133796.5365338,
+      "updated_at": 1793133796.5365338
+    }
+  ],
+  "plans": [],
+  "outcomes": [],
+  "validation_report": null,
+  "action_log": [
+    {
+      "timestamp": 1793133796.5370991,
+      "step": "hypothesis_formulation",
+      "action": "formulate_competing_hypotheses",
+      "status": "success",
+      "details": {
+        "hypotheses_count": 2,
+        "titles": [
+          "Increasing Tangential Gain",
+          "Reducing Safety Margin"
+        ],
+        "reasoning_engine": "Ollama (qwen2.5:7b)"
+      },
+      "message": "Formulated 2 competing testable hypotheses grounded in physical dynamics."
+    }
+  ],
+  "final_report_markdown": null,
+  "error_message": null,
+  "task_signature": {
+    "robot_type": "differential_drive_robot",
+    "robot_mass": 8.5,
+    "control_mode": "goal_seeking",
+    "physics_timestep": 0.005,
+    "sensor_types": [
+      "lidar",
+      "imu",
+      "wheel_encoders"
+    ]
+  },
+  "created_at": 1793133791.8816354,
+  "updated_at": 1793133791.8816354
+}

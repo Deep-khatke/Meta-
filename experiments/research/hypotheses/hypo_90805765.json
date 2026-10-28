@@ -1,0 +1,21 @@
+{
+  "hypothesis_id": "hypo_90805765",
+  "mission_id": "mission_b95a3a21",
+  "title": "Decreasing Safety Margin",
+  "statement": "Decreasing the safety margin will allow the robot to navigate closer to obstacles, potentially reducing the distance traveled and time to goal.",
+  "mechanism": "task.policy.safety_margin",
+  "controlled_variable": "task.policy.safety_margin",
+  "baseline_value": 0.2,
+  "proposed_value": 0.1,
+  "status": "refuted",
+  "confidence": 0.15,
+  "supporting_evidence": [],
+  "contradicting_evidence": [
+    "Experiment plan_d5b5786a: Observed delta=+1.000. Verdict: degraded (Collisions increased from 0.0 to 1.0 (+1.0).)."
+  ],
+  "experiment_ids": [
+    "plan_d5b5786a"
+  ],
+  "created_at": 1793134289.8685725,
+  "updated_at": 1793134293.87988
+}

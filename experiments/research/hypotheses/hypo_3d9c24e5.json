@@ -1,0 +1,17 @@
+{
+  "hypothesis_id": "hypo_3d9c24e5",
+  "mission_id": "mission_blind_discovery_1793138395",
+  "title": "Increase Repulsion Gain to Strengthen Obstacle Avoidance",
+  "statement": "By increasing the repulsion gain, the robot will be more strongly repelled by obstacles, which could help it navigate the chicane more effectively.",
+  "mechanism": "The repulsion gain influences the strength of the repulsive force applied to the robot when it detects obstacles.",
+  "controlled_variable": "task.policy.repulsion_gain",
+  "baseline_value": 1.6,
+  "proposed_value": 2.2,
+  "status": "untested",
+  "confidence": 0.5,
+  "supporting_evidence": [],
+  "contradicting_evidence": [],
+  "experiment_ids": [],
+  "created_at": 1793138402.9916875,
+  "updated_at": 1793138402.9916875
+}
