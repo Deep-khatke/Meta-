@@ -1,0 +1,22 @@
+{
+  "model_id": "rl_e1bcb241",
+  "name": "DroneFlightPolicy_hover_023d2f",
+  "checkpoint_path": "models\\rl\\rl_e1bcb241.zip",
+  "timesteps_trained": 10000,
+  "training_duration_seconds": 8.67,
+  "success_rate": 0.0,
+  "collision_rate": 0.0,
+  "mean_reward": -1128.65,
+  "created_at": 1793210109.1039658,
+  "hyperparameters": {
+    "learning_rate": 0.0003,
+    "n_steps": 512,
+    "batch_size": 64,
+    "n_epochs": 10,
+    "gamma": 0.99,
+    "gae_lambda": 0.95,
+    "clip_range": 0.2,
+    "ent_coef": 0.01
+  },
+  "scenario_id": null
+}

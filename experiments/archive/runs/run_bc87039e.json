@@ -1,0 +1,5627 @@
+{
+  "run_id": "run_bc87039e",
+  "experiment_id": "scen_slalom_beta",
+  "experiment_name": "Obstacle Slalom",
+  "config_version": "1.0.0",
+  "seed": 100,
+  "status": "completed",
+  "created_at": 1793126741.0605505,
+  "completed_at": 1793126741.0605505,
+  "measurements": [
+    {
+      "sim_time": 0.0,
+      "position": [
+        0.0,
+        0.0,
+        0.08
+      ],
+      "quaternion": [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "linear_velocity": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "angular_velocity": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "linear_speed": 0.0,
+      "angular_speed": 0.0,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 0.05499999999999999,
+      "position": [
+        0.0006,
+        0.0001,
+        0.0687
+      ],
+      "quaternion": [
+        1.0,
+        -0.0007,
+        -0.0004,
+        0.0036
+      ],
+      "linear_velocity": [
+        0.0754,
+        0.011,
+        0.0834
+      ],
+      "angular_velocity": [
+        -0.1461,
+        0.0466,
+        1.0288
+      ],
+      "linear_speed": 0.113,
+      "angular_speed": 1.0402,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 0.10000000000000002,
+      "position": [
+        0.0047,
+        -0.0001,
+        0.0722
+      ],
+      "quaternion": [
+        0.9991,
+        0.0016,
+        0.0001,
+        0.0413
+      ],
+      "linear_velocity": [
+        0.087,
+        -0.0077,
+        -0.1127
+      ],
+      "angular_velocity": [
+        0.1438,
+        -0.0075,
+        1.6851
+      ],
+      "linear_speed": 0.1426,
+      "angular_speed": 1.6913,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 0.15000000000000005,
+      "position": [
+        0.0062,
+        -0.0002,
+        0.0699
+      ],
+      "quaternion": [
+        0.9973,
+        0.001,
+        -0.0003,
+        0.0735
+      ],
+      "linear_velocity": [
+        0.0189,
+        0.0028,
+        -0.0833
+      ],
+      "angular_velocity": [
+        -0.1,
+        -0.2207,
+        1.3917
+      ],
+      "linear_speed": 0.0855,
+      "angular_speed": 1.4127,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 0.2000000000000001,
+      "position": [
+        0.0066,
+        0.0004,
+        0.0701
+      ],
+      "quaternion": [
+        0.9948,
+        -0.0027,
+        0.0007,
+        0.1022
+      ],
+      "linear_velocity": [
+        0.0114,
+        -0.0155,
+        -0.0328
+      ],
+      "angular_velocity": [
+        -0.0322,
+        -0.1745,
+        1.2155
+      ],
+      "linear_speed": 0.0381,
+      "angular_speed": 1.2284,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 0.2500000000000001,
+      "position": [
+        0.0072,
+        -0.0006,
+        0.0701
+      ],
+      "quaternion": [
+        0.9916,
+        0.001,
+        0.0008,
+        0.129
+      ],
+      "linear_velocity": [
+        0.0184,
+        0.0057,
+        0.0073
+      ],
+      "angular_velocity": [
+        -0.2837,
+        0.2101,
+        0.9204
+      ],
+      "linear_speed": 0.0206,
+      "angular_speed": 0.9858,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 0.30000000000000016,
+      "position": [
+        0.0075,
+        -0.0002,
+        0.07
+      ],
+      "quaternion": [
+        0.9879,
+        0.0013,
+        0.0003,
+        0.1548
+      ],
+      "linear_velocity": [
+        -0.0238,
+        0.0119,
+        -0.0136
+      ],
+      "angular_velocity": [
+        0.4407,
+        0.1523,
+        0.8305
+      ],
+      "linear_speed": 0.0299,
+      "angular_speed": 0.9525,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 0.3500000000000002,
+      "position": [
+        0.0082,
+        0.0004,
+        0.0704
+      ],
+      "quaternion": [
+        0.9836,
+        -0.0003,
+        0.0005,
+        0.1803
+      ],
+      "linear_velocity": [
+        0.0118,
+        0.0211,
+        -0.0017
+      ],
+      "angular_velocity": [
+        0.1412,
+        0.3349,
+        1.1633
+      ],
+      "linear_speed": 0.0242,
+      "angular_speed": 1.2187,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 0.40000000000000024,
+      "position": [
+        0.0084,
+        0.0013,
+        0.0699
+      ],
+      "quaternion": [
+        0.9786,
+        -0.0014,
+        0.0003,
+        0.2058
+      ],
+      "linear_velocity": [
+        -0.0092,
+        0.0165,
+        -0.0035
+      ],
+      "angular_velocity": [
+        -0.3228,
+        0.0084,
+        0.9057
+      ],
+      "linear_speed": 0.0192,
+      "angular_speed": 0.9615,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 0.4500000000000003,
+      "position": [
+        0.0083,
+        0.0012,
+        0.0699
+      ],
+      "quaternion": [
+        0.9731,
+        0.0018,
+        0.0006,
+        0.2303
+      ],
+      "linear_velocity": [
+        -0.0082,
+        0.0094,
+        -0.0597
+      ],
+      "angular_velocity": [
+        0.5516,
+        0.3511,
+        0.7599
+      ],
+      "linear_speed": 0.061,
+      "angular_speed": 1.0025,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 0.5000000000000003,
+      "position": [
+        0.0089,
+        0.002,
+        0.0704
+      ],
+      "quaternion": [
+        0.968,
+        -0.001,
+        -0.0003,
+        0.2508
+      ],
+      "linear_velocity": [
+        0.0144,
+        0.0173,
+        0.0705
+      ],
+      "angular_velocity": [
+        0.1683,
+        0.0063,
+        0.9714
+      ],
+      "linear_speed": 0.074,
+      "angular_speed": 0.9859,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 0.5500000000000004,
+      "position": [
+        0.0094,
+        0.0022,
+        0.0701
+      ],
+      "quaternion": [
+        0.9625,
+        0.0005,
+        0.0003,
+        0.2711
+      ],
+      "linear_velocity": [
+        -0.0271,
+        -0.0455,
+        0.0137
+      ],
+      "angular_velocity": [
+        0.3147,
+        -0.1133,
+        0.6954
+      ],
+      "linear_speed": 0.0547,
+      "angular_speed": 0.7716,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 0.6000000000000004,
+      "position": [
+        0.0099,
+        0.0028,
+        0.07
+      ],
+      "quaternion": [
+        0.9572,
+        0.0005,
+        -0.0012,
+        0.2894
+      ],
+      "linear_velocity": [
+        0.0157,
+        0.0003,
+        -0.0437
+      ],
+      "angular_velocity": [
+        0.5385,
+        0.0611,
+        0.9067
+      ],
+      "linear_speed": 0.0464,
+      "angular_speed": 1.0563,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 0.6500000000000005,
+      "position": [
+        0.0114,
+        0.0043,
+        0.0701
+      ],
+      "quaternion": [
+        0.9507,
+        -0.0032,
+        -0.0007,
+        0.3102
+      ],
+      "linear_velocity": [
+        0.027,
+        0.0397,
+        0.0262
+      ],
+      "angular_velocity": [
+        -0.3032,
+        0.0525,
+        0.797
+      ],
+      "linear_speed": 0.0547,
+      "angular_speed": 0.8543,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 0.7000000000000005,
+      "position": [
+        0.0124,
+        0.0049,
+        0.07
+      ],
+      "quaternion": [
+        0.9435,
+        -0.0014,
+        -0.0001,
+        0.3315
+      ],
+      "linear_velocity": [
+        0.028,
+        -0.0154,
+        0.0065
+      ],
+      "angular_velocity": [
+        0.6899,
+        -0.0732,
+        0.8531
+      ],
+      "linear_speed": 0.0326,
+      "angular_speed": 1.0996,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 0.7500000000000006,
+      "position": [
+        0.0142,
+        0.0055,
+        0.0702
+      ],
+      "quaternion": [
+        0.9355,
+        0.0019,
+        0.0002,
+        0.3532
+      ],
+      "linear_velocity": [
+        0.0407,
+        0.0123,
+        0.0314
+      ],
+      "angular_velocity": [
+        0.1592,
+        -0.0084,
+        0.8207
+      ],
+      "linear_speed": 0.0529,
+      "angular_speed": 0.836,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 0.8000000000000006,
+      "position": [
+        0.0165,
+        0.0077,
+        0.0704
+      ],
+      "quaternion": [
+        0.928,
+        -0.0012,
+        -0.0002,
+        0.3727
+      ],
+      "linear_velocity": [
+        0.0478,
+        0.0741,
+        0.0424
+      ],
+      "angular_velocity": [
+        -0.4757,
+        0.02,
+        0.8306
+      ],
+      "linear_speed": 0.0978,
+      "angular_speed": 0.9574,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 0.8500000000000006,
+      "position": [
+        0.0189,
+        0.0103,
+        0.0706
+      ],
+      "quaternion": [
+        0.9197,
+        -0.0019,
+        -0.0,
+        0.3926
+      ],
+      "linear_velocity": [
+        0.0466,
+        0.0429,
+        0.0166
+      ],
+      "angular_velocity": [
+        0.1444,
+        -0.0092,
+        0.9953
+      ],
+      "linear_speed": 0.0655,
+      "angular_speed": 1.0058,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 0.9000000000000007,
+      "position": [
+        0.0212,
+        0.0128,
+        0.0704
+      ],
+      "quaternion": [
+        0.9097,
+        -0.0002,
+        0.0001,
+        0.4154
+      ],
+      "linear_velocity": [
+        0.0587,
+        0.0071,
+        -0.0197
+      ],
+      "angular_velocity": [
+        0.6539,
+        -0.2474,
+        1.066
+      ],
+      "linear_speed": 0.0623,
+      "angular_speed": 1.2748,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 0.9500000000000007,
+      "position": [
+        0.0234,
+        0.0155,
+        0.0697
+      ],
+      "quaternion": [
+        0.898,
+        0.001,
+        -0.0002,
+        0.4399
+      ],
+      "linear_velocity": [
+        0.0315,
+        0.0561,
+        0.0236
+      ],
+      "angular_velocity": [
+        -0.0862,
+        -0.0301,
+        1.0144
+      ],
+      "linear_speed": 0.0685,
+      "angular_speed": 1.0185,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 1.0000000000000007,
+      "position": [
+        0.0251,
+        0.019,
+        0.0704
+      ],
+      "quaternion": [
+        0.8861,
+        0.0004,
+        -0.0008,
+        0.4636
+      ],
+      "linear_velocity": [
+        0.015,
+        0.1078,
+        0.1052
+      ],
+      "angular_velocity": [
+        -0.4552,
+        -0.1065,
+        0.9502
+      ],
+      "linear_speed": 0.1513,
+      "angular_speed": 1.059,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 1.0549999999999995,
+      "position": [
+        0.0263,
+        0.0237,
+        0.0705
+      ],
+      "quaternion": [
+        0.8741,
+        -0.0014,
+        -0.0017,
+        0.4857
+      ],
+      "linear_velocity": [
+        0.0104,
+        0.0586,
+        0.0151
+      ],
+      "angular_velocity": [
+        0.157,
+        0.4323,
+        0.899
+      ],
+      "linear_speed": 0.0614,
+      "angular_speed": 1.0099,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 1.1049999999999984,
+      "position": [
+        0.0261,
+        0.0252,
+        0.0701
+      ],
+      "quaternion": [
+        0.8651,
+        -0.0013,
+        -0.0002,
+        0.5016
+      ],
+      "linear_velocity": [
+        -0.0298,
+        0.0773,
+        -0.0374
+      ],
+      "angular_velocity": [
+        -0.2153,
+        0.3758,
+        0.5275
+      ],
+      "linear_speed": 0.0909,
+      "angular_speed": 0.6825,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 1.1549999999999974,
+      "position": [
+        0.0259,
+        0.0265,
+        0.07
+      ],
+      "quaternion": [
+        0.8587,
+        0.0002,
+        0.0004,
+        0.5125
+      ],
+      "linear_velocity": [
+        0.0203,
+        0.036,
+        -0.0089
+      ],
+      "angular_velocity": [
+        0.2884,
+        -0.0217,
+        0.502
+      ],
+      "linear_speed": 0.0423,
+      "angular_speed": 0.5793,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 1.2049999999999963,
+      "position": [
+        0.0265,
+        0.0284,
+        0.07
+      ],
+      "quaternion": [
+        0.8527,
+        0.0,
+        -0.0001,
+        0.5224
+      ],
+      "linear_velocity": [
+        0.0125,
+        0.055,
+        0.0323
+      ],
+      "angular_velocity": [
+        -0.0146,
+        0.1683,
+        0.6836
+      ],
+      "linear_speed": 0.065,
+      "angular_speed": 0.7041,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 1.2549999999999952,
+      "position": [
+        0.0264,
+        0.0299,
+        0.0699
+      ],
+      "quaternion": [
+        0.8466,
+        -0.0008,
+        0.0001,
+        0.5322
+      ],
+      "linear_velocity": [
+        -0.0081,
+        0.0389,
+        -0.0161
+      ],
+      "angular_velocity": [
+        0.0742,
+        0.0327,
+        0.343
+      ],
+      "linear_speed": 0.0429,
+      "angular_speed": 0.3524,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 1.3049999999999942,
+      "position": [
+        0.0262,
+        0.0332,
+        0.0706
+      ],
+      "quaternion": [
+        0.8394,
+        -0.0023,
+        -0.0018,
+        0.5435
+      ],
+      "linear_velocity": [
+        0.0008,
+        0.0838,
+        0.0147
+      ],
+      "angular_velocity": [
+        0.0798,
+        -0.1644,
+        0.5489
+      ],
+      "linear_speed": 0.0851,
+      "angular_speed": 0.5786,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 1.354999999999993,
+      "position": [
+        0.0267,
+        0.038,
+        0.07
+      ],
+      "quaternion": [
+        0.8291,
+        0.0001,
+        0.0002,
+        0.5591
+      ],
+      "linear_velocity": [
+        0.0236,
+        0.1421,
+        0.0072
+      ],
+      "angular_velocity": [
+        0.0465,
+        0.2991,
+        0.8255
+      ],
+      "linear_speed": 0.1442,
+      "angular_speed": 0.8793,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 1.404999999999992,
+      "position": [
+        0.027,
+        0.0444,
+        0.0707
+      ],
+      "quaternion": [
+        0.8196,
+        -0.0013,
+        -0.0016,
+        0.5729
+      ],
+      "linear_velocity": [
+        -0.0346,
+        0.1327,
+        0.0123
+      ],
+      "angular_velocity": [
+        -0.3987,
+        0.1116,
+        0.6296
+      ],
+      "linear_speed": 0.1377,
+      "angular_speed": 0.7535,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 1.454999999999991,
+      "position": [
+        0.0271,
+        0.049,
+        0.0705
+      ],
+      "quaternion": [
+        0.8128,
+        -0.0021,
+        -0.0013,
+        0.5826
+      ],
+      "linear_velocity": [
+        0.016,
+        0.0812,
+        -0.0059
+      ],
+      "angular_velocity": [
+        0.0829,
+        -0.0582,
+        0.4557
+      ],
+      "linear_speed": 0.083,
+      "angular_speed": 0.4668,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 1.50499999999999,
+      "position": [
+        0.0272,
+        0.0534,
+        0.0703
+      ],
+      "quaternion": [
+        0.8057,
+        -0.0008,
+        -0.0008,
+        0.5923
+      ],
+      "linear_velocity": [
+        0.0216,
+        0.0699,
+        -0.019
+      ],
+      "angular_velocity": [
+        0.4269,
+        -0.0502,
+        0.3801
+      ],
+      "linear_speed": 0.0756,
+      "angular_speed": 0.5738,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 1.5549999999999888,
+      "position": [
+        0.0283,
+        0.0588,
+        0.07
+      ],
+      "quaternion": [
+        0.7975,
+        0.0008,
+        0.0,
+        0.6033
+      ],
+      "linear_velocity": [
+        0.0309,
+        0.0698,
+        -0.0271
+      ],
+      "angular_velocity": [
+        0.414,
+        -0.2062,
+        0.3939
+      ],
+      "linear_speed": 0.081,
+      "angular_speed": 0.6076,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 1.6049999999999878,
+      "position": [
+        0.0285,
+        0.0668,
+        0.0717
+      ],
+      "quaternion": [
+        0.7892,
+        0.0007,
+        -0.0029,
+        0.6141
+      ],
+      "linear_velocity": [
+        0.0012,
+        0.2441,
+        0.0637
+      ],
+      "angular_velocity": [
+        -0.438,
+        -0.1161,
+        0.7144
+      ],
+      "linear_speed": 0.2523,
+      "angular_speed": 0.846,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 1.6549999999999867,
+      "position": [
+        0.0294,
+        0.0823,
+        0.0717
+      ],
+      "quaternion": [
+        0.7813,
+        -0.0027,
+        -0.0024,
+        0.6241
+      ],
+      "linear_velocity": [
+        0.035,
+        0.4042,
+        0.0676
+      ],
+      "angular_velocity": [
+        0.4372,
+        -0.703,
+        0.1738
+      ],
+      "linear_speed": 0.4113,
+      "angular_speed": 0.8459,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 1.7049999999999856,
+      "position": [
+        0.0311,
+        0.1,
+        0.0712
+      ],
+      "quaternion": [
+        0.7742,
+        -0.0001,
+        -0.0002,
+        0.6329
+      ],
+      "linear_velocity": [
+        0.0352,
+        0.3153,
+        -0.004
+      ],
+      "angular_velocity": [
+        0.273,
+        -0.3997,
+        0.4913
+      ],
+      "linear_speed": 0.3172,
+      "angular_speed": 0.6897,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 1.7549999999999846,
+      "position": [
+        0.0317,
+        0.1168,
+        0.0703
+      ],
+      "quaternion": [
+        0.769,
+        0.0033,
+        -0.0,
+        0.6392
+      ],
+      "linear_velocity": [
+        0.0132,
+        0.3496,
+        -0.0602
+      ],
+      "angular_velocity": [
+        0.9389,
+        -0.5982,
+        0.0917
+      ],
+      "linear_speed": 0.355,
+      "angular_speed": 1.1171,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 1.8049999999999835,
+      "position": [
+        0.0323,
+        0.1379,
+        0.073
+      ],
+      "quaternion": [
+        0.7607,
+        0.0043,
+        0.001,
+        0.6491
+      ],
+      "linear_velocity": [
+        0.0085,
+        0.5525,
+        0.0727
+      ],
+      "angular_velocity": [
+        -0.9316,
+        -0.3371,
+        1.2923
+      ],
+      "linear_speed": 0.5573,
+      "angular_speed": 1.6283,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 1.8549999999999824,
+      "position": [
+        0.0327,
+        0.1655,
+        0.071
+      ],
+      "quaternion": [
+        0.742,
+        -0.0016,
+        -0.0024,
+        0.6704
+      ],
+      "linear_velocity": [
+        0.0004,
+        0.5405,
+        0.0913
+      ],
+      "angular_velocity": [
+        -2.0423,
+        -1.2638,
+        0.9795
+      ],
+      "linear_speed": 0.5481,
+      "angular_speed": 2.5938,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 1.9049999999999814,
+      "position": [
+        0.0332,
+        0.1956,
+        0.0746
+      ],
+      "quaternion": [
+        0.7346,
+        0.0143,
+        0.0116,
+        0.6782
+      ],
+      "linear_velocity": [
+        0.0126,
+        0.6153,
+        -0.107
+      ],
+      "angular_velocity": [
+        1.3365,
+        0.173,
+        0.3134
+      ],
+      "linear_speed": 0.6247,
+      "angular_speed": 1.3836,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 1.9549999999999803,
+      "position": [
+        0.0345,
+        0.2319,
+        0.072
+      ],
+      "quaternion": [
+        0.7079,
+        0.0016,
+        -0.0057,
+        0.7063
+      ],
+      "linear_velocity": [
+        0.0583,
+        0.7128,
+        0.0125
+      ],
+      "angular_velocity": [
+        1.6992,
+        -2.0208,
+        1.2615
+      ],
+      "linear_speed": 0.7152,
+      "angular_speed": 2.9262,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 2.0049999999999795,
+      "position": [
+        0.0367,
+        0.2593,
+        0.0739
+      ],
+      "quaternion": [
+        0.686,
+        -0.0084,
+        0.0014,
+        0.7276
+      ],
+      "linear_velocity": [
+        0.0346,
+        0.5214,
+        -0.0653
+      ],
+      "angular_velocity": [
+        -1.3545,
+        0.1263,
+        1.2578
+      ],
+      "linear_speed": 0.5266,
+      "angular_speed": 1.8527,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 2.0549999999999784,
+      "position": [
+        0.0399,
+        0.2809,
+        0.0712
+      ],
+      "quaternion": [
+        0.6668,
+        -0.0015,
+        0.0048,
+        0.7452
+      ],
+      "linear_velocity": [
+        0.0525,
+        0.3963,
+        -0.0473
+      ],
+      "angular_velocity": [
+        -0.5453,
+        1.3711,
+        0.9124
+      ],
+      "linear_speed": 0.4025,
+      "angular_speed": 1.7349,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 2.1049999999999773,
+      "position": [
+        0.0429,
+        0.2933,
+        0.0709
+      ],
+      "quaternion": [
+        0.6617,
+        0.004,
+        -0.0013,
+        0.7498
+      ],
+      "linear_velocity": [
+        0.0272,
+        0.2929,
+        0.017
+      ],
+      "angular_velocity": [
+        -0.5026,
+        0.5886,
+        0.3844
+      ],
+      "linear_speed": 0.2946,
+      "angular_speed": 0.8642,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 2.1549999999999763,
+      "position": [
+        0.0448,
+        0.3104,
+        0.0732
+      ],
+      "quaternion": [
+        0.6686,
+        0.0022,
+        -0.0044,
+        0.7436
+      ],
+      "linear_velocity": [
+        0.0441,
+        0.3996,
+        0.0288
+      ],
+      "angular_velocity": [
+        -0.64,
+        -0.1954,
+        -0.4762
+      ],
+      "linear_speed": 0.403,
+      "angular_speed": 0.8213,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 2.204999999999975,
+      "position": [
+        0.0471,
+        0.3308,
+        0.0713
+      ],
+      "quaternion": [
+        0.6734,
+        0.0007,
+        -0.0069,
+        0.7393
+      ],
+      "linear_velocity": [
+        0.0436,
+        0.4501,
+        0.0535
+      ],
+      "angular_velocity": [
+        -1.4097,
+        -1.4723,
+        0.6306
+      ],
+      "linear_speed": 0.4554,
+      "angular_speed": 2.1337,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 2.254999999999974,
+      "position": [
+        0.0494,
+        0.353,
+        0.0717
+      ],
+      "quaternion": [
+        0.6678,
+        0.0002,
+        0.0048,
+        0.7443
+      ],
+      "linear_velocity": [
+        0.0288,
+        0.4451,
+        -0.082
+      ],
+      "angular_velocity": [
+        -1.0286,
+        1.25,
+        0.4596
+      ],
+      "linear_speed": 0.4535,
+      "angular_speed": 1.6827,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 2.304999999999973,
+      "position": [
+        0.051,
+        0.3654,
+        0.0704
+      ],
+      "quaternion": [
+        0.6672,
+        0.0043,
+        -0.0022,
+        0.7449
+      ],
+      "linear_velocity": [
+        0.0342,
+        0.1478,
+        -0.0819
+      ],
+      "angular_velocity": [
+        0.2631,
+        0.8268,
+        -0.2719
+      ],
+      "linear_speed": 0.1724,
+      "angular_speed": 0.9093,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 2.354999999999972,
+      "position": [
+        0.0518,
+        0.3737,
+        0.0712
+      ],
+      "quaternion": [
+        0.6639,
+        0.0025,
+        -0.0032,
+        0.7478
+      ],
+      "linear_velocity": [
+        0.0173,
+        0.1952,
+        0.07
+      ],
+      "angular_velocity": [
+        -0.65,
+        0.0367,
+        0.2025
+      ],
+      "linear_speed": 0.2081,
+      "angular_speed": 0.6818,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 2.404999999999971,
+      "position": [
+        0.0524,
+        0.3884,
+        0.0721
+      ],
+      "quaternion": [
+        0.6647,
+        0.0008,
+        -0.0029,
+        0.7471
+      ],
+      "linear_velocity": [
+        0.0066,
+        0.43,
+        0.1511
+      ],
+      "angular_velocity": [
+        0.2814,
+        0.4228,
+        -0.1694
+      ],
+      "linear_speed": 0.4558,
+      "angular_speed": 0.5353,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 2.45499999999997,
+      "position": [
+        0.0526,
+        0.4069,
+        0.0703
+      ],
+      "quaternion": [
+        0.6708,
+        0.0029,
+        -0.0008,
+        0.7416
+      ],
+      "linear_velocity": [
+        0.0056,
+        0.2786,
+        0.0307
+      ],
+      "angular_velocity": [
+        1.3531,
+        -0.5685,
+        -0.8206
+      ],
+      "linear_speed": 0.2804,
+      "angular_speed": 1.6815,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 2.504999999999969,
+      "position": [
+        0.0525,
+        0.4251,
+        0.0701
+      ],
+      "quaternion": [
+        0.6683,
+        -0.0018,
+        0.0003,
+        0.7439
+      ],
+      "linear_velocity": [
+        -0.0028,
+        0.4488,
+        0.0651
+      ],
+      "angular_velocity": [
+        1.1326,
+        0.1301,
+        -0.1361
+      ],
+      "linear_speed": 0.4535,
+      "angular_speed": 1.1482,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 2.5549999999999677,
+      "position": [
+        0.0528,
+        0.45,
+        0.0755
+      ],
+      "quaternion": [
+        0.6852,
+        0.0054,
+        0.0005,
+        0.7283
+      ],
+      "linear_velocity": [
+        0.0056,
+        0.5107,
+        -0.0717
+      ],
+      "angular_velocity": [
+        -0.3448,
+        0.0178,
+        -0.7741
+      ],
+      "linear_speed": 0.5158,
+      "angular_speed": 0.8476,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 2.6049999999999667,
+      "position": [
+        0.0541,
+        0.4788,
+        0.075
+      ],
+      "quaternion": [
+        0.6981,
+        -0.0018,
+        -0.004,
+        0.716
+      ],
+      "linear_velocity": [
+        0.0446,
+        0.6804,
+        0.2383
+      ],
+      "angular_velocity": [
+        -0.9208,
+        -0.2888,
+        -0.3598
+      ],
+      "linear_speed": 0.7223,
+      "angular_speed": 1.0299,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 2.6549999999999656,
+      "position": [
+        0.0565,
+        0.5136,
+        0.0755
+      ],
+      "quaternion": [
+        0.707,
+        -0.007,
+        -0.0134,
+        0.707
+      ],
+      "linear_velocity": [
+        0.0539,
+        0.7966,
+        -0.0088
+      ],
+      "angular_velocity": [
+        2.0583,
+        0.3714,
+        -1.4574
+      ],
+      "linear_speed": 0.7985,
+      "angular_speed": 2.5493,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 2.7049999999999645,
+      "position": [
+        0.0588,
+        0.553,
+        0.0738
+      ],
+      "quaternion": [
+        0.7282,
+        -0.0122,
+        -0.01,
+        0.6852
+      ],
+      "linear_velocity": [
+        0.0462,
+        0.7261,
+        0.2483
+      ],
+      "angular_velocity": [
+        -0.3243,
+        0.0573,
+        -0.7428
+      ],
+      "linear_speed": 0.7688,
+      "angular_speed": 0.8125,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 2.7549999999999635,
+      "position": [
+        0.0612,
+        0.5942,
+        0.076
+      ],
+      "quaternion": [
+        0.7519,
+        0.007,
+        -0.0099,
+        0.6591
+      ],
+      "linear_velocity": [
+        0.0479,
+        0.824,
+        -0.1764
+      ],
+      "angular_velocity": [
+        0.5196,
+        -0.525,
+        -1.4213
+      ],
+      "linear_speed": 0.844,
+      "angular_speed": 1.6017,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 2.8049999999999624,
+      "position": [
+        0.0635,
+        0.6229,
+        0.0729
+      ],
+      "quaternion": [
+        0.7653,
+        -0.0051,
+        0.0004,
+        0.6436
+      ],
+      "linear_velocity": [
+        0.0478,
+        0.3064,
+        0.104
+      ],
+      "angular_velocity": [
+        -0.0562,
+        -0.7491,
+        -0.1163
+      ],
+      "linear_speed": 0.3271,
+      "angular_speed": 0.7601,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 2.8549999999999613,
+      "position": [
+        0.0667,
+        0.6389,
+        0.0708
+      ],
+      "quaternion": [
+        0.7678,
+        0.001,
+        0.0035,
+        0.6407
+      ],
+      "linear_velocity": [
+        0.0913,
+        0.4413,
+        0.0914
+      ],
+      "angular_velocity": [
+        -0.6083,
+        -0.0967,
+        -0.1652
+      ],
+      "linear_speed": 0.4598,
+      "angular_speed": 0.6377,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 2.9049999999999603,
+      "position": [
+        0.0714,
+        0.6657,
+        0.075
+      ],
+      "quaternion": [
+        0.7667,
+        0.0012,
+        0.0051,
+        0.642
+      ],
+      "linear_velocity": [
+        0.0975,
+        0.5469,
+        -0.0619
+      ],
+      "angular_velocity": [
+        0.8939,
+        0.4565,
+        -0.0285
+      ],
+      "linear_speed": 0.559,
+      "angular_speed": 1.0041,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 2.954999999999959,
+      "position": [
+        0.0761,
+        0.6937,
+        0.073
+      ],
+      "quaternion": [
+        0.771,
+        0.0082,
+        0.0015,
+        0.6368
+      ],
+      "linear_velocity": [
+        0.1029,
+        0.6592,
+        0.1516
+      ],
+      "angular_velocity": [
+        2.7858,
+        0.4804,
+        -0.9874
+      ],
+      "linear_speed": 0.6842,
+      "angular_speed": 2.9944,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 3.004999999999958,
+      "position": [
+        0.081,
+        0.7318,
+        0.0768
+      ],
+      "quaternion": [
+        0.7713,
+        0.0099,
+        0.0191,
+        0.6361
+      ],
+      "linear_velocity": [
+        0.0901,
+        0.6803,
+        -0.0077
+      ],
+      "angular_velocity": [
+        -0.9853,
+        -0.2863,
+        -0.4337
+      ],
+      "linear_speed": 0.6863,
+      "angular_speed": 1.1139,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 3.054999999999957,
+      "position": [
+        0.0861,
+        0.7656,
+        0.0711
+      ],
+      "quaternion": [
+        0.7867,
+        0.0016,
+        0.003,
+        0.6173
+      ],
+      "linear_velocity": [
+        0.1791,
+        0.7703,
+        0.2234
+      ],
+      "angular_velocity": [
+        1.9333,
+        1.725,
+        -2.4346
+      ],
+      "linear_speed": 0.8218,
+      "angular_speed": 3.5553,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 3.104999999999956,
+      "position": [
+        0.0934,
+        0.8037,
+        0.0779
+      ],
+      "quaternion": [
+        0.8203,
+        -0.0038,
+        0.0087,
+        0.5718
+      ],
+      "linear_velocity": [
+        0.1395,
+        0.7569,
+        -0.0593
+      ],
+      "angular_velocity": [
+        -0.3193,
+        0.0856,
+        -2.2494
+      ],
+      "linear_speed": 0.772,
+      "angular_speed": 2.2736,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 3.154999999999955,
+      "position": [
+        0.1002,
+        0.8343,
+        0.0713
+      ],
+      "quaternion": [
+        0.846,
+        0.0047,
+        -0.0044,
+        0.5331
+      ],
+      "linear_velocity": [
+        0.1288,
+        0.4261,
+        0.0608
+      ],
+      "angular_velocity": [
+        -0.6436,
+        0.1595,
+        -0.5557
+      ],
+      "linear_speed": 0.4493,
+      "angular_speed": 0.8652,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 3.204999999999954,
+      "position": [
+        0.1067,
+        0.8503,
+        0.0707
+      ],
+      "quaternion": [
+        0.848,
+        0.0022,
+        -0.0003,
+        0.53
+      ],
+      "linear_velocity": [
+        0.1751,
+        0.359,
+        0.1213
+      ],
+      "angular_velocity": [
+        1.4647,
+        -0.0911,
+        -0.3543
+      ],
+      "linear_speed": 0.4174,
+      "angular_speed": 1.5097,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 3.254999999999953,
+      "position": [
+        0.116,
+        0.8717,
+        0.0696
+      ],
+      "quaternion": [
+        0.8435,
+        -0.0004,
+        -0.0009,
+        0.5371
+      ],
+      "linear_velocity": [
+        0.1655,
+        0.4863,
+        -0.16
+      ],
+      "angular_velocity": [
+        -1.0314,
+        -0.2016,
+        0.6801
+      ],
+      "linear_speed": 0.5381,
+      "angular_speed": 1.2518,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 3.3049999999999518,
+      "position": [
+        0.1253,
+        0.8964,
+        0.0712
+      ],
+      "quaternion": [
+        0.8503,
+        -0.0013,
+        -0.0009,
+        0.5263
+      ],
+      "linear_velocity": [
+        0.2201,
+        0.5343,
+        0.1681
+      ],
+      "angular_velocity": [
+        0.3833,
+        0.3046,
+        -0.7333
+      ],
+      "linear_speed": 0.6018,
+      "angular_speed": 0.8817,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 3.3549999999999507,
+      "position": [
+        0.135,
+        0.9219,
+        0.0702
+      ],
+      "quaternion": [
+        0.8596,
+        -0.0009,
+        -0.0027,
+        0.5109
+      ],
+      "linear_velocity": [
+        0.1711,
+        0.4765,
+        0.1277
+      ],
+      "angular_velocity": [
+        -0.5283,
+        -0.3086,
+        0.0453
+      ],
+      "linear_speed": 0.5221,
+      "angular_speed": 0.6135,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 3.4049999999999496,
+      "position": [
+        0.1481,
+        0.9498,
+        0.0741
+      ],
+      "quaternion": [
+        0.8583,
+        0.0153,
+        0.001,
+        0.513
+      ],
+      "linear_velocity": [
+        0.2941,
+        0.6205,
+        -0.0783
+      ],
+      "angular_velocity": [
+        -0.337,
+        -0.6414,
+        0.6354
+      ],
+      "linear_speed": 0.6911,
+      "angular_speed": 0.9637,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 3.4549999999999486,
+      "position": [
+        0.1619,
+        0.9752,
+        0.0716
+      ],
+      "quaternion": [
+        0.8552,
+        0.0032,
+        0.0007,
+        0.5184
+      ],
+      "linear_velocity": [
+        0.2705,
+        0.4875,
+        0.1066
+      ],
+      "angular_velocity": [
+        -0.6386,
+        0.3175,
+        0.2969
+      ],
+      "linear_speed": 0.5676,
+      "angular_speed": 0.7725,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 3.5049999999999475,
+      "position": [
+        0.1764,
+        0.999,
+        0.0727
+      ],
+      "quaternion": [
+        0.8543,
+        0.004,
+        -0.0005,
+        0.5197
+      ],
+      "linear_velocity": [
+        0.3102,
+        0.4507,
+        0.1295
+      ],
+      "angular_velocity": [
+        -0.4953,
+        0.5947,
+        -0.0079
+      ],
+      "linear_speed": 0.5622,
+      "angular_speed": 0.7739,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 3.5549999999999464,
+      "position": [
+        0.1915,
+        1.019,
+        0.0705
+      ],
+      "quaternion": [
+        0.8563,
+        0.0054,
+        -0.0029,
+        0.5164
+      ],
+      "linear_velocity": [
+        0.2848,
+        0.3276,
+        -0.0838
+      ],
+      "angular_velocity": [
+        0.8643,
+        -1.4618,
+        -0.5416
+      ],
+      "linear_speed": 0.4421,
+      "angular_speed": 1.7825,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 3.6049999999999454,
+      "position": [
+        0.2029,
+        1.0355,
+        0.0704
+      ],
+      "quaternion": [
+        0.852,
+        0.0012,
+        0.0014,
+        0.5235
+      ],
+      "linear_velocity": [
+        0.226,
+        0.227,
+        -0.1072
+      ],
+      "angular_velocity": [
+        0.5168,
+        -0.3577,
+        0.456
+      ],
+      "linear_speed": 0.3378,
+      "angular_speed": 0.7765,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 3.6549999999999443,
+      "position": [
+        0.2115,
+        1.0505,
+        0.0703
+      ],
+      "quaternion": [
+        0.8534,
+        -0.0006,
+        0.0013,
+        0.5213
+      ],
+      "linear_velocity": [
+        0.124,
+        0.2177,
+        -0.0382
+      ],
+      "angular_velocity": [
+        -0.0818,
+        -0.4866,
+        -0.2938
+      ],
+      "linear_speed": 0.2534,
+      "angular_speed": 0.5743,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 3.7049999999999432,
+      "position": [
+        0.2175,
+        1.0601,
+        0.07
+      ],
+      "quaternion": [
+        0.8565,
+        0.0011,
+        0.0001,
+        0.5161
+      ],
+      "linear_velocity": [
+        0.1125,
+        0.1376,
+        -0.011
+      ],
+      "angular_velocity": [
+        0.8043,
+        -0.2926,
+        -0.2495
+      ],
+      "linear_speed": 0.1781,
+      "angular_speed": 0.8915,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 3.754999999999942,
+      "position": [
+        0.2216,
+        1.0676,
+        0.0706
+      ],
+      "quaternion": [
+        0.8654,
+        -0.0005,
+        -0.0,
+        0.5012
+      ],
+      "linear_velocity": [
+        0.0428,
+        0.1075,
+        0.0877
+      ],
+      "angular_velocity": [
+        -0.6594,
+        0.1728,
+        -0.729
+      ],
+      "linear_speed": 0.1452,
+      "angular_speed": 0.998,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 3.804999999999941,
+      "position": [
+        0.2251,
+        1.0738,
+        0.0704
+      ],
+      "quaternion": [
+        0.8755,
+        -0.0001,
+        0.0008,
+        0.4833
+      ],
+      "linear_velocity": [
+        0.0606,
+        0.1295,
+        0.0244
+      ],
+      "angular_velocity": [
+        0.5426,
+        -0.2747,
+        -0.9905
+      ],
+      "linear_speed": 0.1451,
+      "angular_speed": 1.1623,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 3.85499999999994,
+      "position": [
+        0.2288,
+        1.0815,
+        0.071
+      ],
+      "quaternion": [
+        0.8805,
+        0.0042,
+        0.0014,
+        0.474
+      ],
+      "linear_velocity": [
+        0.0425,
+        0.1043,
+        0.0033
+      ],
+      "angular_velocity": [
+        -0.0643,
+        -0.4439,
+        -0.5169
+      ],
+      "linear_speed": 0.1127,
+      "angular_speed": 0.6844,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 3.904999999999939,
+      "position": [
+        0.2322,
+        1.0867,
+        0.0714
+      ],
+      "quaternion": [
+        0.8872,
+        0.0057,
+        0.0015,
+        0.4614
+      ],
+      "linear_velocity": [
+        0.1027,
+        0.1277,
+        0.023
+      ],
+      "angular_velocity": [
+        0.2195,
+        -0.143,
+        -0.6158
+      ],
+      "linear_speed": 0.1655,
+      "angular_speed": 0.6692,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 3.954999999999938,
+      "position": [
+        0.2361,
+        1.0932,
+        0.0707
+      ],
+      "quaternion": [
+        0.8933,
+        0.0037,
+        0.0027,
+        0.4495
+      ],
+      "linear_velocity": [
+        0.122,
+        0.1278,
+        0.0865
+      ],
+      "angular_velocity": [
+        0.9101,
+        -0.0537,
+        -0.6196
+      ],
+      "linear_speed": 0.1968,
+      "angular_speed": 1.1023,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 4.004999999999937,
+      "position": [
+        0.2411,
+        1.1018,
+        0.0696
+      ],
+      "quaternion": [
+        0.8956,
+        -0.0017,
+        0.0018,
+        0.4449
+      ],
+      "linear_velocity": [
+        0.1408,
+        0.1999,
+        0.0579
+      ],
+      "angular_velocity": [
+        -0.0316,
+        0.5467,
+        -0.2506
+      ],
+      "linear_speed": 0.2512,
+      "angular_speed": 0.6022,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 4.054999999999936,
+      "position": [
+        0.2459,
+        1.1105,
+        0.0714
+      ],
+      "quaternion": [
+        0.9059,
+        0.0029,
+        0.0002,
+        0.4234
+      ],
+      "linear_velocity": [
+        0.0446,
+        0.1966,
+        -0.0499
+      ],
+      "angular_velocity": [
+        -1.2617,
+        -0.7477,
+        -0.748
+      ],
+      "linear_speed": 0.2077,
+      "angular_speed": 1.6464,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 4.104999999999935,
+      "position": [
+        0.2517,
+        1.119,
+        0.0715
+      ],
+      "quaternion": [
+        0.9158,
+        -0.0009,
+        0.0035,
+        0.4015
+      ],
+      "linear_velocity": [
+        0.0629,
+        0.1533,
+        -0.0006
+      ],
+      "angular_velocity": [
+        -0.2755,
+        -0.1025,
+        -1.039
+      ],
+      "linear_speed": 0.1657,
+      "angular_speed": 1.0797,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 4.154999999999934,
+      "position": [
+        0.2589,
+        1.1277,
+        0.0736
+      ],
+      "quaternion": [
+        0.9247,
+        0.0045,
+        -0.0031,
+        0.3808
+      ],
+      "linear_velocity": [
+        0.1976,
+        0.2114,
+        0.0276
+      ],
+      "angular_velocity": [
+        -0.0306,
+        -0.3279,
+        -0.7547
+      ],
+      "linear_speed": 0.2906,
+      "angular_speed": 0.8234,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 4.204999999999933,
+      "position": [
+        0.2711,
+        1.1387,
+        0.0716
+      ],
+      "quaternion": [
+        0.9297,
+        0.0018,
+        -0.003,
+        0.3683
+      ],
+      "linear_velocity": [
+        0.4008,
+        0.3475,
+        0.1922
+      ],
+      "angular_velocity": [
+        -0.2628,
+        -0.5773,
+        -0.504
+      ],
+      "linear_speed": 0.5642,
+      "angular_speed": 0.8102,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 4.2549999999999315,
+      "position": [
+        0.2902,
+        1.1547,
+        0.0703
+      ],
+      "quaternion": [
+        0.9323,
+        0.0045,
+        0.0025,
+        0.3617
+      ],
+      "linear_velocity": [
+        0.3684,
+        0.2962,
+        -0.2045
+      ],
+      "angular_velocity": [
+        0.5256,
+        0.8582,
+        -0.1181
+      ],
+      "linear_speed": 0.515,
+      "angular_speed": 1.0132,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 4.30499999999993,
+      "position": [
+        0.3029,
+        1.1673,
+        0.0702
+      ],
+      "quaternion": [
+        0.9325,
+        0.0012,
+        -0.0004,
+        0.3611
+      ],
+      "linear_velocity": [
+        0.1878,
+        0.195,
+        -0.0521
+      ],
+      "angular_velocity": [
+        -0.4174,
+        0.5009,
+        -0.7125
+      ],
+      "linear_speed": 0.2757,
+      "angular_speed": 0.9658,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 4.354999999999929,
+      "position": [
+        0.3121,
+        1.1759,
+        0.0705
+      ],
+      "quaternion": [
+        0.9365,
+        -0.0001,
+        -0.0014,
+        0.3507
+      ],
+      "linear_velocity": [
+        0.1265,
+        0.1667,
+        -0.0776
+      ],
+      "angular_velocity": [
+        -0.7387,
+        0.0153,
+        -0.6749
+      ],
+      "linear_speed": 0.2232,
+      "angular_speed": 1.0007,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 4.404999999999928,
+      "position": [
+        0.3204,
+        1.1823,
+        0.0713
+      ],
+      "quaternion": [
+        0.9422,
+        0.0013,
+        0.0012,
+        0.3351
+      ],
+      "linear_velocity": [
+        0.1237,
+        0.1309,
+        -0.0469
+      ],
+      "angular_velocity": [
+        -0.526,
+        0.1577,
+        -0.8337
+      ],
+      "linear_speed": 0.1861,
+      "angular_speed": 0.9983,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 4.454999999999927,
+      "position": [
+        0.3269,
+        1.1862,
+        0.0711
+      ],
+      "quaternion": [
+        0.9483,
+        -0.0021,
+        -0.0015,
+        0.3174
+      ],
+      "linear_velocity": [
+        0.2966,
+        0.1212,
+        0.1776
+      ],
+      "angular_velocity": [
+        0.3359,
+        -0.2293,
+        -0.6816
+      ],
+      "linear_speed": 0.3663,
+      "angular_speed": 0.7938,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 4.504999999999926,
+      "position": [
+        0.3417,
+        1.193,
+        0.0705
+      ],
+      "quaternion": [
+        0.9531,
+        -0.0022,
+        0.0019,
+        0.3026
+      ],
+      "linear_velocity": [
+        0.3594,
+        0.1501,
+        0.0776
+      ],
+      "angular_velocity": [
+        0.806,
+        0.342,
+        -0.5336
+      ],
+      "linear_speed": 0.3972,
+      "angular_speed": 1.0254,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 4.554999999999925,
+      "position": [
+        0.3567,
+        1.203,
+        0.0714
+      ],
+      "quaternion": [
+        0.9531,
+        -0.0019,
+        -0.0054,
+        0.3027
+      ],
+      "linear_velocity": [
+        0.3822,
+        0.2139,
+        -0.009
+      ],
+      "angular_velocity": [
+        0.5628,
+        0.1624,
+        -0.1514
+      ],
+      "linear_speed": 0.438,
+      "angular_speed": 0.605,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 4.604999999999924,
+      "position": [
+        0.3731,
+        1.2136,
+        0.0718
+      ],
+      "quaternion": [
+        0.9531,
+        0.0032,
+        -0.0051,
+        0.3027
+      ],
+      "linear_velocity": [
+        0.3411,
+        0.1988,
+        -0.014
+      ],
+      "angular_velocity": [
+        0.4536,
+        -0.4814,
+        -0.1023
+      ],
+      "linear_speed": 0.3951,
+      "angular_speed": 0.6693,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 4.654999999999923,
+      "position": [
+        0.3894,
+        1.2236,
+        0.0718
+      ],
+      "quaternion": [
+        0.9545,
+        -0.0009,
+        -0.0049,
+        0.2981
+      ],
+      "linear_velocity": [
+        0.3549,
+        0.224,
+        0.016
+      ],
+      "angular_velocity": [
+        -0.2683,
+        -0.6104,
+        0.1312
+      ],
+      "linear_speed": 0.42,
+      "angular_speed": 0.6795,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 4.704999999999922,
+      "position": [
+        0.4021,
+        1.2332,
+        0.0708
+      ],
+      "quaternion": [
+        0.9528,
+        0.0001,
+        -0.0008,
+        0.3036
+      ],
+      "linear_velocity": [
+        0.2615,
+        0.1368,
+        0.0826
+      ],
+      "angular_velocity": [
+        0.6192,
+        -0.1478,
+        -0.1082
+      ],
+      "linear_speed": 0.3065,
+      "angular_speed": 0.6458,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 4.754999999999921,
+      "position": [
+        0.4108,
+        1.2388,
+        0.0704
+      ],
+      "quaternion": [
+        0.9552,
+        0.0019,
+        -0.0,
+        0.2961
+      ],
+      "linear_velocity": [
+        0.1775,
+        0.0497,
+        0.0314
+      ],
+      "angular_velocity": [
+        0.5679,
+        0.2015,
+        -0.4031
+      ],
+      "linear_speed": 0.187,
+      "angular_speed": 0.725,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 4.80499999999992,
+      "position": [
+        0.4188,
+        1.2425,
+        0.072
+      ],
+      "quaternion": [
+        0.9583,
+        0.0025,
+        -0.0048,
+        0.2858
+      ],
+      "linear_velocity": [
+        0.2643,
+        0.1186,
+        0.0757
+      ],
+      "angular_velocity": [
+        -0.4988,
+        -0.8404,
+        -0.1628
+      ],
+      "linear_speed": 0.2994,
+      "angular_speed": 0.9908,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 4.854999999999919,
+      "position": [
+        0.4306,
+        1.2485,
+        0.0711
+      ],
+      "quaternion": [
+        0.96,
+        0.0023,
+        -0.0004,
+        0.2798
+      ],
+      "linear_velocity": [
+        0.3862,
+        0.138,
+        0.1756
+      ],
+      "angular_velocity": [
+        1.2689,
+        -0.8184,
+        -0.9476
+      ],
+      "linear_speed": 0.4461,
+      "angular_speed": 1.7826,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 4.904999999999918,
+      "position": [
+        0.4501,
+        1.2555,
+        0.0715
+      ],
+      "quaternion": [
+        0.9648,
+        0.0044,
+        -0.0022,
+        0.263
+      ],
+      "linear_velocity": [
+        0.4115,
+        0.1683,
+        -0.1647
+      ],
+      "angular_velocity": [
+        -0.5538,
+        -0.1663,
+        -0.4096
+      ],
+      "linear_speed": 0.4741,
+      "angular_speed": 0.7086,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 4.954999999999917,
+      "position": [
+        0.472,
+        1.2632,
+        0.0738
+      ],
+      "quaternion": [
+        0.9716,
+        0.0124,
+        0.0018,
+        0.2364
+      ],
+      "linear_velocity": [
+        0.45,
+        0.1271,
+        -0.0077
+      ],
+      "angular_velocity": [
+        0.3127,
+        0.4508,
+        -1.259
+      ],
+      "linear_speed": 0.4677,
+      "angular_speed": 1.3734,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 5.0049999999999155,
+      "position": [
+        0.4984,
+        1.2724,
+        0.0722
+      ],
+      "quaternion": [
+        0.9759,
+        0.0027,
+        0.0015,
+        0.2183
+      ],
+      "linear_velocity": [
+        0.6055,
+        0.1571,
+        0.1919
+      ],
+      "angular_velocity": [
+        0.7409,
+        0.4279,
+        -1.2281
+      ],
+      "linear_speed": 0.6543,
+      "angular_speed": 1.4968,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 5.0549999999999145,
+      "position": [
+        0.5275,
+        1.281,
+        0.0725
+      ],
+      "quaternion": [
+        0.9813,
+        0.0006,
+        -0.0026,
+        0.1927
+      ],
+      "linear_velocity": [
+        0.5598,
+        0.1892,
+        -0.1322
+      ],
+      "angular_velocity": [
+        -0.9572,
+        -0.7155,
+        -0.8499
+      ],
+      "linear_speed": 0.6055,
+      "angular_speed": 1.4665,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 5.104999999999913,
+      "position": [
+        0.5521,
+        1.2901,
+        0.0731
+      ],
+      "quaternion": [
+        0.9828,
+        -0.0095,
+        -0.0066,
+        0.1843
+      ],
+      "linear_velocity": [
+        0.4454,
+        0.1846,
+        0.0532
+      ],
+      "angular_velocity": [
+        -0.5826,
+        0.3562,
+        0.0628
+      ],
+      "linear_speed": 0.4851,
+      "angular_speed": 0.6857,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 5.154999999999912,
+      "position": [
+        0.5756,
+        1.2991,
+        0.0702
+      ],
+      "quaternion": [
+        0.9849,
+        0.0023,
+        0.0016,
+        0.1732
+      ],
+      "linear_velocity": [
+        0.3126,
+        0.1796,
+        -0.0047
+      ],
+      "angular_velocity": [
+        -0.3735,
+        -1.7013,
+        0.3234
+      ],
+      "linear_speed": 0.3606,
+      "angular_speed": 1.7715,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 5.204999999999911,
+      "position": [
+        0.5924,
+        1.3072,
+        0.072
+      ],
+      "quaternion": [
+        0.9851,
+        0.0049,
+        -0.0013,
+        0.1721
+      ],
+      "linear_velocity": [
+        0.3414,
+        0.1552,
+        -0.1339
+      ],
+      "angular_velocity": [
+        0.3911,
+        0.2531,
+        -0.1974
+      ],
+      "linear_speed": 0.3982,
+      "angular_speed": 0.506,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 5.25499999999991,
+      "position": [
+        0.6156,
+        1.3163,
+        0.0727
+      ],
+      "quaternion": [
+        0.9873,
+        0.0041,
+        -0.0051,
+        0.1585
+      ],
+      "linear_velocity": [
+        0.4799,
+        0.1632,
+        -0.0007
+      ],
+      "angular_velocity": [
+        -0.2728,
+        0.7454,
+        -1.1188
+      ],
+      "linear_speed": 0.5068,
+      "angular_speed": 1.3718,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 5.304999999999909,
+      "position": [
+        0.6366,
+        1.3244,
+        0.0723
+      ],
+      "quaternion": [
+        0.9908,
+        0.0018,
+        -0.0081,
+        0.1353
+      ],
+      "linear_velocity": [
+        0.391,
+        0.1601,
+        0.0039
+      ],
+      "angular_velocity": [
+        -0.0147,
+        -0.7325,
+        -0.8276
+      ],
+      "linear_speed": 0.4225,
+      "angular_speed": 1.1054,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 5.354999999999908,
+      "position": [
+        0.6552,
+        1.3311,
+        0.071
+      ],
+      "quaternion": [
+        0.9928,
+        0.0021,
+        0.0013,
+        0.1196
+      ],
+      "linear_velocity": [
+        0.4189,
+        0.1318,
+        -0.0114
+      ],
+      "angular_velocity": [
+        0.2981,
+        0.031,
+        -0.5724
+      ],
+      "linear_speed": 0.4393,
+      "angular_speed": 0.6461,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 5.404999999999907,
+      "position": [
+        0.6797,
+        1.3379,
+        0.0709
+      ],
+      "quaternion": [
+        0.9936,
+        0.0026,
+        -0.001,
+        0.1128
+      ],
+      "linear_velocity": [
+        0.5833,
+        0.1493,
+        -0.0768
+      ],
+      "angular_velocity": [
+        -0.5331,
+        -0.1978,
+        0.3176
+      ],
+      "linear_speed": 0.6069,
+      "angular_speed": 0.6513,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 5.454999999999906,
+      "position": [
+        0.7066,
+        1.3453,
+        0.0714
+      ],
+      "quaternion": [
+        0.9924,
+        -0.0002,
+        -0.0038,
+        0.1229
+      ],
+      "linear_velocity": [
+        0.4691,
+        0.1487,
+        -0.0633
+      ],
+      "angular_velocity": [
+        -0.2199,
+        0.3504,
+        0.263
+      ],
+      "linear_speed": 0.4961,
+      "angular_speed": 0.4902,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 5.504999999999905,
+      "position": [
+        0.728,
+        1.3527,
+        0.0726
+      ],
+      "quaternion": [
+        0.9912,
+        -0.003,
+        -0.0058,
+        0.1321
+      ],
+      "linear_velocity": [
+        0.4143,
+        0.148,
+        -0.0274
+      ],
+      "angular_velocity": [
+        -0.3031,
+        -0.3558,
+        0.4571
+      ],
+      "linear_speed": 0.4408,
+      "angular_speed": 0.6537,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 5.554999999999904,
+      "position": [
+        0.7456,
+        1.36,
+        0.0718
+      ],
+      "quaternion": [
+        0.9898,
+        -0.0025,
+        -0.0006,
+        0.1424
+      ],
+      "linear_velocity": [
+        0.3221,
+        0.1494,
+        0.0354
+      ],
+      "angular_velocity": [
+        -0.441,
+        0.1568,
+        0.2493
+      ],
+      "linear_speed": 0.3569,
+      "angular_speed": 0.5303,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 5.604999999999903,
+      "position": [
+        0.7675,
+        1.3668,
+        0.0724
+      ],
+      "quaternion": [
+        0.9912,
+        -0.0088,
+        -0.0014,
+        0.132
+      ],
+      "linear_velocity": [
+        0.4859,
+        0.1302,
+        0.0597
+      ],
+      "angular_velocity": [
+        -1.8361,
+        -0.0036,
+        -0.4328
+      ],
+      "linear_speed": 0.5066,
+      "angular_speed": 1.8864,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 5.654999999999902,
+      "position": [
+        0.8008,
+        1.3731,
+        0.0736
+      ],
+      "quaternion": [
+        0.9963,
+        0.0156,
+        -0.0016,
+        0.0849
+      ],
+      "linear_velocity": [
+        0.6772,
+        0.1233,
+        -0.1629
+      ],
+      "angular_velocity": [
+        1.294,
+        -0.0101,
+        -2.0301
+      ],
+      "linear_speed": 0.7074,
+      "angular_speed": 2.4075,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 5.704999999999901,
+      "position": [
+        0.8426,
+        1.3797,
+        0.0718
+      ],
+      "quaternion": [
+        0.9981,
+        0.0087,
+        -0.0014,
+        0.0618
+      ],
+      "linear_velocity": [
+        0.8787,
+        0.1223,
+        0.0021
+      ],
+      "angular_velocity": [
+        1.0826,
+        -0.4203,
+        -0.525
+      ],
+      "linear_speed": 0.8872,
+      "angular_speed": 1.2744,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 5.7549999999998995,
+      "position": [
+        0.8797,
+        1.3862,
+        0.0722
+      ],
+      "quaternion": [
+        0.9987,
+        -0.0082,
+        -0.0042,
+        0.0494
+      ],
+      "linear_velocity": [
+        0.6099,
+        0.1271,
+        -0.0861
+      ],
+      "angular_velocity": [
+        -0.3515,
+        -0.9105,
+        -0.2742
+      ],
+      "linear_speed": 0.6289,
+      "angular_speed": 1.0138,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 5.8049999999998985,
+      "position": [
+        0.9103,
+        1.3924,
+        0.0727
+      ],
+      "quaternion": [
+        0.9994,
+        -0.0017,
+        -0.0048,
+        0.0351
+      ],
+      "linear_velocity": [
+        0.6408,
+        0.1243,
+        0.0864
+      ],
+      "angular_velocity": [
+        0.737,
+        -1.1473,
+        -0.9721
+      ],
+      "linear_speed": 0.6584,
+      "angular_speed": 1.6746,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 5.854999999999897,
+      "position": [
+        0.9384,
+        1.3981,
+        0.0703
+      ],
+      "quaternion": [
+        1.0,
+        0.0032,
+        0.0036,
+        0.0021
+      ],
+      "linear_velocity": [
+        0.4081,
+        0.0965,
+        0.0391
+      ],
+      "angular_velocity": [
+        1.384,
+        0.3054,
+        -1.6055
+      ],
+      "linear_speed": 0.4211,
+      "angular_speed": 2.1415,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 5.904999999999896,
+      "position": [
+        0.9596,
+        1.4031,
+        0.0741
+      ],
+      "quaternion": [
+        1.0,
+        -0.0017,
+        -0.0069,
+        -0.0023
+      ],
+      "linear_velocity": [
+        0.3588,
+        0.0984,
+        -0.0577
+      ],
+      "angular_velocity": [
+        0.0772,
+        0.9059,
+        0.062
+      ],
+      "linear_speed": 0.3765,
+      "angular_speed": 0.9113,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 5.954999999999895,
+      "position": [
+        0.9778,
+        1.4072,
+        0.0744
+      ],
+      "quaternion": [
+        0.9999,
+        0.0045,
+        -0.0055,
+        -0.01
+      ],
+      "linear_velocity": [
+        0.4139,
+        0.0674,
+        0.1635
+      ],
+      "angular_velocity": [
+        0.3405,
+        -0.1605,
+        -0.7993
+      ],
+      "linear_speed": 0.4501,
+      "angular_speed": 0.8835,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 6.004999999999894,
+      "position": [
+        0.998,
+        1.4103,
+        0.0708
+      ],
+      "quaternion": [
+        0.9996,
+        0.0031,
+        0.0008,
+        -0.0294
+      ],
+      "linear_velocity": [
+        0.4459,
+        0.0542,
+        -0.1943
+      ],
+      "angular_velocity": [
+        -1.3496,
+        0.6297,
+        -0.2812
+      ],
+      "linear_speed": 0.4895,
+      "angular_speed": 1.5156,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 6.054999999999893,
+      "position": [
+        1.0252,
+        1.4122,
+        0.0749
+      ],
+      "quaternion": [
+        0.9994,
+        0.0078,
+        -0.0029,
+        -0.0342
+      ],
+      "linear_velocity": [
+        0.6069,
+        0.0305,
+        0.0365
+      ],
+      "angular_velocity": [
+        -0.6924,
+        0.1561,
+        0.237
+      ],
+      "linear_speed": 0.6088,
+      "angular_speed": 0.7483,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 6.104999999999892,
+      "position": [
+        1.0545,
+        1.4137,
+        0.0714
+      ],
+      "quaternion": [
+        0.9995,
+        0.0047,
+        0.0,
+        -0.0313
+      ],
+      "linear_velocity": [
+        0.5364,
+        0.0287,
+        0.3146
+      ],
+      "angular_velocity": [
+        0.043,
+        0.0291,
+        -0.3245
+      ],
+      "linear_speed": 0.6225,
+      "angular_speed": 0.3286,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 6.154999999999891,
+      "position": [
+        1.0813,
+        1.4151,
+        0.0737
+      ],
+      "quaternion": [
+        0.9992,
+        0.0056,
+        0.0008,
+        -0.0394
+      ],
+      "linear_velocity": [
+        0.5364,
+        0.0288,
+        -0.1759
+      ],
+      "angular_velocity": [
+        0.0315,
+        0.0321,
+        -0.3252
+      ],
+      "linear_speed": 0.5652,
+      "angular_speed": 0.3283,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 6.20499999999989,
+      "position": [
+        1.1075,
+        1.4164,
+        0.0733
+      ],
+      "quaternion": [
+        0.9986,
+        0.0141,
+        -0.0026,
+        -0.0503
+      ],
+      "linear_velocity": [
+        0.5835,
+        0.0035,
+        0.0714
+      ],
+      "angular_velocity": [
+        0.8371,
+        -0.3039,
+        -0.1975
+      ],
+      "linear_speed": 0.5879,
+      "angular_speed": 0.9122,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 6.254999999999889,
+      "position": [
+        1.1389,
+        1.4168,
+        0.0699
+      ],
+      "quaternion": [
+        0.999,
+        -0.0021,
+        0.0043,
+        -0.0435
+      ],
+      "linear_velocity": [
+        0.6316,
+        0.0082,
+        -0.2861
+      ],
+      "angular_velocity": [
+        -0.691,
+        0.2332,
+        0.3019
+      ],
+      "linear_speed": 0.6934,
+      "angular_speed": 0.7893,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 6.304999999999888,
+      "position": [
+        1.1621,
+        1.4171,
+        0.072
+      ],
+      "quaternion": [
+        0.9978,
+        0.0077,
+        -0.0041,
+        -0.0653
+      ],
+      "linear_velocity": [
+        0.456,
+        0.0066,
+        -0.1367
+      ],
+      "angular_velocity": [
+        0.3659,
+        -0.0967,
+        -0.9545
+      ],
+      "linear_speed": 0.4761,
+      "angular_speed": 1.0268,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 6.354999999999887,
+      "position": [
+        1.1877,
+        1.4171,
+        0.0709
+      ],
+      "quaternion": [
+        0.9967,
+        0.0032,
+        0.0007,
+        -0.081
+      ],
+      "linear_velocity": [
+        0.457,
+        -0.0076,
+        -0.0725
+      ],
+      "angular_velocity": [
+        0.29,
+        1.1599,
+        -0.8877
+      ],
+      "linear_speed": 0.4628,
+      "angular_speed": 1.4891,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 6.404999999999886,
+      "position": [
+        1.2077,
+        1.4168,
+        0.0706
+      ],
+      "quaternion": [
+        0.9959,
+        0.0008,
+        0.0019,
+        -0.0908
+      ],
+      "linear_velocity": [
+        0.2604,
+        -0.0103,
+        0.0143
+      ],
+      "angular_velocity": [
+        0.6691,
+        -0.1786,
+        0.3385
+      ],
+      "linear_speed": 0.261,
+      "angular_speed": 0.7708,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 6.454999999999885,
+      "position": [
+        1.2231,
+        1.4178,
+        0.0711
+      ],
+      "quaternion": [
+        0.9967,
+        0.0027,
+        -0.0023,
+        -0.0809
+      ],
+      "linear_velocity": [
+        0.3816,
+        0.0294,
+        -0.0477
+      ],
+      "angular_velocity": [
+        0.6435,
+        -0.3452,
+        0.3721
+      ],
+      "linear_speed": 0.3857,
+      "angular_speed": 0.8196,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 6.5049999999998835,
+      "position": [
+        1.2371,
+        1.4193,
+        0.0706
+      ],
+      "quaternion": [
+        0.9968,
+        0.0001,
+        -0.0015,
+        -0.0802
+      ],
+      "linear_velocity": [
+        0.2602,
+        0.0281,
+        0.0113
+      ],
+      "angular_velocity": [
+        -0.8183,
+        0.5509,
+        0.2348
+      ],
+      "linear_speed": 0.2619,
+      "angular_speed": 1.014,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 6.5549999999998825,
+      "position": [
+        1.2558,
+        1.4193,
+        0.0714
+      ],
+      "quaternion": [
+        0.9959,
+        0.0038,
+        -0.0001,
+        -0.0903
+      ],
+      "linear_velocity": [
+        0.4278,
+        0.0003,
+        0.0161
+      ],
+      "angular_velocity": [
+        -0.7052,
+        0.3828,
+        -0.1758
+      ],
+      "linear_speed": 0.4281,
+      "angular_speed": 0.8215,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 6.604999999999881,
+      "position": [
+        1.2756,
+        1.419,
+        0.0725
+      ],
+      "quaternion": [
+        0.9943,
+        -0.0039,
+        -0.0032,
+        -0.1067
+      ],
+      "linear_velocity": [
+        0.366,
+        -0.0075,
+        -0.0003
+      ],
+      "angular_velocity": [
+        -0.6899,
+        0.2334,
+        -0.885
+      ],
+      "linear_speed": 0.3661,
+      "angular_speed": 1.1462,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 6.65499999999988,
+      "position": [
+        1.292,
+        1.4183,
+        0.0718
+      ],
+      "quaternion": [
+        0.9921,
+        -0.0042,
+        -0.0036,
+        -0.1255
+      ],
+      "linear_velocity": [
+        0.2967,
+        -0.001,
+        0.1091
+      ],
+      "angular_velocity": [
+        -1.1557,
+        -0.1441,
+        0.2716
+      ],
+      "linear_speed": 0.3161,
+      "angular_speed": 1.1959,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 6.704999999999879,
+      "position": [
+        1.3073,
+        1.4174,
+        0.07
+      ],
+      "quaternion": [
+        0.9922,
+        0.0008,
+        0.0035,
+        -0.125
+      ],
+      "linear_velocity": [
+        0.1947,
+        -0.0199,
+        -0.1179
+      ],
+      "angular_velocity": [
+        0.3995,
+        -0.4808,
+        -0.2119
+      ],
+      "linear_speed": 0.2285,
+      "angular_speed": 0.6601,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 6.754999999999878,
+      "position": [
+        1.3204,
+        1.4165,
+        0.0712
+      ],
+      "quaternion": [
+        0.9928,
+        -0.0016,
+        -0.0037,
+        -0.1198
+      ],
+      "linear_velocity": [
+        0.2244,
+        -0.0188,
+        -0.1158
+      ],
+      "angular_velocity": [
+        -0.3762,
+        0.7041,
+        0.1622
+      ],
+      "linear_speed": 0.2532,
+      "angular_speed": 0.8146,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 6.804999999999877,
+      "position": [
+        1.3342,
+        1.4146,
+        0.0705
+      ],
+      "quaternion": [
+        0.9937,
+        0.0046,
+        0.001,
+        -0.1122
+      ],
+      "linear_velocity": [
+        0.3085,
+        -0.0433,
+        -0.0397
+      ],
+      "angular_velocity": [
+        1.3572,
+        0.5406,
+        0.1732
+      ],
+      "linear_speed": 0.3141,
+      "angular_speed": 1.4711,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 6.854999999999876,
+      "position": [
+        1.3513,
+        1.4126,
+        0.0692
+      ],
+      "quaternion": [
+        0.9941,
+        0.0009,
+        0.0006,
+        -0.1083
+      ],
+      "linear_velocity": [
+        0.3611,
+        -0.0446,
+        -0.1881
+      ],
+      "angular_velocity": [
+        0.3226,
+        0.1449,
+        0.0347
+      ],
+      "linear_speed": 0.4096,
+      "angular_speed": 0.3554,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 6.904999999999875,
+      "position": [
+        1.369,
+        1.4104,
+        0.071
+      ],
+      "quaternion": [
+        0.9946,
+        -0.0023,
+        -0.0003,
+        -0.1037
+      ],
+      "linear_velocity": [
+        0.3818,
+        -0.0613,
+        -0.0604
+      ],
+      "angular_velocity": [
+        1.1243,
+        0.3872,
+        -0.0459
+      ],
+      "linear_speed": 0.3914,
+      "angular_speed": 1.19,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 6.954999999999874,
+      "position": [
+        1.385,
+        1.4078,
+        0.0728
+      ],
+      "quaternion": [
+        0.9957,
+        -0.004,
+        -0.0023,
+        -0.0929
+      ],
+      "linear_velocity": [
+        0.3283,
+        -0.0532,
+        0.0376
+      ],
+      "angular_velocity": [
+        0.5584,
+        0.1729,
+        0.4607
+      ],
+      "linear_speed": 0.3347,
+      "angular_speed": 0.7443,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 7.004999999999873,
+      "position": [
+        1.4039,
+        1.4053,
+        0.0727
+      ],
+      "quaternion": [
+        0.9959,
+        0.0012,
+        0.0016,
+        -0.0901
+      ],
+      "linear_velocity": [
+        0.4418,
+        -0.0474,
+        0.0682
+      ],
+      "angular_velocity": [
+        0.195,
+        0.1711,
+        -0.4852
+      ],
+      "linear_speed": 0.4495,
+      "angular_speed": 0.5502,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 7.054999999999872,
+      "position": [
+        1.4244,
+        1.4038,
+        0.0717
+      ],
+      "quaternion": [
+        0.9944,
+        0.0017,
+        0.0001,
+        -0.1061
+      ],
+      "linear_velocity": [
+        0.4738,
+        -0.0249,
+        0.2134
+      ],
+      "angular_velocity": [
+        -0.8737,
+        0.1522,
+        -0.1129
+      ],
+      "linear_speed": 0.5202,
+      "angular_speed": 0.894,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 7.104999999999871,
+      "position": [
+        1.4486,
+        1.4022,
+        0.0722
+      ],
+      "quaternion": [
+        0.9934,
+        -0.0005,
+        -0.0069,
+        -0.1146
+      ],
+      "linear_velocity": [
+        0.4992,
+        -0.0411,
+        -0.1086
+      ],
+      "angular_velocity": [
+        1.1619,
+        -0.9886,
+        -0.7144
+      ],
+      "linear_speed": 0.5125,
+      "angular_speed": 1.6845,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 7.15499999999987,
+      "position": [
+        1.4754,
+        1.4007,
+        0.0741
+      ],
+      "quaternion": [
+        0.9949,
+        -0.001,
+        0.0001,
+        -0.1013
+      ],
+      "linear_velocity": [
+        0.5181,
+        -0.0333,
+        0.0581
+      ],
+      "angular_velocity": [
+        0.9091,
+        -0.6141,
+        0.8487
+      ],
+      "linear_speed": 0.5224,
+      "angular_speed": 1.387,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 7.204999999999869,
+      "position": [
+        1.4986,
+        1.3991,
+        0.0712
+      ],
+      "quaternion": [
+        0.9967,
+        -0.0031,
+        -0.0006,
+        -0.0816
+      ],
+      "linear_velocity": [
+        0.3891,
+        -0.0356,
+        0.068
+      ],
+      "angular_velocity": [
+        0.4532,
+        -1.2994,
+        0.2913
+      ],
+      "linear_speed": 0.3966,
+      "angular_speed": 1.4067,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 7.2549999999998676,
+      "position": [
+        1.5123,
+        1.3977,
+        0.0708
+      ],
+      "quaternion": [
+        0.9969,
+        0.0007,
+        -0.004,
+        -0.078
+      ],
+      "linear_velocity": [
+        0.2788,
+        -0.0123,
+        0.1523
+      ],
+      "angular_velocity": [
+        -0.1376,
+        -0.5496,
+        0.0163
+      ],
+      "linear_speed": 0.318,
+      "angular_speed": 0.5668,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 7.3049999999998665,
+      "position": [
+        1.525,
+        1.397,
+        0.0708
+      ],
+      "quaternion": [
+        0.9971,
+        0.0025,
+        0.0014,
+        -0.0766
+      ],
+      "linear_velocity": [
+        0.3104,
+        -0.015,
+        0.077
+      ],
+      "angular_velocity": [
+        0.5313,
+        0.3581,
+        -0.1896
+      ],
+      "linear_speed": 0.3201,
+      "angular_speed": 0.6682,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 7.354999999999865,
+      "position": [
+        1.5387,
+        1.3974,
+        0.0716
+      ],
+      "quaternion": [
+        0.9962,
+        0.005,
+        -0.0002,
+        -0.0873
+      ],
+      "linear_velocity": [
+        0.3294,
+        0.0254,
+        0.0458
+      ],
+      "angular_velocity": [
+        0.9242,
+        0.0326,
+        -0.4621
+      ],
+      "linear_speed": 0.3336,
+      "angular_speed": 1.0338,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 7.404999999999864,
+      "position": [
+        1.5617,
+        1.3982,
+        0.0716
+      ],
+      "quaternion": [
+        0.9965,
+        0.0063,
+        -0.0035,
+        -0.0831
+      ],
+      "linear_velocity": [
+        0.5562,
+        -0.0084,
+        0.0068
+      ],
+      "angular_velocity": [
+        2.1435,
+        -0.5389,
+        -0.46
+      ],
+      "linear_speed": 0.5563,
+      "angular_speed": 2.2575,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 7.454999999999863,
+      "position": [
+        1.588,
+        1.3982,
+        0.0729
+      ],
+      "quaternion": [
+        0.9966,
+        -0.0035,
+        0.007,
+        -0.0823
+      ],
+      "linear_velocity": [
+        0.312,
+        -0.0014,
+        0.0245
+      ],
+      "angular_velocity": [
+        0.2348,
+        -0.9454,
+        0.3275
+      ],
+      "linear_speed": 0.313,
+      "angular_speed": 1.0277,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 7.504999999999862,
+      "position": [
+        1.6037,
+        1.3982,
+        0.0719
+      ],
+      "quaternion": [
+        0.9972,
+        -0.0042,
+        0.0014,
+        -0.0751
+      ],
+      "linear_velocity": [
+        0.3581,
+        0.0032,
+        0.0899
+      ],
+      "angular_velocity": [
+        -0.8052,
+        0.1552,
+        0.2271
+      ],
+      "linear_speed": 0.3693,
+      "angular_speed": 0.8509,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 7.554999999999861,
+      "position": [
+        1.6223,
+        1.3981,
+        0.0701
+      ],
+      "quaternion": [
+        0.997,
+        0.002,
+        -0.0003,
+        -0.0777
+      ],
+      "linear_velocity": [
+        0.3634,
+        0.0064,
+        -0.043
+      ],
+      "angular_velocity": [
+        -0.4218,
+        1.4458,
+        0.3573
+      ],
+      "linear_speed": 0.366,
+      "angular_speed": 1.5478,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 7.60499999999986,
+      "position": [
+        1.6411,
+        1.3985,
+        0.0708
+      ],
+      "quaternion": [
+        0.9969,
+        0.0012,
+        -0.0004,
+        -0.0788
+      ],
+      "linear_velocity": [
+        0.3554,
+        0.0085,
+        0.1136
+      ],
+      "angular_velocity": [
+        -0.3662,
+        -0.1103,
+        -0.4294
+      ],
+      "linear_speed": 0.3732,
+      "angular_speed": 0.5751,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 7.654999999999859,
+      "position": [
+        1.6612,
+        1.3985,
+        0.0715
+      ],
+      "quaternion": [
+        0.9957,
+        -0.0064,
+        -0.0024,
+        -0.0919
+      ],
+      "linear_velocity": [
+        0.5261,
+        -0.0248,
+        0.0599
+      ],
+      "angular_velocity": [
+        -0.4889,
+        -0.8951,
+        -0.8838
+      ],
+      "linear_speed": 0.53,
+      "angular_speed": 1.3496,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 7.704999999999858,
+      "position": [
+        1.691,
+        1.397,
+        0.0727
+      ],
+      "quaternion": [
+        0.9939,
+        0.0058,
+        -0.0001,
+        -0.1099
+      ],
+      "linear_velocity": [
+        0.6941,
+        -0.0251,
+        -0.0647
+      ],
+      "angular_velocity": [
+        -1.0433,
+        0.1454,
+        0.0719
+      ],
+      "linear_speed": 0.6975,
+      "angular_speed": 1.0558,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 7.754999999999857,
+      "position": [
+        1.7226,
+        1.3943,
+        0.0728
+      ],
+      "quaternion": [
+        0.9933,
+        -0.0004,
+        0.0076,
+        -0.1156
+      ],
+      "linear_velocity": [
+        0.5542,
+        -0.0626,
+        0.0383
+      ],
+      "angular_velocity": [
+        -0.7728,
+        0.3226,
+        -0.6829
+      ],
+      "linear_speed": 0.559,
+      "angular_speed": 1.0806,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 7.804999999999856,
+      "position": [
+        1.7438,
+        1.3911,
+        0.0706
+      ],
+      "quaternion": [
+        0.9926,
+        0.0011,
+        -0.0007,
+        -0.1217
+      ],
+      "linear_velocity": [
+        0.3882,
+        -0.054,
+        0.192
+      ],
+      "angular_velocity": [
+        0.2286,
+        0.0108,
+        -0.0257
+      ],
+      "linear_speed": 0.4365,
+      "angular_speed": 0.2303,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 7.854999999999855,
+      "position": [
+        1.7637,
+        1.3883,
+        0.0705
+      ],
+      "quaternion": [
+        0.9928,
+        -0.0038,
+        0.0004,
+        -0.1196
+      ],
+      "linear_velocity": [
+        0.3998,
+        -0.0633,
+        0.0995
+      ],
+      "angular_velocity": [
+        0.178,
+        -0.0781,
+        0.0187
+      ],
+      "linear_speed": 0.4168,
+      "angular_speed": 0.1953,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 7.904999999999854,
+      "position": [
+        1.7887,
+        1.3833,
+        0.0735
+      ],
+      "quaternion": [
+        0.993,
+        0.0095,
+        -0.0015,
+        -0.1181
+      ],
+      "linear_velocity": [
+        0.5226,
+        -0.1183,
+        -0.0793
+      ],
+      "angular_velocity": [
+        -0.5593,
+        0.2715,
+        0.3617
+      ],
+      "linear_speed": 0.5417,
+      "angular_speed": 0.7193,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 7.954999999999853,
+      "position": [
+        1.8121,
+        1.3784,
+        0.0725
+      ],
+      "quaternion": [
+        0.9924,
+        0.0073,
+        -0.0011,
+        -0.1231
+      ],
+      "linear_velocity": [
+        0.497,
+        -0.1047,
+        0.17
+      ],
+      "angular_velocity": [
+        0.0944,
+        0.2988,
+        -0.221
+      ],
+      "linear_speed": 0.5356,
+      "angular_speed": 0.3835,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 8.004999999999852,
+      "position": [
+        1.8354,
+        1.3737,
+        0.0703
+      ],
+      "quaternion": [
+        0.9912,
+        -0.005,
+        -0.0024,
+        -0.1321
+      ],
+      "linear_velocity": [
+        0.4083,
+        -0.0739,
+        -0.1685
+      ],
+      "angular_velocity": [
+        -1.4664,
+        -0.8428,
+        -0.6089
+      ],
+      "linear_speed": 0.4479,
+      "angular_speed": 1.7976,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 8.05499999999986,
+      "position": [
+        1.8605,
+        1.3683,
+        0.0729
+      ],
+      "quaternion": [
+        0.9886,
+        0.0022,
+        0.0073,
+        -0.1501
+      ],
+      "linear_velocity": [
+        0.4656,
+        -0.0806,
+        -0.0302
+      ],
+      "angular_velocity": [
+        -0.8077,
+        -0.2634,
+        -0.8552
+      ],
+      "linear_speed": 0.4735,
+      "angular_speed": 1.2054,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 8.104999999999867,
+      "position": [
+        1.876,
+        1.3646,
+        0.0707
+      ],
+      "quaternion": [
+        0.9875,
+        -0.0002,
+        0.001,
+        -0.1573
+      ],
+      "linear_velocity": [
+        0.3227,
+        -0.0501,
+        0.1226
+      ],
+      "angular_velocity": [
+        0.2624,
+        -0.086,
+        -0.2047
+      ],
+      "linear_speed": 0.3488,
+      "angular_speed": 0.3438,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 8.154999999999875,
+      "position": [
+        1.8933,
+        1.3614,
+        0.0705
+      ],
+      "quaternion": [
+        0.9874,
+        0.001,
+        -0.002,
+        -0.1584
+      ],
+      "linear_velocity": [
+        0.3488,
+        -0.0765,
+        -0.0053
+      ],
+      "angular_velocity": [
+        -0.1891,
+        -0.4559,
+        -0.0812
+      ],
+      "linear_speed": 0.3572,
+      "angular_speed": 0.5002,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 8.204999999999883,
+      "position": [
+        1.9099,
+        1.3568,
+        0.0713
+      ],
+      "quaternion": [
+        0.9867,
+        -0.0035,
+        -0.0024,
+        -0.1624
+      ],
+      "linear_velocity": [
+        0.3638,
+        -0.1048,
+        0.0026
+      ],
+      "angular_velocity": [
+        0.3414,
+        -0.7336,
+        -0.3274
+      ],
+      "linear_speed": 0.3786,
+      "angular_speed": 0.8729,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 8.25499999999989,
+      "position": [
+        1.9271,
+        1.3513,
+        0.0711
+      ],
+      "quaternion": [
+        0.9852,
+        0.0036,
+        0.001,
+        -0.1712
+      ],
+      "linear_velocity": [
+        0.3372,
+        -0.1199,
+        -0.0033
+      ],
+      "angular_velocity": [
+        0.1246,
+        0.567,
+        -0.9967
+      ],
+      "linear_speed": 0.3579,
+      "angular_speed": 1.1534,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 8.304999999999898,
+      "position": [
+        1.9413,
+        1.3477,
+        0.0703
+      ],
+      "quaternion": [
+        0.9824,
+        -0.0003,
+        0.0024,
+        -0.1867
+      ],
+      "linear_velocity": [
+        0.2554,
+        -0.0723,
+        -0.0706
+      ],
+      "angular_velocity": [
+        -0.1981,
+        0.6327,
+        -0.2402
+      ],
+      "linear_speed": 0.2747,
+      "angular_speed": 0.7051,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 8.354999999999906,
+      "position": [
+        1.9526,
+        1.3434,
+        0.0703
+      ],
+      "quaternion": [
+        0.9799,
+        0.0023,
+        0.0012,
+        -0.1995
+      ],
+      "linear_velocity": [
+        0.2015,
+        -0.0885,
+        -0.0129
+      ],
+      "angular_velocity": [
+        0.5452,
+        -0.3054,
+        -0.6713
+      ],
+      "linear_speed": 0.2205,
+      "angular_speed": 0.9171,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 8.404999999999914,
+      "position": [
+        1.967,
+        1.3387,
+        0.0706
+      ],
+      "quaternion": [
+        0.9788,
+        0.0005,
+        -0.0,
+        -0.2047
+      ],
+      "linear_velocity": [
+        0.2748,
+        -0.0797,
+        -0.0571
+      ],
+      "angular_velocity": [
+        -0.8016,
+        -0.681,
+        -0.3715
+      ],
+      "linear_speed": 0.2918,
+      "angular_speed": 1.1155,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 8.454999999999922,
+      "position": [
+        1.9865,
+        1.3315,
+        0.0725
+      ],
+      "quaternion": [
+        0.9753,
+        0.0056,
+        -0.0052,
+        -0.2206
+      ],
+      "linear_velocity": [
+        0.3964,
+        -0.1567,
+        -0.0503
+      ],
+      "angular_velocity": [
+        -0.4078,
+        0.3901,
+        -0.5771
+      ],
+      "linear_speed": 0.4292,
+      "angular_speed": 0.8071,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 8.50499999999993,
+      "position": [
+        2.0056,
+        1.3229,
+        0.0717
+      ],
+      "quaternion": [
+        0.9714,
+        0.0058,
+        -0.0041,
+        -0.2373
+      ],
+      "linear_velocity": [
+        0.3713,
+        -0.1867,
+        -0.0126
+      ],
+      "angular_velocity": [
+        0.6484,
+        -0.2649,
+        -0.8793
+      ],
+      "linear_speed": 0.4158,
+      "angular_speed": 1.1242,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 8.554999999999938,
+      "position": [
+        2.0252,
+        1.3134,
+        0.072
+      ],
+      "quaternion": [
+        0.9691,
+        0.0076,
+        -0.0011,
+        -0.2467
+      ],
+      "linear_velocity": [
+        0.3825,
+        -0.2123,
+        0.0727
+      ],
+      "angular_velocity": [
+        1.3894,
+        0.1071,
+        -0.3826
+      ],
+      "linear_speed": 0.4435,
+      "angular_speed": 1.4451,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 8.604999999999945,
+      "position": [
+        2.0473,
+        1.3022,
+        0.0698
+      ],
+      "quaternion": [
+        0.9701,
+        -0.0047,
+        0.001,
+        -0.2428
+      ],
+      "linear_velocity": [
+        0.412,
+        -0.1806,
+        -0.1507
+      ],
+      "angular_velocity": [
+        -1.5832,
+        -0.3831,
+        0.0729
+      ],
+      "linear_speed": 0.4744,
+      "angular_speed": 1.6305,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 8.654999999999953,
+      "position": [
+        2.0649,
+        1.2909,
+        0.0716
+      ],
+      "quaternion": [
+        0.9701,
+        0.006,
+        -0.0015,
+        -0.2428
+      ],
+      "linear_velocity": [
+        0.3761,
+        -0.2005,
+        -0.043
+      ],
+      "angular_velocity": [
+        -0.6792,
+        0.4143,
+        0.1553
+      ],
+      "linear_speed": 0.4284,
+      "angular_speed": 0.8106,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 8.704999999999961,
+      "position": [
+        2.0839,
+        1.2806,
+        0.0709
+      ],
+      "quaternion": [
+        0.9699,
+        0.0001,
+        0.0014,
+        -0.2436
+      ],
+      "linear_velocity": [
+        0.3792,
+        -0.2221,
+        -0.0541
+      ],
+      "angular_velocity": [
+        -0.5039,
+        0.546,
+        -0.0533
+      ],
+      "linear_speed": 0.4428,
+      "angular_speed": 0.7449,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 8.754999999999969,
+      "position": [
+        2.0972,
+        1.2702,
+        0.0706
+      ],
+      "quaternion": [
+        0.9674,
+        -0.001,
+        -0.0016,
+        -0.2532
+      ],
+      "linear_velocity": [
+        0.2569,
+        -0.2009,
+        0.0511
+      ],
+      "angular_velocity": [
+        -0.1666,
+        -0.0589,
+        -0.2138
+      ],
+      "linear_speed": 0.3301,
+      "angular_speed": 0.2774,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 8.804999999999977,
+      "position": [
+        2.1089,
+        1.2614,
+        0.071
+      ],
+      "quaternion": [
+        0.9668,
+        0.0022,
+        0.0017,
+        -0.2556
+      ],
+      "linear_velocity": [
+        0.2392,
+        -0.1306,
+        0.0178
+      ],
+      "angular_velocity": [
+        -0.144,
+        -0.07,
+        -0.3276
+      ],
+      "linear_speed": 0.2731,
+      "angular_speed": 0.3646,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 8.854999999999984,
+      "position": [
+        2.1218,
+        1.254,
+        0.0712
+      ],
+      "quaternion": [
+        0.9636,
+        0.0009,
+        -0.0015,
+        -0.2675
+      ],
+      "linear_velocity": [
+        0.3111,
+        -0.1979,
+        0.0595
+      ],
+      "angular_velocity": [
+        0.5055,
+        0.179,
+        -0.8746
+      ],
+      "linear_speed": 0.3735,
+      "angular_speed": 1.0259,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 8.899999999999991,
+      "position": [
+        2.1359,
+        1.2448,
+        0.07
+      ],
+      "quaternion": [
+        0.9606,
+        0.0006,
+        0.0005,
+        -0.2778
+      ],
+      "linear_velocity": [
+        0.2403,
+        -0.2152,
+        -0.0235
+      ],
+      "angular_velocity": [
+        0.1394,
+        0.7488,
+        -0.246
+      ],
+      "linear_speed": 0.3234,
+      "angular_speed": 0.8005,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 8.95,
+      "position": [
+        2.1485,
+        1.2351,
+        0.0704
+      ],
+      "quaternion": [
+        0.9595,
+        -0.0001,
+        0.0002,
+        -0.2816
+      ],
+      "linear_velocity": [
+        0.2974,
+        -0.1947,
+        0.047
+      ],
+      "angular_velocity": [
+        0.1807,
+        0.3108,
+        -0.1713
+      ],
+      "linear_speed": 0.3585,
+      "angular_speed": 0.3983,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 9.000000000000007,
+      "position": [
+        2.1612,
+        1.2261,
+        0.0709
+      ],
+      "quaternion": [
+        0.9586,
+        0.0021,
+        -0.0003,
+        -0.2848
+      ],
+      "linear_velocity": [
+        0.2605,
+        -0.165,
+        0.0368
+      ],
+      "angular_velocity": [
+        -0.4495,
+        -0.5414,
+        -0.1628
+      ],
+      "linear_speed": 0.3106,
+      "angular_speed": 0.7222,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 9.050000000000015,
+      "position": [
+        2.1728,
+        1.2175,
+        0.0704
+      ],
+      "quaternion": [
+        0.9572,
+        -0.0002,
+        -0.003,
+        -0.2895
+      ],
+      "linear_velocity": [
+        0.1921,
+        -0.1577,
+        -0.0265
+      ],
+      "angular_velocity": [
+        -0.0568,
+        0.1215,
+        -0.0599
+      ],
+      "linear_speed": 0.25,
+      "angular_speed": 0.1468,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 9.100000000000023,
+      "position": [
+        2.1837,
+        1.2093,
+        0.0703
+      ],
+      "quaternion": [
+        0.9557,
+        0.0023,
+        -0.0006,
+        -0.2945
+      ],
+      "linear_velocity": [
+        0.2298,
+        -0.1532,
+        0.0101
+      ],
+      "angular_velocity": [
+        -0.2276,
+        -0.0084,
+        -0.1787
+      ],
+      "linear_speed": 0.2764,
+      "angular_speed": 0.2895,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 9.15000000000003,
+      "position": [
+        2.199,
+        1.1989,
+        0.0708
+      ],
+      "quaternion": [
+        0.9536,
+        -0.0002,
+        -0.0001,
+        -0.301
+      ],
+      "linear_velocity": [
+        0.3335,
+        -0.2049,
+        -0.0403
+      ],
+      "angular_velocity": [
+        -0.7708,
+        -0.2563,
+        -0.1141
+      ],
+      "linear_speed": 0.3935,
+      "angular_speed": 0.8203,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 9.200000000000038,
+      "position": [
+        2.2143,
+        1.1878,
+        0.0706
+      ],
+      "quaternion": [
+        0.9514,
+        0.0019,
+        -0.0007,
+        -0.3078
+      ],
+      "linear_velocity": [
+        0.2459,
+        -0.1897,
+        0.0647
+      ],
+      "angular_velocity": [
+        0.2175,
+        -0.2622,
+        -0.2701
+      ],
+      "linear_speed": 0.3172,
+      "angular_speed": 0.4348,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 9.250000000000046,
+      "position": [
+        2.2266,
+        1.1783,
+        0.0712
+      ],
+      "quaternion": [
+        0.9481,
+        0.0031,
+        -0.0025,
+        -0.3181
+      ],
+      "linear_velocity": [
+        0.2223,
+        -0.1954,
+        0.0103
+      ],
+      "angular_velocity": [
+        0.1808,
+        0.1135,
+        -0.7335
+      ],
+      "linear_speed": 0.2961,
+      "angular_speed": 0.7639,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 9.300000000000054,
+      "position": [
+        2.2394,
+        1.1684,
+        0.0709
+      ],
+      "quaternion": [
+        0.9458,
+        0.0019,
+        0.0005,
+        -0.3249
+      ],
+      "linear_velocity": [
+        0.2425,
+        -0.2069,
+        -0.0017
+      ],
+      "angular_velocity": [
+        0.3987,
+        0.1156,
+        -0.2145
+      ],
+      "linear_speed": 0.3188,
+      "angular_speed": 0.4672,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 9.350000000000062,
+      "position": [
+        2.2524,
+        1.1582,
+        0.0716
+      ],
+      "quaternion": [
+        0.9429,
+        0.0065,
+        -0.0007,
+        -0.3329
+      ],
+      "linear_velocity": [
+        0.2534,
+        -0.2038,
+        -0.0203
+      ],
+      "angular_velocity": [
+        0.4663,
+        -0.1034,
+        -0.5159
+      ],
+      "linear_speed": 0.3258,
+      "angular_speed": 0.703,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 9.40000000000007,
+      "position": [
+        2.2653,
+        1.1479,
+        0.0712
+      ],
+      "quaternion": [
+        0.94,
+        0.0041,
+        -0.001,
+        -0.3412
+      ],
+      "linear_velocity": [
+        0.2466,
+        -0.1955,
+        0.0522
+      ],
+      "angular_velocity": [
+        0.0143,
+        -0.6936,
+        -0.32
+      ],
+      "linear_speed": 0.319,
+      "angular_speed": 0.764,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 9.450000000000077,
+      "position": [
+        2.2771,
+        1.1382,
+        0.0709
+      ],
+      "quaternion": [
+        0.9363,
+        0.0026,
+        -0.0028,
+        -0.3512
+      ],
+      "linear_velocity": [
+        0.254,
+        -0.1933,
+        -0.0047
+      ],
+      "angular_velocity": [
+        0.0509,
+        -0.5782,
+        -0.4652
+      ],
+      "linear_speed": 0.3192,
+      "angular_speed": 0.7438,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 9.500000000000085,
+      "position": [
+        2.2895,
+        1.1275,
+        0.071
+      ],
+      "quaternion": [
+        0.9329,
+        -0.0004,
+        -0.0011,
+        -0.36
+      ],
+      "linear_velocity": [
+        0.2619,
+        -0.2104,
+        -0.0222
+      ],
+      "angular_velocity": [
+        -0.6451,
+        0.2263,
+        -0.2394
+      ],
+      "linear_speed": 0.3366,
+      "angular_speed": 0.7243,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 9.550000000000093,
+      "position": [
+        2.3003,
+        1.1163,
+        0.0713
+      ],
+      "quaternion": [
+        0.9316,
+        0.0022,
+        -0.0029,
+        -0.3634
+      ],
+      "linear_velocity": [
+        0.2065,
+        -0.1964,
+        -0.043
+      ],
+      "angular_velocity": [
+        -0.3066,
+        0.0639,
+        -0.0866
+      ],
+      "linear_speed": 0.2882,
+      "angular_speed": 0.3249,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 9.600000000000101,
+      "position": [
+        2.3101,
+        1.1067,
+        0.0713
+      ],
+      "quaternion": [
+        0.9294,
+        0.0029,
+        -0.0042,
+        -0.3692
+      ],
+      "linear_velocity": [
+        0.1954,
+        -0.1922,
+        -0.0654
+      ],
+      "angular_velocity": [
+        0.3103,
+        -0.3242,
+        -0.2867
+      ],
+      "linear_speed": 0.2818,
+      "angular_speed": 0.5325,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 9.650000000000109,
+      "position": [
+        2.3202,
+        1.0971,
+        0.0713
+      ],
+      "quaternion": [
+        0.9271,
+        0.0044,
+        -0.0035,
+        -0.3748
+      ],
+      "linear_velocity": [
+        0.1999,
+        -0.2162,
+        -0.0077
+      ],
+      "angular_velocity": [
+        0.3639,
+        -0.3347,
+        -0.1638
+      ],
+      "linear_speed": 0.2945,
+      "angular_speed": 0.5208,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 9.700000000000117,
+      "position": [
+        2.3306,
+        1.0877,
+        0.071
+      ],
+      "quaternion": [
+        0.9252,
+        0.0011,
+        -0.0026,
+        -0.3795
+      ],
+      "linear_velocity": [
+        0.1777,
+        -0.2018,
+        -0.0126
+      ],
+      "angular_velocity": [
+        0.411,
+        0.0125,
+        -0.2344
+      ],
+      "linear_speed": 0.2692,
+      "angular_speed": 0.4733,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 9.750000000000124,
+      "position": [
+        2.3412,
+        1.0774,
+        0.0707
+      ],
+      "quaternion": [
+        0.9235,
+        0.0024,
+        0.0005,
+        -0.3835
+      ],
+      "linear_velocity": [
+        0.2369,
+        -0.2285,
+        -0.0173
+      ],
+      "angular_velocity": [
+        -0.2675,
+        0.4508,
+        -0.0555
+      ],
+      "linear_speed": 0.3296,
+      "angular_speed": 0.5271,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 9.800000000000132,
+      "position": [
+        2.3517,
+        1.0673,
+        0.0703
+      ],
+      "quaternion": [
+        0.9222,
+        0.0005,
+        0.0016,
+        -0.3868
+      ],
+      "linear_velocity": [
+        0.1896,
+        -0.1852,
+        -0.049
+      ],
+      "angular_velocity": [
+        -0.0823,
+        0.0372,
+        -0.0884
+      ],
+      "linear_speed": 0.2695,
+      "angular_speed": 0.1264,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 9.85000000000014,
+      "position": [
+        2.361,
+        1.0571,
+        0.0704
+      ],
+      "quaternion": [
+        0.9193,
+        0.001,
+        -0.0004,
+        -0.3936
+      ],
+      "linear_velocity": [
+        0.2182,
+        -0.188,
+        -0.053
+      ],
+      "angular_velocity": [
+        -0.6421,
+        0.1863,
+        -0.2382
+      ],
+      "linear_speed": 0.2929,
+      "angular_speed": 0.7097,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 9.900000000000148,
+      "position": [
+        2.3706,
+        1.0467,
+        0.0703
+      ],
+      "quaternion": [
+        0.9166,
+        0.0,
+        -0.0004,
+        -0.3999
+      ],
+      "linear_velocity": [
+        0.1816,
+        -0.2079,
+        -0.0105
+      ],
+      "angular_velocity": [
+        0.2066,
+        -0.0828,
+        -0.1379
+      ],
+      "linear_speed": 0.2762,
+      "angular_speed": 0.2618,
+      "contacts_count": 0,
+      "active_contacts": []
+    },
+    {
+      "sim_time": 9.950000000000156,
+      "position": [
+        2.3791,
+        1.0378,
+        0.0705
+      ],
+      "quaternion": [
+        0.9156,
+        0.0014,
+        -0.0004,
+        -0.4022
+      ],
+      "linear_velocity": [
+        0.1626,
+        -0.2165,
+        0.0833
+      ],
+      "angular_velocity": [
+        0.6615,
+        0.2085,
+        -0.3312
+      ],
+      "linear_speed": 0.2833,
+      "angular_speed": 0.7686,
+      "contacts_count": 0,
+      "active_contacts": []
+    }
+  ],
+  "metrics": {
+    "total_duration": 9.95,
+    "total_distance_traveled": 3.486,
+    "initial_distance_to_target": 2.55,
+    "final_distance_to_target": 0.551,
+    "min_distance_to_target": 0.551,
+    "max_linear_speed": 0.887,
+    "mean_linear_speed": 0.363,
+    "max_angular_speed": 3.555,
+    "total_collisions": 0,
+    "success": false,
+    "time_to_goal": null,
+    "status_reason": "Simulation duration completed."
+  },
+  "errors": []
+}

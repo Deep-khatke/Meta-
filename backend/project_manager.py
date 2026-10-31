@@ -10,11 +10,35 @@ from backend.models import Project, SceneObject, RobotConfig, SimulationSettings
 PROJECTS_DIR = Path("projects")
 
 def get_default_project() -> Project:
-    """Returns a sensible default robotics simulation project with primitive obstacles."""
+    """Returns a clean default robotics simulation project for a new user with no clutter."""
     return Project(
         schema_version=SCHEMA_VERSION,
         name="Workspace Alpha",
-        description="Default RoboForge differential-drive arena",
+        description="Clean RoboForge differential-drive arena",
+        robot=RobotConfig(
+            id="robot_main",
+            name="ForgeBot-DD1",
+            initial_position=[0.0, 0.0, 0.07],
+            initial_yaw=0.0,
+            wheel_radius=0.06,
+            wheel_base=0.28,
+            max_linear_velocity=1.5,
+            max_angular_velocity=3.0,
+        ),
+        objects=[],
+        settings=SimulationSettings(
+            timestep=0.005,
+            speed_multiplier=1.0,
+            gravity=[0.0, 0.0, -9.81]
+        )
+    )
+
+def get_default_project_demo() -> Project:
+    """Archived demo project with primitive obstacles preserved for reference."""
+    return Project(
+        schema_version=SCHEMA_VERSION,
+        name="Workspace Alpha Demo",
+        description="Archived RoboForge differential-drive arena with demo obstacles",
         robot=RobotConfig(
             id="robot_main",
             name="ForgeBot-DD1",
@@ -32,7 +56,7 @@ def get_default_project() -> Project:
                 type="box",
                 position=[1.5, 0.0, 0.20],
                 rotation=[0.0, 0.0, 15.0],
-                size=[0.25, 0.25, 0.20], # half-sizes
+                size=[0.25, 0.25, 0.20],
                 color="#e06c75",
                 is_static=False,
                 mass=2.0
@@ -43,7 +67,7 @@ def get_default_project() -> Project:
                 type="cylinder",
                 position=[2.0, 1.2, 0.35],
                 rotation=[0.0, 0.0, 0.0],
-                size=[0.18, 0.35], # radius, half_height
+                size=[0.18, 0.35],
                 color="#98c379",
                 is_static=True,
                 mass=10.0
@@ -54,7 +78,7 @@ def get_default_project() -> Project:
                 type="sphere",
                 position=[1.2, -1.2, 0.25],
                 rotation=[0.0, 0.0, 0.0],
-                size=[0.25], # radius
+                size=[0.25],
                 color="#d19a66",
                 is_static=False,
                 mass=1.2

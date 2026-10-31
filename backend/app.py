@@ -2,7 +2,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from typing import Set, Optional
+from typing import Set, Optional, List, Dict, Any
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Request
@@ -31,7 +31,7 @@ from backend.project_manager import ProjectManager
 from backend.scene_validator import validate_scene, SceneValidationReport
 from backend.motion_planning import plan_collision_free_path, PathPlanningRequest, PathPlanningResult, TrajectoryExecutionState
 from backend.synthetic_data import SyntheticDataGenerator, DomainRandomizationConfig, COCODataset
-from backend.ros2_bridge import ROS2Bridge
+from backend.ros2_bridge import ROS2Bridge, ros2_bag_recorder, swarm_orchestrator, SwarmOrchestrator
 from backend.agent_interface import (
     AgentSimulationInterface, EnvironmentInspectionResult, TelemetryObservation,
     PerceptionObservation, ReproducibleRecord
@@ -186,13 +186,14 @@ async def simulation_loop():
                             done = True
                             status_str = "failed"
                             reason_str = f"Collision limit exceeded: {active_live_experiment['unique_collision_events']} > {max_cols}"
-                        elif engine.sim_time >= active_live_experiment["timeout"]:
+                        elif active_live_experiment.get("timeout") is not None and engine.sim_time >= active_live_experiment["timeout"]:
                             done = True
                             status_str = "timeout"
                             reason_str = f"Timeout reached at {engine.sim_time:.2f}s (distance: {dist:.3f}m)"
 
                         if done:
-                            engine.pause()
+                            if not active_live_experiment.get("run_until_goal", True):
+                                engine.pause()
                             experiment_manager._record_measurement(
                                 active_live_experiment["measurements"], engine, robot_contact_geoms
                             )
@@ -296,13 +297,19 @@ async def simulation_loop():
                 # Compute how many physics steps to advance this loop tick
                 ts = engine.project.settings.timestep
                 mult = engine.project.settings.speed_multiplier
-                steps_to_take = max(1, min(20, int(round((dt_wall * mult) / ts))))
-                
-                for _ in range(steps_to_take):
-                    engine.step()
+                # Advance physics unless visual RL training curriculum is controlling drone kinematics
+                if not getattr(engine, "rl_training_active", False):
+                    steps_to_take = max(1, min(20, int(round((dt_wall * mult) / ts))))
+                    for _ in range(steps_to_take):
+                        engine.step()
+                else:
+                    engine.sim_time += dt_wall
+                    engine.step_count += 1
 
             # Always broadcast state at ~30-60Hz to clients
             state = engine.get_state()
+            if ros2_bag_recorder.is_recording and engine.status == "running":
+                ros2_bag_recorder.record_step(state)
             state_dict = state.model_dump()
             await broadcast_json({"type": "state", "data": state_dict})
 
@@ -425,6 +432,17 @@ class SyntheticExportRequest(BaseModel):
     num_samples: int = Field(default=5, ge=1, le=50)
     width: int = Field(default=320, ge=64, le=1280)
     height: int = Field(default=240, ge=64, le=720)
+
+class ROS2BagStartRequest(BaseModel):
+    name: Optional[str] = "rosbag2_recording"
+    topics: Optional[List[str]] = None
+
+class SwarmDeployRequest(BaseModel):
+    formation: str = Field(default="v_shape", description="Formation: v_shape, line, column, circle, diamond")
+    agent_count: int = Field(default=4, ge=2, le=10)
+    spacing: float = Field(default=1.2, ge=0.4, le=5.0)
+
+active_swarm_config: Optional[dict] = None
 
 
 @app.get("/api/health")
@@ -673,22 +691,26 @@ def export_synthetic_coco_dataset(req: SyntheticExportRequest = SyntheticExportR
     return coco
 
 
-# --- ROS 2 Robotics Interoperability Bridge ---
+# --- ROS 2 Robotics Interoperability Bridge & Bag Recording ---
 
 @app.get("/api/ros2/topics")
 def list_ros2_topics():
     return {
+        "node": "/roboforge_bridge_node",
+        "domain_id": 0,
         "topics": [
-            {"topic": "/cmd_vel", "type": "geometry_msgs/msg/Twist", "mode": "subscription"},
-            {"topic": "/odom", "type": "nav_msgs/msg/Odometry", "mode": "publication"},
-            {"topic": "/scan", "type": "sensor_msgs/msg/LaserScan", "mode": "publication"},
-            {"topic": "/imu/data", "type": "sensor_msgs/msg/Imu", "mode": "publication"},
-            {"topic": "/joint_states", "type": "sensor_msgs/msg/JointState", "mode": "publication"},
-            {"topic": "/clock", "type": "rosgraph_msgs/msg/Clock", "mode": "publication"}
+            {"topic": "/cmd_vel", "type": "geometry_msgs/msg/Twist", "mode": "subscription", "rate_hz": "Event-driven"},
+            {"topic": "/odom", "type": "nav_msgs/msg/Odometry", "mode": "publication", "rate_hz": 50},
+            {"topic": "/scan", "type": "sensor_msgs/msg/LaserScan", "mode": "publication", "rate_hz": 20},
+            {"topic": "/imu/data", "type": "sensor_msgs/msg/Imu", "mode": "publication", "rate_hz": 100},
+            {"topic": "/joint_states", "type": "sensor_msgs/msg/JointState", "mode": "publication", "rate_hz": 50},
+            {"topic": "/clock", "type": "rosgraph_msgs/msg/Clock", "mode": "publication", "rate_hz": 50},
+            {"topic": "/tf", "type": "tf2_msgs/msg/TFMessage", "mode": "publication", "rate_hz": 50}
         ]
     }
 
 @app.get("/api/ros2/messages/{topic_name:path}")
+@app.get("/api/ros2/topic/{topic_name:path}")
 def get_ros2_message(topic_name: str):
     state = engine.get_state()
     t = topic_name.strip("/")
@@ -704,18 +726,182 @@ def get_ros2_message(topic_name: str):
         if not msg:
             raise HTTPException(status_code=404, detail="IMU sensor not enabled")
         return msg
-    elif t == "joint_states":
+    elif t in ("joint_states", "joint_state"):
         return ROS2Bridge.serialize_joint_states(state)
     elif t == "clock":
         return ROS2Bridge.serialize_clock(state.sim_time)
+    elif t == "tf":
+        return ROS2Bridge.serialize_tf(state)
     else:
         raise HTTPException(status_code=404, detail=f"Topic '/{t}' not recognized.")
+
+@app.get("/api/ros2/tf")
+def get_ros2_tf():
+    state = engine.get_state()
+    return ROS2Bridge.serialize_tf(state)
 
 @app.post("/api/ros2/cmd_vel")
 def send_ros2_cmd_vel(twist_payload: dict):
     cmd = ROS2Bridge.parse_cmd_vel(twist_payload)
     engine.set_teleop(cmd.linear, cmd.angular)
     return {"status": "ok", "teleop": engine.teleop_cmd}
+
+@app.post("/api/ros2/bag/start")
+def start_ros2_bag_recording(req: ROS2BagStartRequest = ROS2BagStartRequest()):
+    try:
+        res = ros2_bag_recorder.start_recording(name=req.name or "rosbag2_recording", sim_time=engine.sim_time, topics=req.topics)
+        engine.log("info", f"ROS 2 Bag recording started: '{res['bag_name']}'")
+        return res
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/api/ros2/bag/stop")
+def stop_ros2_bag_recording():
+    try:
+        res = ros2_bag_recorder.stop_recording(sim_time=engine.sim_time)
+        engine.log("info", f"ROS 2 Bag recording stopped: saved {res.get('metadata', {}).get('message_count', 0)} messages.")
+        return res
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/api/ros2/bag/status")
+def get_ros2_bag_status():
+    return {
+        "is_recording": ros2_bag_recorder.is_recording,
+        "current_bag_id": ros2_bag_recorder.current_bag_id,
+        "current_bag_name": ros2_bag_recorder.current_bag_name,
+        "message_count": len(ros2_bag_recorder.recorded_messages)
+    }
+
+@app.get("/api/ros2/bags")
+def list_ros2_bags():
+    return {"bags": ros2_bag_recorder.list_bags()}
+
+@app.get("/api/ros2/bag/{bag_id}")
+def get_ros2_bag(bag_id: str):
+    bag = ros2_bag_recorder.get_bag(bag_id)
+    if not bag:
+        raise HTTPException(status_code=404, detail=f"ROS 2 Bag '{bag_id}' not found.")
+    return bag
+
+@app.delete("/api/ros2/bag/{bag_id}")
+def delete_ros2_bag(bag_id: str):
+    success = ros2_bag_recorder.delete_bag(bag_id)
+    if not success:
+        raise HTTPException(status_code=404, detail=f"ROS 2 Bag '{bag_id}' not found.")
+    return {"status": "ok", "deleted_bag_id": bag_id}
+
+
+# --- Multi-Robot Swarm & Formation Orchestration ---
+
+@app.post("/api/swarm/deploy")
+async def deploy_swarm(req: SwarmDeployRequest):
+    global active_swarm_config
+    try:
+        state = engine.get_state()
+        leader_pos = state.robot.position
+        leader_yaw = math.degrees(quat_to_yaw(state.robot.quaternion))
+
+        coords = SwarmOrchestrator.calculate_formation_positions(
+            leader_pos=leader_pos,
+            leader_yaw_deg=leader_yaw,
+            formation=req.formation,
+            count=req.agent_count,
+            spacing=req.spacing
+        )
+
+        # Remove previous swarm follower objects
+        engine.project.objects = [o for o in engine.project.objects if not o.name.startswith("Swarm-Follower-")]
+
+        # Add follower models
+        followers = []
+        for i in range(1, len(coords)):
+            c = coords[i]
+            follower = SceneObject(
+                name=f"Swarm-Follower-{i}",
+                type="box",
+                position=[c[0], c[1], 0.08],
+                rotation=[0.0, 0.0, leader_yaw],
+                size=[0.24, 0.18, 0.10],
+                color="#06b6d4",
+                is_static=True,
+                mass=2.5
+            )
+            engine.project.objects.append(follower)
+            followers.append({"id": follower.id, "name": follower.name, "position": [c[0], c[1], 0.08]})
+
+        project_manager.get_current().objects = engine.project.objects
+        engine.rebuild_model(preserve_state=True)
+        active_swarm_config = {
+            "formation": req.formation,
+            "agent_count": req.agent_count,
+            "spacing": req.spacing,
+            "leader_pos": leader_pos,
+            "followers": followers
+        }
+
+        await broadcast_json({"type": "project_updated", "data": engine.project.model_dump()})
+        engine.log("info", f"Swarm fleet deployed: {req.agent_count} agents in '{req.formation}' formation.")
+        return {"status": "ok", "swarm": active_swarm_config}
+    except Exception as e:
+        logger.exception("Swarm deployment failed: %s", e)
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/api/swarm/status")
+def get_swarm_status():
+    global active_swarm_config
+    return {
+        "active": active_swarm_config is not None,
+        "config": active_swarm_config,
+        "available_formations": SwarmOrchestrator.FORMATIONS
+    }
+
+@app.post("/api/swarm/clear")
+async def clear_swarm():
+    global active_swarm_config
+    engine.project.objects = [o for o in engine.project.objects if not o.name.startswith("Swarm-Follower-")]
+    project_manager.get_current().objects = engine.project.objects
+    engine.rebuild_model(preserve_state=True)
+    active_swarm_config = None
+    await broadcast_json({"type": "project_updated", "data": engine.project.model_dump()})
+    engine.log("info", "Swarm fleet cleared from active scene.")
+    return {"status": "ok", "cleared": True}
+
+
+# --- Aerial Drone & Multi-Robot Flight Routes ---
+
+class DroneCommandRequest(BaseModel):
+    drone_id: Optional[str] = "drone"
+    command: str = "takeoff"  # "takeoff", "land", "hover", "fly_to"
+    altitude: Optional[float] = 1.5
+    position: Optional[List[float]] = None
+
+@app.post("/api/drone/command")
+def command_drone_api(req: DroneCommandRequest):
+    if req.command == "takeoff":
+        return engine.command_drone_takeoff(req.drone_id or "drone", req.altitude or 1.5)
+    elif req.command == "land":
+        return engine.command_drone_land(req.drone_id or "drone")
+    elif req.command == "hover":
+        return engine.command_drone_hover(req.drone_id or "drone")
+    elif req.command == "fly_to":
+        return engine.command_drone_fly_to(req.drone_id or "drone", req.position)
+    raise HTTPException(status_code=400, detail=f"Unknown drone command: {req.command}")
+
+@app.get("/api/drone/status")
+def get_drone_status_api():
+    drones = []
+    for d_id, ctrl in engine.drone_controllers.items():
+        drones.append({
+            "drone_id": ctrl.drone_id,
+            "name": ctrl.name,
+            "flight_mode": ctrl.flight_mode,
+            "target_altitude": ctrl.target_altitude,
+            "current_altitude": ctrl.current_altitude,
+            "current_position": ctrl.current_position,
+            "rotors_active": ctrl.rotors_active
+        })
+    return {"drones": drones, "count": len(drones)}
 
 
 # --- Multi-Trial Experimentation ---
@@ -1434,11 +1620,15 @@ async def run_live_experiment(req: RunExperimentRequest):
     engine.project = project_manager.current_project
     engine.rebuild_model(preserve_state=False)
 
+    run_until_goal = getattr(req, "run_until_goal", True)
+    timeout_val = None if (run_until_goal or not duration or duration <= 0) else duration
+
     active_live_experiment = {
         "config": config,
         "seed": seed,
         "duration": duration,
-        "timeout": min(duration, config.task.timeout),
+        "timeout": timeout_val,
+        "run_until_goal": run_until_goal,
         "target": np.array(config.task.target_position[:2]),
         "measurements": [],
         "unique_collision_events": 0,
@@ -1522,6 +1712,60 @@ def cancel_rl_training(job_id: str):
     return {"status": "cancelled", "job_id": job_id}
 
 
+class LiveDroneTrainingRequest(BaseModel):
+    drone_identifier: str = "drone"
+    target_altitude: float = 1.5
+    total_episodes: int = 4
+
+
+class LiveArmTrainingRequest(BaseModel):
+    arm_identifier: str = "arm"
+    total_episodes: int = 4
+
+
+class LiveRoverTrainingRequest(BaseModel):
+    robot_identifier: str = "robot"
+    total_episodes: int = 4
+
+
+@app.post("/api/rl/train-drone-live")
+async def train_drone_live_endpoint(req: LiveDroneTrainingRequest = LiveDroneTrainingRequest()):
+    """Starts interactive visual Isaac Lab drone RL training directly in the active 3D simulation scene."""
+    res = training_manager.start_live_interactive_drone_training(
+        engine=engine,
+        drone_identifier=req.drone_identifier,
+        target_altitude=req.target_altitude,
+        total_episodes=req.total_episodes
+    )
+    await broadcast_json({"type": "project_updated", "data": engine.project.model_dump()})
+    return res
+
+
+@app.post("/api/rl/train-arm-live")
+async def train_arm_live_endpoint(req: LiveArmTrainingRequest = LiveArmTrainingRequest()):
+    """Starts interactive visual Isaac Lab robotic arm pick-and-place training directly in the active 3D simulation scene."""
+    res = training_manager.start_live_interactive_arm_training(
+        engine=engine,
+        arm_identifier=req.arm_identifier,
+        total_episodes=req.total_episodes
+    )
+    await broadcast_json({"type": "project_updated", "data": engine.project.model_dump()})
+    return res
+
+
+@app.post("/api/rl/train-rover-live")
+async def train_rover_live_endpoint(req: LiveRoverTrainingRequest = LiveRoverTrainingRequest()):
+    """Starts interactive visual Isaac Lab ground rover navigation training directly in the active 3D simulation scene."""
+    res = training_manager.start_live_interactive_rover_training(
+        engine=engine,
+        robot_identifier=req.robot_identifier,
+        total_episodes=req.total_episodes
+    )
+    await broadcast_json({"type": "project_updated", "data": engine.project.model_dump()})
+    return res
+
+
+
 @app.get("/api/rl/models")
 def list_rl_models():
     return {"models": training_manager.list_models()}
@@ -1591,11 +1835,15 @@ async def execute_rl_policy_live(req: ExecuteRLPolicyRequest):
     engine.project = project_manager.current_project
     engine.rebuild_model(preserve_state=False)
 
+    run_until_goal = getattr(req, "run_until_goal", True)
+    timeout_val = None if (run_until_goal or not duration or duration <= 0) else duration
+
     active_live_experiment = {
         "config": config,
         "seed": seed,
         "duration": duration,
-        "timeout": min(duration, config.task.timeout),
+        "timeout": timeout_val,
+        "run_until_goal": run_until_goal,
         "target": np.array(config.task.target_position[:2]),
         "measurements": [],
         "unique_collision_events": 0,
@@ -1628,14 +1876,14 @@ async def execute_rl_policy_live(req: ExecuteRLPolicyRequest):
 @app.get("/api/ai/status")
 def get_ai_status():
     """Returns AI reasoning provider configuration, credentials presence, and available tools."""
-    service = get_ai_reasoning_service()
+    service = get_ai_reasoning_service(project_manager, engine=engine)
     return service.get_provider_status()
 
 
 @app.get("/api/ai/models")
 def get_ai_models():
     """Exposes discovered local and cloud models and active provider endpoint."""
-    service = get_ai_reasoning_service()
+    service = get_ai_reasoning_service(project_manager, engine=engine)
     status = service.get_provider_status()
     return {
         "active_provider": status.get("active_provider"),
@@ -1658,7 +1906,7 @@ def interpret_experiment_prompt(req: AIAssistantPromptRequest):
 
 
 @app.post("/api/ai/chat", response_model=AIChatResponse)
-def ai_conversational_chat(req: AIChatRequest):
+async def ai_conversational_chat(req: AIChatRequest):
     """Executes a telemetry-grounded conversational agent loop supporting supervised & autonomous modes, with multi-turn memory."""
     try:
         session_id = req.session_id or "default_session"
@@ -1669,8 +1917,15 @@ def ai_conversational_chat(req: AIChatRequest):
         # Record user turn
         chat_memory.append_message(session_id=session_id, role="user", content=req.prompt)
 
-        service = get_ai_reasoning_service(project_manager)
+        service = get_ai_reasoning_service(project_manager, engine=engine)
         res = service.chat(req)
+
+        # If any actions altered the scene or physics, broadcast updated project state
+        if res.actions_executed:
+            try:
+                await broadcast_json({"type": "project_updated", "data": engine.project.model_dump()})
+            except Exception as b_err:
+                logger.warning("Failed to broadcast project_updated after AI chat action: %s", b_err)
 
         # Record assistant reply and actions
         chat_memory.append_message(
@@ -1700,11 +1955,17 @@ def delete_ai_chat_history(session_id: str = "default_session"):
 
 
 @app.post("/api/ai/approve-action", response_model=AIChatResponse)
-def ai_approve_action(req: AIApprovalRequest):
+async def ai_approve_action(req: AIApprovalRequest):
     """Handles supervisor approval or rejection for a paused experiment plan."""
     try:
-        service = get_ai_reasoning_service()
-        return service.approve_action(req)
+        service = get_ai_reasoning_service(project_manager, engine=engine)
+        res = service.approve_action(req)
+        if res.actions_executed:
+            try:
+                await broadcast_json({"type": "project_updated", "data": engine.project.model_dump()})
+            except Exception as b_err:
+                logger.warning("Failed to broadcast project_updated after AI approval action: %s", b_err)
+        return res
     except Exception as e:
         logger.exception("AI approval execution error: %s", e)
         raise HTTPException(status_code=400, detail=str(e))
@@ -1719,7 +1980,7 @@ async def ai_cancel_mission(request: Request):
         reason = data.get("reason", "Cancelled by user in AI chat")
         if not mission_id:
             raise HTTPException(status_code=400, detail="mission_id is required")
-        service = get_ai_reasoning_service()
+        service = get_ai_reasoning_service(project_manager, engine=engine)
         return service.cancel_mission(mission_id, reason)
     except Exception as e:
         logger.exception("AI mission cancel error: %s", e)

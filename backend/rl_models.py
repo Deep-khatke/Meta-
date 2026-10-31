@@ -25,6 +25,8 @@ class RLTrainingConfig(BaseModel):
     target_position: List[float] = Field(default_factory=lambda: [2.5, 0.5, 0.25])
     scenario_id: Optional[str] = None
     hyperparameters: RLHyperparameters = Field(default_factory=RLHyperparameters)
+    custom_reward_code: Optional[str] = None
+    max_episode_steps: int = 1000
 
 
 class RLTrainingMetrics(BaseModel):
@@ -151,6 +153,7 @@ class AIChatResponse(BaseModel):
     approval_plan: Optional[Dict[str, Any]] = None
     suggested_configuration: Optional[Dict[str, Any]] = None
     actions_executed: List[Dict[str, Any]] = Field(default_factory=list)
+    thought_process: Optional[str] = None
     error_message: Optional[str] = None
 
 
@@ -191,5 +194,6 @@ class ExecuteRLPolicyRequest(BaseModel):
     model_id: str
     scenario_id: Optional[str] = None
     target_position: Optional[List[float]] = None
-    duration: float = 14.0
+    duration: float = 0.0  # 0.0 indicates continuous live execution without arbitrary timeout
     seed: int = 42
+    run_until_goal: bool = True

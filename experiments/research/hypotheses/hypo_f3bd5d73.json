@@ -1,0 +1,21 @@
+{
+  "hypothesis_id": "hypo_f3bd5d73",
+  "mission_id": "mission_7791ff76",
+  "title": "Increasing Tangential Gain",
+  "statement": "Increasing the tangential gain will reduce the robot's tendency to veer off course, thereby reducing the risk of collisions.",
+  "mechanism": "The tangential gain controls the robot's ability to follow the path closely, reducing the likelihood of it deviating and potentially colliding with obstacles.",
+  "controlled_variable": "task.policy.tangential_gain",
+  "baseline_value": 0.5,
+  "proposed_value": 0.7,
+  "status": "inconclusive",
+  "confidence": 0.45,
+  "supporting_evidence": [],
+  "contradicting_evidence": [
+    "Experiment plan_dd6c41cf: Observed delta=+0.000. Verdict: inconclusive (No statistically significant difference in collision count or success rate.). (Did not produce statistically distinguishable change)"
+  ],
+  "experiment_ids": [
+    "plan_dd6c41cf"
+  ],
+  "created_at": 1793201869.499995,
+  "updated_at": 1793201870.6873548
+}

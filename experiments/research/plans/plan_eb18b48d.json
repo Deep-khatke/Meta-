@@ -1,0 +1,28 @@
+{
+  "plan_id": "plan_eb18b48d",
+  "mission_id": "mission_1413de86",
+  "hypothesis_id": "hypo_51cf6fac",
+  "title": "Experiment for: Increasing Tangential Gain",
+  "rationale": "Candidate task.policy.tangential_gain=0.8: Expected Improvement=0.50, Info Gain=1.00, Prior Influence=No direct prior bias. Mechanism: The tangential gain controls how strongly the robot corrects its path when it deviates from the intended trajectory.",
+  "base_scenario_id": "scen_slalom_beta",
+  "parameter_modifications": {
+    "task.policy.tangential_gain": 0.8
+  },
+  "seeds": [
+    100,
+    101,
+    102
+  ],
+  "expected_outcome": "Increasing the tangential gain will reduce the robot's tendency to veer off course, thereby reducing the likelihood of collisions.",
+  "candidate_rank": 1,
+  "expected_improvement": 0.5,
+  "information_gain": 1.0,
+  "acquisition_score": 0.65,
+  "selection_rationale": "Candidate task.policy.tangential_gain=0.8: Expected Improvement=0.50, Info Gain=1.00, Prior Influence=No direct prior bias. Mechanism: The tangential gain controls how strongly the robot corrects its path when it deviates from the intended trajectory.",
+  "prior_evidence_influence": "Evaluated against 44 compatible prior runs (0 incompatible runs excluded). No direct prior bias",
+  "is_validated": true,
+  "validation_messages": [],
+  "user_approved": true,
+  "status": "ready",
+  "created_at": 1793206105.113637
+}

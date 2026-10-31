@@ -95,6 +95,29 @@ export const ExperimentPanel: React.FC<ExperimentPanelProps> = ({
     randomizeScenarios: true,
     learningRate: 0.0003,
     batchSize: 64,
+    customRewardCode: `# Custom Python Reward Function (Executed in MuJoCo step loop)
+def compute_reward(state, action, info):
+    dist = info.get("distance_to_goal", 0.0)
+    prev_dist = info.get("prev_distance", dist)
+    angle_diff = info.get("angle_diff", 0.0)
+
+    # 1. Proximity progress towards target beacon
+    r_progress = 6.0 * (prev_dist - dist)
+
+    # 2. Heading alignment
+    r_heading = 0.3 * math.cos(angle_diff)
+
+    # 3. Action effort penalty
+    r_step = -0.02
+    r_effort = -0.01 * float(action[0]**2 + action[1]**2)
+
+    # 4. Terminal outcomes
+    if info.get("is_collision"):
+        return -50.0, True
+    if info.get("is_success"):
+        return 100.0, True
+
+    return r_progress + r_heading + r_step + r_effort, False`,
   });
 
   // Benchmark Evaluation State
@@ -192,6 +215,7 @@ export const ExperimentPanel: React.FC<ExperimentPanelProps> = ({
         randomize_scenarios: rlForm.randomizeScenarios,
         target_position: targetPosition || [2.5, 0.5, 0.25],
         scenario_id: selectedScenarioId || undefined,
+        custom_reward_code: rlForm.customRewardCode,
         hyperparameters: {
           learning_rate: rlForm.learningRate,
           batch_size: rlForm.batchSize,
@@ -796,28 +820,70 @@ export const ExperimentPanel: React.FC<ExperimentPanelProps> = ({
             ))}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-            <div>
-              <label style={{ fontSize: 10, color: 'var(--text-muted)' }}>Learning Rate:</label>
-              <input
-                type="number"
-                step="0.0001"
-                className="rf-input"
-                value={rlForm.learningRate}
-                onChange={(e) => setRlForm({ ...rlForm, learningRate: parseFloat(e.target.value) || 0.0003 })}
-                style={{ width: '100%', padding: '4px 6px', fontSize: 11 }}
-              />
+          {/* Custom Python Reward Function Script Editor (Replacing Hardcoded Values) */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: '#38bdf8', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span>Custom Python Reward Script (Executed per Physics Step)</span>
+              </div>
+              <div style={{ display: 'flex', gap: 4 }}>
+                <button
+                  type="button"
+                  className="rf-btn"
+                  onClick={() => setRlForm({
+                    ...rlForm,
+                    customRewardCode: `# Preset: Dense Progress + Heading + Goal\ndef compute_reward(state, action, info):\n    dist = info.get("distance_to_goal", 0.0)\n    prev_dist = info.get("prev_distance", dist)\n    angle_diff = info.get("angle_diff", 0.0)\n    r_progress = 6.0 * (prev_dist - dist)\n    r_heading = 0.3 * math.cos(angle_diff)\n    r_step = -0.02\n    if info.get("is_collision"):\n        return -50.0, True\n    if info.get("is_success"):\n        return 100.0, True\n    return r_progress + r_heading + r_step, False`
+                  })}
+                  style={{ fontSize: 9, padding: '2px 6px' }}
+                >
+                  Dense Progress
+                </button>
+                <button
+                  type="button"
+                  className="rf-btn"
+                  onClick={() => setRlForm({
+                    ...rlForm,
+                    customRewardCode: `# Preset: Sparse Goal-Seeking with Step Penalty\ndef compute_reward(state, action, info):\n    if info.get("is_collision"):\n        return -100.0, True\n    if info.get("is_success"):\n        return 500.0, True\n    return -0.1, False`
+                  })}
+                  style={{ fontSize: 9, padding: '2px 6px' }}
+                >
+                  Sparse Goal
+                </button>
+                <button
+                  type="button"
+                  className="rf-btn"
+                  onClick={() => setRlForm({
+                    ...rlForm,
+                    customRewardCode: `# Preset: High-Safety Obstacle Repulsion\ndef compute_reward(state, action, info):\n    dist = info.get("distance_to_goal", 0.0)\n    prev_dist = info.get("prev_distance", dist)\n    r_progress = 5.0 * (prev_dist - dist)\n    if info.get("is_collision"):\n        return -200.0, True\n    if info.get("is_success"):\n        return 150.0, True\n    effort_penalty = -0.05 * float(action[1]**2)\n    return r_progress + effort_penalty - 0.02, False`
+                  })}
+                  style={{ fontSize: 9, padding: '2px 6px' }}
+                >
+                  High Safety
+                </button>
+              </div>
             </div>
-            <div>
-              <label style={{ fontSize: 10, color: 'var(--text-muted)' }}>Batch Size:</label>
-              <input
-                type="number"
-                step="16"
-                className="rf-input"
-                value={rlForm.batchSize}
-                onChange={(e) => setRlForm({ ...rlForm, batchSize: parseInt(e.target.value) || 64 })}
-                style={{ width: '100%', padding: '4px 6px', fontSize: 11 }}
-              />
+
+            <textarea
+              className="rf-input"
+              value={rlForm.customRewardCode}
+              onChange={(e) => setRlForm({ ...rlForm, customRewardCode: e.target.value })}
+              rows={9}
+              style={{
+                fontFamily: 'var(--font-mono, monospace)',
+                fontSize: 11,
+                lineHeight: 1.5,
+                background: '#0d1117',
+                color: '#e6edf3',
+                border: '1px solid #30363d',
+                borderRadius: 6,
+                padding: '8px 10px',
+                resize: 'vertical',
+                width: '100%',
+              }}
+              spellCheck={false}
+            />
+            <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+              Variables available: <code>state</code> (robot pose), <code>action</code> ([linear_v, angular_w]), <code>info</code> (distance_to_goal, prev_distance, angle_diff, is_collision, is_success). Return float or tuple <code>(reward, terminated)</code>.
             </div>
           </div>
 

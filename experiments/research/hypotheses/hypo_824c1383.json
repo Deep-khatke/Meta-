@@ -1,0 +1,17 @@
+{
+  "hypothesis_id": "hypo_824c1383",
+  "mission_id": "mission_42df12ec",
+  "title": "Vortex Circulation Obstacle Bypass Hypothesis",
+  "statement": "Increasing tangential vortex circulation gain will break repulsive equilibrium and guide the robot smoothly past obstacles.",
+  "mechanism": "Tangential circulation creates a perpendicular vortex force around obstacles, preventing head-on stall.",
+  "controlled_variable": "task.policy.tangential_gain",
+  "baseline_value": 1.3,
+  "proposed_value": 2.2,
+  "status": "untested",
+  "confidence": 0.5,
+  "supporting_evidence": [],
+  "contradicting_evidence": [],
+  "experiment_ids": [],
+  "created_at": 1793191180.0960646,
+  "updated_at": 1793191180.0960646
+}

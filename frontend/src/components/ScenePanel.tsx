@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   Layers, Box, Circle, Cylinder, Eye, EyeOff, Trash2,
-  Copy, Bot, Upload, GitFork
+  Copy, Bot, Upload, GitFork, Navigation, ArrowUp, ArrowDown
 } from 'lucide-react';
 import { Project, SceneObject, SimulationState } from '../types';
 
@@ -30,7 +30,24 @@ export const ScenePanel: React.FC<ScenePanelProps> = ({
   onOpenURDFModal,
   onClearGenericRobot,
 }) => {
-  const getIconForType = (type: string) => {
+  const handleDroneFlightCommand = async (droneId: string, cmd: 'takeoff' | 'land') => {
+    try {
+      await fetch('/api/drone/command', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          drone_id: droneId,
+          command: cmd,
+          altitude: 1.5,
+        }),
+      });
+    } catch {}
+  };
+
+  const getIconForType = (type: string, name?: string) => {
+    if (name && (name.toLowerCase().includes('drone') || name.toLowerCase().includes('uav') || name.toLowerCase().includes('quad'))) {
+      return <Navigation size={14} color="#06b6d4" />;
+    }
     switch (type) {
       case 'box':
         return <Box size={14} color="#e06c75" />;
@@ -247,48 +264,94 @@ export const ScenePanel: React.FC<ScenePanelProps> = ({
                   opacity: isVisible ? 1.0 : 0.45,
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden' }}>
-                  {getIconForType(obj.type)}
-                  <span
-                    style={{
-                      fontSize: 12,
-                      color: isSelected ? 'var(--text-primary)' : 'var(--text-secondary)',
-                      whiteSpace: 'nowrap',
-                      textOverflow: 'ellipsis',
-                      overflow: 'hidden',
-                      maxWidth: 90,
-                    }}
-                  >
-                    {obj.name}
-                  </span>
-                  <span
-                    style={{
-                      fontSize: 9,
-                      padding: '1px 3px',
-                      borderRadius: 3,
-                      backgroundColor: obj.is_static ? 'rgba(100, 116, 139, 0.2)' : 'rgba(234, 88, 12, 0.2)',
-                      color: obj.is_static ? '#94a3b8' : '#fb923c',
-                      fontWeight: 600,
-                    }}
-                  >
-                    {obj.is_static ? 'STAT' : 'DYN'}
-                  </span>
-                </div>
+                {(() => {
+                  const isDrone = obj.name.toLowerCase().includes('drone') || obj.id.startsWith('drone') || obj.name.toLowerCase().includes('uav') || obj.name.toLowerCase().includes('quad');
+                  return (
+                    <>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden' }}>
+                        {getIconForType(obj.type, obj.name)}
+                        <span
+                          style={{
+                            fontSize: 12,
+                            color: isSelected ? 'var(--text-primary)' : 'var(--text-secondary)',
+                            whiteSpace: 'nowrap',
+                            textOverflow: 'ellipsis',
+                            overflow: 'hidden',
+                            maxWidth: 90,
+                          }}
+                        >
+                          {obj.name}
+                        </span>
+                        {isDrone ? (
+                          <span
+                            style={{
+                              fontSize: 9,
+                              padding: '1px 4px',
+                              borderRadius: 3,
+                              backgroundColor: 'rgba(6, 182, 212, 0.2)',
+                              color: '#22d3ee',
+                              fontWeight: 700,
+                              border: '1px solid rgba(6, 182, 212, 0.35)',
+                            }}
+                          >
+                            DRONE
+                          </span>
+                        ) : (
+                          <span
+                            style={{
+                              fontSize: 9,
+                              padding: '1px 3px',
+                              borderRadius: 3,
+                              backgroundColor: obj.is_static ? 'rgba(100, 116, 139, 0.2)' : 'rgba(234, 88, 12, 0.2)',
+                              color: obj.is_static ? '#94a3b8' : '#fb923c',
+                              fontWeight: 600,
+                            }}
+                          >
+                            {obj.is_static ? 'STAT' : 'DYN'}
+                          </span>
+                        )}
+                      </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                  {onDuplicateObject && (
-                    <button
-                      className="rf-btn rf-btn-icon"
-                      style={{ width: 18, height: 18, padding: 2, background: 'transparent', border: 'none' }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDuplicateObject(obj.id);
-                      }}
-                      title="Duplicate Object"
-                    >
-                      <Copy size={11} color="var(--text-secondary)" />
-                    </button>
-                  )}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                        {isDrone && (
+                          <>
+                            <button
+                              className="rf-btn rf-btn-icon"
+                              style={{ width: 18, height: 18, padding: 2, background: 'rgba(6, 182, 212, 0.15)', border: '1px solid rgba(6, 182, 212, 0.3)' }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDroneFlightCommand(obj.id, 'takeoff');
+                              }}
+                              title="Takeoff to 1.5m"
+                            >
+                              <ArrowUp size={11} color="#22d3ee" />
+                            </button>
+                            <button
+                              className="rf-btn rf-btn-icon"
+                              style={{ width: 18, height: 18, padding: 2, background: 'rgba(234, 179, 8, 0.15)', border: '1px solid rgba(234, 179, 8, 0.3)' }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDroneFlightCommand(obj.id, 'land');
+                              }}
+                              title="Land Drone"
+                            >
+                              <ArrowDown size={11} color="#facc15" />
+                            </button>
+                          </>
+                        )}
+                        {onDuplicateObject && (
+                          <button
+                            className="rf-btn rf-btn-icon"
+                            style={{ width: 18, height: 18, padding: 2, background: 'transparent', border: 'none' }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDuplicateObject(obj.id);
+                            }}
+                            title="Duplicate Object"
+                          >
+                            <Copy size={11} color="var(--text-secondary)" />
+                          </button>
+                        )}
 
                   <button
                     className="rf-btn rf-btn-icon"
@@ -314,9 +377,12 @@ export const ScenePanel: React.FC<ScenePanelProps> = ({
                     <Trash2 size={11} />
                   </button>
                 </div>
-              </div>
+              </>
             );
-          })
+          })()}
+        </div>
+      );
+    })
         )}
       </div>
 

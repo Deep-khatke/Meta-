@@ -1,0 +1,22 @@
+{
+  "model_id": "rl_650b1829",
+  "name": "DroneFlightPolicy_takeoff_and_land",
+  "checkpoint_path": "models\\rl\\rl_650b1829.zip",
+  "timesteps_trained": 10000,
+  "training_duration_seconds": 19.15,
+  "success_rate": 0.0,
+  "collision_rate": 0.0,
+  "mean_reward": -1277.24,
+  "created_at": 1793208700.3634565,
+  "hyperparameters": {
+    "learning_rate": 0.0003,
+    "n_steps": 512,
+    "batch_size": 64,
+    "n_epochs": 10,
+    "gamma": 0.99,
+    "gae_lambda": 0.95,
+    "clip_range": 0.2,
+    "ent_coef": 0.01
+  },
+  "scenario_id": null
+}

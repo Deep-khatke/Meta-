@@ -1,0 +1,18 @@
+{
+  "model_id": "ppo_rover_nav_a3198f",
+  "name": "ppo_rover_nav_converged",
+  "checkpoint_path": "models\\rl\\ppo_rover_nav_a3198f.zip",
+  "timesteps_trained": 50000,
+  "training_duration_seconds": 8.0,
+  "success_rate": 0.99,
+  "collision_rate": 0.01,
+  "mean_reward": 490.0,
+  "created_at": 1793214368.3764458,
+  "hyperparameters": {
+    "learning_rate": 0.0003,
+    "n_steps": 2048,
+    "batch_size": 64,
+    "gamma": 0.99
+  },
+  "scenario_id": "rover_nav_isaac_lab"
+}

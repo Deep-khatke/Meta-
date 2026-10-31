@@ -1,0 +1,17 @@
+{
+  "hypothesis_id": "hypo_7e64ec8a",
+  "mission_id": "mission_0d7a99c7",
+  "title": "Reducing Safety Margin to Increase Speed",
+  "statement": "By reducing the safety margin, the robot can increase its speed, but this may increase the risk of collisions.",
+  "mechanism": "task.policy.safety_margin",
+  "controlled_variable": "task.policy.safety_margin",
+  "baseline_value": 0.2,
+  "proposed_value": 0.15,
+  "status": "untested",
+  "confidence": 0.5,
+  "supporting_evidence": [],
+  "contradicting_evidence": [],
+  "experiment_ids": [],
+  "created_at": 1793198355.988561,
+  "updated_at": 1793198355.988561
+}

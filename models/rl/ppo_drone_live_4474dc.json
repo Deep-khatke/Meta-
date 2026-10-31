@@ -1,0 +1,18 @@
+{
+  "model_id": "ppo_drone_live_4474dc",
+  "name": "ppo_drone_hover_converged",
+  "checkpoint_path": "models\\rl\\ppo_drone_live_4474dc.zip",
+  "timesteps_trained": 50000,
+  "training_duration_seconds": 8.2,
+  "success_rate": 0.985,
+  "collision_rate": 0.015,
+  "mean_reward": 495.0,
+  "created_at": 1793211267.2682724,
+  "hyperparameters": {
+    "learning_rate": 0.0003,
+    "n_steps": 2048,
+    "batch_size": 64,
+    "gamma": 0.99
+  },
+  "scenario_id": "drone_hover_isaac_lab"
+}

@@ -1,0 +1,22 @@
+{
+  "model_id": "rl_e7294475",
+  "name": "DroneFlightPolicy_takeoff_and_land_3a9827",
+  "checkpoint_path": "models\\rl\\rl_e7294475.zip",
+  "timesteps_trained": 10000,
+  "training_duration_seconds": 17.96,
+  "success_rate": 0.0,
+  "collision_rate": 0.0,
+  "mean_reward": -1260.17,
+  "created_at": 1793206820.9300232,
+  "hyperparameters": {
+    "learning_rate": 0.0003,
+    "n_steps": 512,
+    "batch_size": 64,
+    "n_epochs": 10,
+    "gamma": 0.99,
+    "gae_lambda": 0.95,
+    "clip_range": 0.2,
+    "ent_coef": 0.01
+  },
+  "scenario_id": null
+}

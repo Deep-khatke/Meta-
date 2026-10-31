@@ -5,8 +5,9 @@ import { Project, SimulationState, SceneObject, JointModel } from '../types';
 import {
   Camera, Compass, Crosshair, ArrowUp, ArrowDown, ArrowLeft, ArrowRight,
   Move, RotateCw, Maximize2, X, Eye, EyeOff, Radio, Magnet, Video, Zap,
-  GitFork, Layers
+  GitFork, Layers, Route, FileUp, Trash2, Cpu, Sparkles
 } from 'lucide-react';
+import { importURDF, importMJCF } from '../services/api';
 
 interface Viewport3DProps {
   project: Project;
@@ -62,6 +63,21 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
   useEffect(() => {
     showCameraHUDRef.current = showCameraHUD;
   }, [showCameraHUD]);
+
+  // 3D Trajectory Trail Overlay & Prediction Horizon State
+  const [showTrajectoryTrail, setShowTrajectoryTrail] = useState<boolean>(true);
+  const showTrajectoryTrailRef = useRef<boolean>(true);
+  useEffect(() => {
+    showTrajectoryTrailRef.current = showTrajectoryTrail;
+  }, [showTrajectoryTrail]);
+
+  const trailHistoryRef = useRef<Array<{ x: number; y: number; z: number; speed: number }>>([]);
+  const trailMeshRef = useRef<THREE.LineSegments | null>(null);
+  const horizonMeshRef = useRef<THREE.Line | null>(null);
+
+  // Drag-and-Drop URDF / MJCF import state
+  const [isDraggingFile, setIsDraggingFile] = useState<boolean>(false);
+  const [importNotification, setImportNotification] = useState<string | null>(null);
 
   // Fast refs for transform event handlers
   const selectedObjectIdRef = useRef(selectedObjectId);
@@ -1218,6 +1234,97 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
         controls.target.z += (rp.z + 0.1 - controls.target.z) * 0.1;
       }
 
+      // --- Dynamic 3D Trajectory Trail Overlay & Prediction Horizon ---
+      if (robotGroupRef.current) {
+        const rp = robotGroupRef.current.position;
+        const currentSpeed = simStateRef.current?.robot?.linear_speed || 0;
+        const trailHistory = trailHistoryRef.current;
+        const lastPt = trailHistory[trailHistory.length - 1];
+
+        // Sample if moved > 0.04m
+        const distSq = lastPt ? ((rp.x - lastPt.x)**2 + (rp.y - lastPt.y)**2 + (rp.z - lastPt.z)**2) : 999;
+        if (distSq > 0.0016) {
+          trailHistory.push({ x: rp.x, y: rp.y, z: Math.max(0.015, rp.z), speed: currentSpeed });
+          if (trailHistory.length > 500) trailHistory.shift();
+        }
+
+        // Render trajectory ribbon segments with velocity-gradient vertex colors
+        if (showTrajectoryTrailRef.current && trailHistory.length >= 2) {
+          if (!trailMeshRef.current || trailMeshRef.current.parent !== scene) {
+            const geo = new THREE.BufferGeometry();
+            const mat = new THREE.LineBasicMaterial({ vertexColors: true, linewidth: 2 });
+            const line = new THREE.LineSegments(geo, mat);
+            line.name = 'robot_trajectory_ribbon';
+            scene.add(line);
+            trailMeshRef.current = line;
+          }
+
+          const positions: number[] = [];
+          const colors: number[] = [];
+
+          for (let i = 0; i < trailHistory.length - 1; i++) {
+            const p1 = trailHistory[i];
+            const p2 = trailHistory[i + 1];
+            positions.push(p1.x, p1.y, p1.z, p2.x, p2.y, p2.z);
+
+            // Speed color gradient: green (<0.25 m/s) -> yellow (0.25-0.7 m/s) -> red (>0.7 m/s)
+            const spd = (p1.speed + p2.speed) * 0.5;
+            let r = 0.13, g = 0.77, b = 0.37; // #22c55e green
+            if (spd > 0.7) {
+              r = 0.94; g = 0.27; b = 0.27; // #ef4444 red
+            } else if (spd > 0.25) {
+              r = 0.92; g = 0.70; b = 0.03; // #eab308 yellow
+            }
+            colors.push(r, g, b, r, g, b);
+          }
+
+          const geo = trailMeshRef.current.geometry;
+          geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+          geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+          geo.attributes.position.needsUpdate = true;
+          geo.attributes.color.needsUpdate = true;
+          trailMeshRef.current.visible = true;
+        } else if (trailMeshRef.current) {
+          trailMeshRef.current.visible = false;
+        }
+
+        // Forward Prediction Horizon Ribbon (Dashed projected arc for next 2.0s)
+        if (showTrajectoryTrailRef.current) {
+          const v = simStateRef.current?.robot?.linear_speed || 0;
+          const w = simStateRef.current?.robot?.angular_speed || 0;
+          const rq = robotGroupRef.current.quaternion;
+          const euler = new THREE.Euler().setFromQuaternion(rq, 'ZYX');
+          let heading = euler.z;
+
+          const hPositions: THREE.Vector3[] = [];
+          let hx = rp.x;
+          let hy = rp.y;
+          const dt = 0.1;
+          for (let step = 0; step <= 20; step++) {
+            hPositions.push(new THREE.Vector3(hx, hy, Math.max(0.015, rp.z)));
+            hx += v * Math.cos(heading) * dt;
+            hy += v * Math.sin(heading) * dt;
+            heading += w * dt;
+          }
+
+          if (!horizonMeshRef.current || horizonMeshRef.current.parent !== scene) {
+            const hGeo = new THREE.BufferGeometry().setFromPoints(hPositions);
+            const hMat = new THREE.LineDashedMaterial({ color: 0x38bdf8, dashSize: 0.06, gapSize: 0.04, linewidth: 2 });
+            const hLine = new THREE.Line(hGeo, hMat);
+            hLine.name = 'robot_prediction_horizon';
+            hLine.computeLineDistances();
+            scene.add(hLine);
+            horizonMeshRef.current = hLine;
+          } else {
+            horizonMeshRef.current.geometry.setFromPoints(hPositions);
+            horizonMeshRef.current.computeLineDistances();
+            horizonMeshRef.current.visible = (v > 0.02 || Math.abs(w) > 0.05);
+          }
+        } else if (horizonMeshRef.current) {
+          horizonMeshRef.current.visible = false;
+        }
+      }
+
       controls.update();
 
       const containerEl = canvasContainerRef.current;
@@ -1615,6 +1722,55 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     }
   };
 
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isDraggingFile) setIsDraggingFile(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingFile(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingFile(false);
+
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+
+    const fileName = file.name.toLowerCase();
+    try {
+      const text = await file.text();
+      if (fileName.endsWith('.urdf')) {
+        setImportNotification(`Importing URDF: ${file.name}...`);
+        const res = await importURDF(text, true);
+        if (res.status !== 'error') {
+          setImportNotification(`Successfully imported URDF: ${res.robot?.name || file.name}`);
+        } else {
+          setImportNotification(`Import error: ${res.error || 'Invalid URDF'}`);
+        }
+      } else if (fileName.endsWith('.xml') || fileName.endsWith('.mjcf')) {
+        setImportNotification(`Importing MJCF: ${file.name}...`);
+        const res = await importMJCF(text, true);
+        if (res.status !== 'error') {
+          setImportNotification(`Successfully imported MJCF: ${res.robot?.name || file.name}`);
+        } else {
+          setImportNotification(`Import error: ${res.error || 'Invalid MJCF'}`);
+        }
+      } else {
+        setImportNotification('Unsupported format. Please drop a .urdf or .xml/.mjcf robot file.');
+      }
+      setTimeout(() => setImportNotification(null), 4000);
+    } catch (err: any) {
+      setImportNotification(`Import failed: ${err.message}`);
+      setTimeout(() => setImportNotification(null), 4000);
+    }
+  };
+
   const isW = activeKeys['KeyW'] || activeKeys['ArrowUp'];
   const isS = activeKeys['KeyS'] || activeKeys['ArrowDown'];
   const isA = activeKeys['KeyA'] || activeKeys['ArrowLeft'];
@@ -1628,8 +1784,62 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
       className="rf-viewport-container"
       onPointerDown={handlePointerDown}
       onPointerUp={handlePointerUp}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
       style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}
     >
+      {/* File Drag-and-Drop Visual Dropzone */}
+      {isDraggingFile && (
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          backgroundColor: 'rgba(6, 182, 212, 0.25)',
+          border: '3px dashed #06b6d4',
+          borderRadius: 8,
+          zIndex: 50,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 12,
+          pointerEvents: 'none',
+          backdropFilter: 'blur(4px)'
+        }}>
+          <FileUp size={48} color="#06b6d4" />
+          <div style={{ fontSize: 18, fontWeight: 700, color: '#fff' }}>
+            Drop Robot Model to Instantiate
+          </div>
+          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)' }}>
+            Supports URDF (.urdf) &amp; native MuJoCo MJCF (.xml / .mjcf)
+          </div>
+        </div>
+      )}
+
+      {/* Import Notification Banner */}
+      {importNotification && (
+        <div style={{
+          position: 'absolute',
+          top: 55,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          backgroundColor: 'rgba(15, 23, 42, 0.95)',
+          border: '1px solid #06b6d4',
+          borderRadius: 6,
+          padding: '8px 16px',
+          color: '#06b6d4',
+          fontSize: 12,
+          fontWeight: 600,
+          zIndex: 60,
+          boxShadow: '0 8px 24px rgba(0,0,0,0.6)'
+        }}>
+          {importNotification}
+        </div>
+      )}
+
       {/* Dedicated Three.js canvas container with no React children */}
       <div
         ref={canvasContainerRef}
@@ -1799,6 +2009,155 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
           <Zap size={13} color={autoDriveEnabled ? 'var(--accent-green)' : 'currentColor'} />
           <span>Auto-Drive: {autoDriveEnabled ? 'ON' : 'OFF'}</span>
         </button>
+
+        {/* Active RL Policy Live Badge */}
+        {simState?.rl_policy_active && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+              fontSize: 11,
+              padding: '4px 10px',
+              borderRadius: 6,
+              background: 'rgba(168, 85, 247, 0.25)',
+              border: '1px solid rgba(168, 85, 247, 0.6)',
+              color: '#c084fc',
+              fontWeight: 600,
+              boxShadow: '0 0 10px rgba(168, 85, 247, 0.25)'
+            }}
+            title={`Active PPO Neural Network Policy: ${simState.active_rl_policy_name || 'Policy Active'}`}
+          >
+            <Cpu size={13} color="#c084fc" />
+            <span>RL Policy: {simState.active_rl_policy_name || 'Active'}</span>
+          </div>
+        )}
+
+        {/* Live Isaac Lab Multi-Robot RL Training Controls */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <button
+            className="rf-btn"
+            style={{
+              fontSize: 11,
+              padding: '3px 8px',
+              borderRadius: 6,
+              backgroundColor: simState?.rl_training_active ? 'rgba(239, 68, 68, 0.25)' : 'rgba(56, 189, 248, 0.2)',
+              border: simState?.rl_training_active ? '1px solid rgba(239, 68, 68, 0.6)' : '1px solid rgba(56, 189, 248, 0.6)',
+              color: simState?.rl_training_active ? '#fca5a5' : '#38bdf8',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4
+            }}
+            onClick={async (e) => {
+              e.stopPropagation();
+              try {
+                await fetch('http://127.0.0.1:8000/api/rl/train-drone-live', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ drone_identifier: 'drone', target_altitude: 1.5, total_episodes: 4 })
+                });
+              } catch (err) {
+                console.error('Failed to trigger live drone training:', err);
+              }
+            }}
+            title="Train Drone Hover live in 3D scene (Isaac Lab curriculum: fail, retry, converge to hover, store PPO model)"
+          >
+            <Sparkles size={12} color={simState?.rl_training_active ? '#fca5a5' : '#38bdf8'} />
+            <span>{simState?.rl_training_active ? 'Training...' : '🚁 Drone RL'}</span>
+          </button>
+
+          <button
+            className="rf-btn"
+            style={{
+              fontSize: 11,
+              padding: '3px 8px',
+              borderRadius: 6,
+              backgroundColor: 'rgba(168, 85, 247, 0.18)',
+              border: '1px solid rgba(168, 85, 247, 0.5)',
+              color: '#c084fc',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4
+            }}
+            onClick={async (e) => {
+              e.stopPropagation();
+              try {
+                await fetch('http://127.0.0.1:8000/api/rl/train-arm-live', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ arm_identifier: 'arm', total_episodes: 4 })
+                });
+              } catch (err) {
+                console.error('Failed to trigger live arm training:', err);
+              }
+            }}
+            title="Train Robotic Arm Pick & Place live in 3D scene (overshoot, slip, align, lift, store PPO model)"
+          >
+            <span>🦾 Arm RL</span>
+          </button>
+
+          <button
+            className="rf-btn"
+            style={{
+              fontSize: 11,
+              padding: '3px 8px',
+              borderRadius: 6,
+              backgroundColor: 'rgba(34, 197, 94, 0.18)',
+              border: '1px solid rgba(34, 197, 94, 0.5)',
+              color: '#4ade80',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4
+            }}
+            onClick={async (e) => {
+              e.stopPropagation();
+              try {
+                await fetch('http://127.0.0.1:8000/api/rl/train-rover-live', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ robot_identifier: 'robot', total_episodes: 4 })
+                });
+              } catch (err) {
+                console.error('Failed to trigger live rover training:', err);
+              }
+            }}
+            title="Train Ground Rover Navigation live in 3D scene (crash, oversteer, LiDAR avoidance, goal beacon, store PPO model)"
+          >
+            <span>🚗 Rover RL</span>
+          </button>
+        </div>
+
+        {/* 3D Trajectory Ribbon & Prediction Horizon Controls */}
+        <div style={{ display: 'flex', alignItems: 'center', background: 'var(--bg-panel)', padding: 2, borderRadius: 6, border: '1px solid var(--border-subtle)', gap: 2 }}>
+          <button
+            className={`rf-btn ${showTrajectoryTrail ? 'rf-btn-primary' : ''}`}
+            style={{ fontSize: 11, padding: '3px 8px' }}
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowTrajectoryTrail(!showTrajectoryTrail);
+            }}
+            title="Toggle Dynamic 3D Trajectory Ribbon & Speed Heatmap"
+          >
+            <Route size={12} />
+            <span>Trail: {showTrajectoryTrail ? 'ON' : 'OFF'}</span>
+          </button>
+          <button
+            className="rf-btn"
+            style={{ fontSize: 11, padding: '3px 6px' }}
+            onClick={(e) => {
+              e.stopPropagation();
+              trailHistoryRef.current = [];
+              if (trailMeshRef.current) trailMeshRef.current.visible = false;
+              if (horizonMeshRef.current) horizonMeshRef.current.visible = false;
+            }}
+            title="Clear Trajectory Trail History"
+          >
+            <Trash2 size={12} />
+          </button>
+        </div>
 
         {/* Camera Views Preset */}
         <div style={{ display: 'flex', background: 'var(--bg-panel)', padding: 2, borderRadius: 6, border: '1px solid var(--border-subtle)' }}>
@@ -2210,6 +2569,122 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Isaac Lab Live RL Training HUD (Center-Top Viewport Overlay) */}
+      {(simState?.rl_training_active || (simState?.rl_training_status && simState.rl_training_status.includes('PPO') && !simState.rl_training_status.includes('RESET'))) && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 52,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 7,
+            backgroundColor: 'rgba(15, 17, 23, 0.94)',
+            backdropFilter: 'blur(10px)',
+            border: simState?.rl_training_active ? '1px solid rgba(56, 189, 248, 0.6)' : '1px solid rgba(34, 197, 94, 0.6)',
+            borderRadius: 10,
+            padding: '10px 16px',
+            zIndex: 10,
+            boxShadow: simState?.rl_training_active
+              ? '0 0 20px rgba(56, 189, 248, 0.35), 0 8px 32px rgba(0,0,0,0.6)'
+              : '0 0 20px rgba(34, 197, 94, 0.35), 0 8px 32px rgba(0,0,0,0.6)',
+            minWidth: 420,
+            maxWidth: 620,
+            pointerEvents: 'none',
+          }}
+        >
+          {/* Header Row */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: 6 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+              <div
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
+                  backgroundColor: simState?.rl_training_active ? '#38bdf8' : '#22c55e',
+                  boxShadow: simState?.rl_training_active ? '0 0 8px #38bdf8' : '0 0 8px #22c55e',
+                }}
+              />
+              <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.8px', color: '#f8fafc', textTransform: 'uppercase' }}>
+                ⚡ ISAAC LAB — LIVE PPO TRAINING
+              </span>
+            </div>
+            <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
+              {simState?.rl_training_model_name || 'PPO-Quadcopter'}
+            </span>
+          </div>
+
+          {/* Episode, Step, Reward Stats */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, fontSize: 11, fontFamily: 'var(--font-mono)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#38bdf8' }}>
+              <span style={{ color: 'var(--text-muted)' }}>EPISODE:</span>
+              <span style={{ fontWeight: 700 }}>
+                {simState?.rl_training_episode || 0} / {simState?.rl_training_total_episodes || 4}
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--text-secondary)' }}>
+              <span style={{ color: 'var(--text-muted)' }}>STEP:</span>
+              <span style={{ fontWeight: 600 }}>{simState?.rl_training_step || 0}</span>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ color: 'var(--text-muted)' }}>REWARD:</span>
+              <span
+                style={{
+                  fontWeight: 700,
+                  color: (simState?.rl_training_reward || 0) >= 0 ? '#4ade80' : '#f87171'
+                }}
+              >
+                {(simState?.rl_training_reward || 0) > 0 ? '+' : ''}
+                {(simState?.rl_training_reward || 0).toFixed(1)}
+              </span>
+            </div>
+          </div>
+
+          {/* Dynamic Status Banner */}
+          <div
+            style={{
+              padding: '6px 10px',
+              borderRadius: 6,
+              fontSize: 11,
+              fontWeight: 600,
+              backgroundColor: (simState?.rl_training_status?.includes('CRASH') || simState?.rl_training_status?.includes('FAIL'))
+                ? 'rgba(239, 68, 68, 0.25)'
+                : (simState?.rl_training_status?.includes('CONVERGED') || simState?.rl_training_status?.includes('SAVED') || simState?.rl_training_status?.includes('DEPLOYED'))
+                ? 'rgba(34, 197, 94, 0.25)'
+                : 'rgba(56, 189, 248, 0.15)',
+              border: (simState?.rl_training_status?.includes('CRASH') || simState?.rl_training_status?.includes('FAIL'))
+                ? '1px solid rgba(239, 68, 68, 0.5)'
+                : (simState?.rl_training_status?.includes('CONVERGED') || simState?.rl_training_status?.includes('SAVED') || simState?.rl_training_status?.includes('DEPLOYED'))
+                ? '1px solid rgba(34, 197, 94, 0.5)'
+                : '1px solid rgba(56, 189, 248, 0.3)',
+              color: (simState?.rl_training_status?.includes('CRASH') || simState?.rl_training_status?.includes('FAIL'))
+                ? '#fca5a5'
+                : (simState?.rl_training_status?.includes('CONVERGED') || simState?.rl_training_status?.includes('SAVED') || simState?.rl_training_status?.includes('DEPLOYED'))
+                ? '#86efac'
+                : '#bae6fd',
+              textAlign: 'center'
+            }}
+          >
+            {simState?.rl_training_status || 'Autonomous Policy Optimization Active'}
+          </div>
+
+          {/* Episode Progress Bar */}
+          <div style={{ width: '100%', height: 4, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 2, overflow: 'hidden' }}>
+            <div
+              style={{
+                height: '100%',
+                width: `${Math.min(100, Math.max(5, ((simState?.rl_training_episode || 0) / (simState?.rl_training_total_episodes || 4)) * 100))}%`,
+                backgroundColor: simState?.rl_training_active ? '#38bdf8' : '#22c55e',
+                transition: 'width 0.3s ease-out'
+              }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,5 +1,6 @@
 from __future__ import annotations
 import asyncio
+import threading
 import time
 import math
 import logging
@@ -88,6 +89,73 @@ def rgb_to_png(rgb_array: np.ndarray) -> bytes:
     return header + ihdr + idat + iend
 
 
+class DroneFlightController:
+    """Authoritative 6-DOF Aerodynamic Propulsion & Flight Stabilization Controller."""
+    def __init__(self, drone_id: str, name: str, mass: float = 1.2):
+        self.drone_id = drone_id
+        self.name = name
+        self.mass = max(0.4, float(mass))
+        self.flight_mode: str = "grounded"  # "grounded", "takeoff", "hover", "flying", "landing", "waypoint"
+        self.target_altitude: float = 1.5
+        self.target_position: Optional[List[float]] = None
+        self.target_velocity: List[float] = [0.0, 0.0, 0.0]
+        self.rotors_active: bool = False
+        self.body_id: Optional[int] = None
+        self.current_altitude: float = 0.0
+        self.current_velocity: List[float] = [0.0, 0.0, 0.0]
+        self.current_position: List[float] = [0.0, 0.0, 0.0]
+        # PID flight control parameters
+        self.kp_z = 40.0
+        self.kd_z = 15.0
+        self.kp_xy = 14.0
+        self.kd_xy = 6.5
+        self.kp_yaw = 5.0
+        self.kd_yaw = 2.0
+
+    def takeoff(self, altitude: float = 1.5):
+        self.target_altitude = max(0.4, float(altitude))
+        self.flight_mode = "takeoff"
+        self.rotors_active = True
+
+    def land(self):
+        self.flight_mode = "landing"
+        self.rotors_active = True
+
+    def hover(self):
+        self.flight_mode = "hover"
+        self.rotors_active = True
+
+    def fly_to(self, position: List[float]):
+        if len(position) >= 3:
+            self.target_position = [float(position[0]), float(position[1]), float(position[2])]
+            self.target_altitude = float(position[2])
+            self.flight_mode = "waypoint"
+            self.rotors_active = True
+
+    def set_velocity(self, vx: float, vy: float, vz: float):
+        self.target_velocity = [float(vx), float(vy), float(vz)]
+        self.flight_mode = "flying"
+        self.rotors_active = True
+
+
+class SecondaryRobotController:
+    """Planar propulsion & navigation controller for secondary ground rovers."""
+    def __init__(self, robot_id: str, name: str, mass: float = 4.0):
+        self.robot_id = robot_id
+        self.name = name
+        self.mass = max(1.0, float(mass))
+        self.target_linear: float = 0.0
+        self.target_angular: float = 0.0
+        self.is_active: bool = True
+        self.current_position: List[float] = [0.0, 0.0, 0.0]
+        self.current_velocity: List[float] = [0.0, 0.0, 0.0]
+
+    def set_drive(self, linear: float, angular: float):
+        self.target_linear = float(linear)
+        self.target_angular = float(angular)
+        self.is_active = True
+
+
 class MuJoCoEngine:
     def __init__(self, project: Project, log_callback: Optional[Callable[[LogMessage], Any]] = None):
         self.project = project
@@ -126,6 +194,24 @@ class MuJoCoEngine:
         # Object mapping: scene_object_id -> body_name & geom_name
         self.object_body_ids: Dict[str, int] = {}
 
+        # Drone and Secondary Robot Dynamic Flight & Propulsion Controllers
+        self.drone_controllers: Dict[str, DroneFlightController] = {}
+        self.secondary_robot_controllers: Dict[str, SecondaryRobotController] = {}
+
+        # Active Reinforcement Learning Policy Execution
+        self.active_rl_policy_id: Optional[str] = None
+        self.active_rl_policy_name: Optional[str] = None
+        self.active_rl_policy_model: Optional[Any] = None
+
+        # Live Interactive RL Training State (Isaac Lab Mode)
+        self.rl_training_active: bool = False
+        self.rl_training_episode: int = 0
+        self.rl_training_total_episodes: int = 0
+        self.rl_training_step: int = 0
+        self.rl_training_reward: float = 0.0
+        self.rl_training_status: Optional[str] = None
+        self.rl_training_model_name: Optional[str] = None
+
         # Snapshots
         self.snapshots: Dict[str, SimulationSnapshot] = {}
 
@@ -143,6 +229,9 @@ class MuJoCoEngine:
 
         # Offscreen camera renderer
         self._renderer: Optional[mujoco.Renderer] = None
+
+        # Thread synchronization lock for physics state and telemetry
+        self._physics_lock = threading.RLock()
 
         # Build initial MuJoCo model
         self.rebuild_model()
@@ -415,14 +504,18 @@ class MuJoCoEngine:
             body_name = f"obj_{obj.id}"
             geom_name = f"geom_{obj.id}"
             
-            if obj.is_static:
+            is_drone = ("drone" in obj.name.lower() or obj.id.startswith("drone") or "quad" in obj.name.lower())
+            is_sec_bot = ("robot" in obj.name.lower() or obj.id.startswith("robot") or "forgebot" in obj.name.lower() or "swarm" in obj.name.lower()) and not is_drone
+            force_dynamic = is_drone or is_sec_bot
+
+            if obj.is_static and not force_dynamic:
                 # Static body (fixed in space)
                 xml_parts.append(f"""
     <body name="{body_name}" pos="{pos_str}" quat="{rot_quat_str}">
       <geom name="{geom_name}" type="{obj.type}" size="{size_str}" mass="{obj.mass}" friction="{fric_str}" rgba="{rgba_str}"/>
     </body>""")
             else:
-                # Dynamic body with freejoint
+                # Dynamic body with freejoint (drones, secondary robots, movable props)
                 xml_parts.append(f"""
     <body name="{body_name}" pos="{pos_str}" quat="{rot_quat_str}">
       <freejoint name="joint_{obj.id}"/>
@@ -525,12 +618,34 @@ class MuJoCoEngine:
             self.imu_accel_adr = self.model.sensor_adr[accel_id] if accel_id >= 0 else -1
             self.imu_gyro_adr = self.model.sensor_adr[gyro_id] if gyro_id >= 0 else -1
 
-            # Map object bodies
+            # Map object bodies and initialize controllers
             self.object_body_ids = {}
             for obj in self.project.objects:
                 bid = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, f"obj_{obj.id}")
                 if bid >= 0:
                     self.object_body_ids[obj.id] = bid
+
+                # Initialize drone flight controller if aerial entity
+                is_drone = ("drone" in obj.name.lower() or obj.id.startswith("drone") or "quad" in obj.name.lower())
+                if is_drone:
+                    if obj.id not in self.drone_controllers:
+                        ctrl = DroneFlightController(obj.id, obj.name, obj.mass)
+                        ctrl.body_id = bid
+                        # If placed at elevated position, initialize takeoff target
+                        if obj.position[2] > 0.35:
+                            ctrl.target_altitude = float(obj.position[2])
+                            ctrl.takeoff(float(obj.position[2]))
+                        self.drone_controllers[obj.id] = ctrl
+                    else:
+                        self.drone_controllers[obj.id].name = obj.name
+                        self.drone_controllers[obj.id].mass = max(0.4, float(obj.mass))
+                        self.drone_controllers[obj.id].body_id = bid
+
+                # Initialize secondary robot controller if ground rover entity
+                is_sec = ("robot" in obj.name.lower() or obj.id.startswith("robot") or "forgebot" in obj.name.lower() or "swarm" in obj.name.lower()) and not is_drone
+                if is_sec:
+                    if obj.id not in self.secondary_robot_controllers:
+                        self.secondary_robot_controllers[obj.id] = SecondaryRobotController(obj.id, obj.name, obj.mass)
 
             if preserve_state and prev_robot_qpos is not None:
                 self.data.qpos[self.robot_qpos_adr:self.robot_qpos_adr + 7] = prev_robot_qpos
@@ -587,13 +702,46 @@ class MuJoCoEngine:
         if not self.model or not self.data:
             return
             
-        # Teleop decay: if no key input in last 0.35s, stop motors
-        if time.time() - self.last_teleop_time > 0.35:
-            self.teleop_cmd.linear = 0.0
-            self.teleop_cmd.angular = 0.0
+        # Autonomous RL Policy Execution vs Manual Teleop
+        if self.active_rl_policy_model is not None and (time.time() - self.last_teleop_time > 0.35):
+            try:
+                from backend.rl_env import RoboForgeGymEnv
+                qadr = getattr(self, "robot_qpos_adr", 0)
+                vadr = getattr(self, "robot_qvel_adr", 0)
+                r_pos = np.array(self.data.qpos[qadr:qadr + 2])
+                r_quat = [float(x) for x in self.data.qpos[qadr + 3:qadr + 7]]
+                lin_speed = float(np.linalg.norm(self.data.qvel[vadr:vadr + 2]))
+                ang_speed = float(self.data.qvel[vadr + 5]) if vadr + 5 < len(self.data.qvel) else 0.0
 
-        v = self.teleop_cmd.linear
-        omega = self.teleop_cmd.angular
+                target = [2.5, 0.5, 0.25]
+                tgt_objs = [o for o in self.project.objects if "target" in o.name.lower() or "target" in o.id.lower() or "goal" in o.name.lower()]
+                if tgt_objs:
+                    target = tgt_objs[0].position
+
+                obs = RoboForgeGymEnv.compute_observation(
+                    robot_pos=[float(r_pos[0]), float(r_pos[1]), 0.07],
+                    robot_quat=r_quat,
+                    linear_speed=lin_speed,
+                    angular_speed=ang_speed,
+                    target_pos=target,
+                    obstacles=self.project.objects,
+                    max_linear_velocity=self.project.robot.max_linear_velocity,
+                    max_angular_velocity=self.project.robot.max_angular_velocity
+                )
+                action, _ = self.active_rl_policy_model.predict(obs, deterministic=True)
+                v = float(np.clip(action[0], -1.0, 1.0) * self.project.robot.max_linear_velocity)
+                omega = float(np.clip(action[1], -1.0, 1.0) * self.project.robot.max_angular_velocity)
+            except Exception:
+                v = self.teleop_cmd.linear
+                omega = self.teleop_cmd.angular
+        else:
+            # Teleop decay: if no key input in last 0.35s, stop motors
+            if time.time() - self.last_teleop_time > 0.35:
+                self.teleop_cmd.linear = 0.0
+                self.teleop_cmd.angular = 0.0
+
+            v = self.teleop_cmd.linear
+            omega = self.teleop_cmd.angular
         
         wb = self.project.robot.wheel_base
         wr = self.project.robot.wheel_radius
@@ -630,6 +778,94 @@ class MuJoCoEngine:
                         eff_max = j_obj.limit.effort
                         clamped_target = max(-eff_max, min(eff_max, clamped_target))
                 self.data.ctrl[act_id] = clamped_target
+
+        # Apply 6-DOF aerodynamic thrust & flight stabilization to active aerial drones
+        if self.model and self.data and hasattr(self.data, "xfrc_applied"):
+            for drone_id, drone in list(self.drone_controllers.items()):
+                bid = self.object_body_ids.get(drone_id, -1)
+                if bid < 0 or bid >= self.data.xfrc_applied.shape[0]:
+                    continue
+
+                pos = np.array(self.data.xpos[bid], copy=True)
+                drone.current_position = [float(pos[0]), float(pos[1]), float(pos[2])]
+                drone.current_altitude = float(pos[2])
+
+                # Resolve freejoint velocity
+                jnt = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, f"joint_{drone_id}")
+                if jnt >= 0:
+                    dof = self.model.jnt_dofadr[jnt]
+                    lvel = np.array(self.data.qvel[dof:dof+3], copy=True)
+                    avel = np.array(self.data.qvel[dof+3:dof+6], copy=True)
+                else:
+                    lvel = np.zeros(3)
+                    avel = np.zeros(3)
+                drone.current_velocity = [float(lvel[0]), float(lvel[1]), float(lvel[2])]
+
+                if self.rl_training_active:
+                    self.data.xfrc_applied[bid, :] = 0.0
+                    continue
+
+                if drone.rotors_active or drone.flight_mode in ("takeoff", "hover", "flying", "landing", "waypoint"):
+                    g = abs(self.project.settings.gravity[2]) if hasattr(self.project.settings, "gravity") else 9.81
+                    f_hover = drone.mass * g
+
+                    # Vertical altitude PID thrust
+                    alt_err = drone.target_altitude - pos[2]
+                    fz = f_hover + drone.kp_z * alt_err - drone.kd_z * lvel[2]
+                    fz = max(0.0, min(f_hover * 3.2, fz))
+
+                    # Horizontal position hold or waypoint tracking
+                    if drone.target_position:
+                        ex = drone.target_position[0] - pos[0]
+                        ey = drone.target_position[1] - pos[1]
+                        fx = drone.kp_xy * ex - drone.kd_xy * lvel[0]
+                        fy = drone.kp_xy * ey - drone.kd_xy * lvel[1]
+                    else:
+                        fx = -4.0 * lvel[0]
+                        fy = -4.0 * lvel[1]
+
+                    fx = float(np.clip(fx, -15.0, 15.0))
+                    fy = float(np.clip(fy, -15.0, 15.0))
+
+                    # Rotational angular damping
+                    tx = -0.6 * avel[0]
+                    ty = -0.6 * avel[1]
+                    tz = -0.8 * avel[2]
+
+                    # Flight mode progression
+                    if drone.flight_mode == "takeoff" and pos[2] >= (drone.target_altitude - 0.1):
+                        drone.flight_mode = "hover"
+                    elif drone.flight_mode == "landing":
+                        drone.target_altitude = max(0.04, drone.target_altitude - 0.015)
+                        if pos[2] <= 0.08 and abs(lvel[2]) < 0.2:
+                            drone.flight_mode = "grounded"
+                            drone.rotors_active = False
+                            fz = 0.0
+
+                    self.data.xfrc_applied[bid, 0] = fx
+                    self.data.xfrc_applied[bid, 1] = fy
+                    self.data.xfrc_applied[bid, 2] = fz
+                    self.data.xfrc_applied[bid, 3] = tx
+                    self.data.xfrc_applied[bid, 4] = ty
+                    self.data.xfrc_applied[bid, 5] = tz
+                else:
+                    self.data.xfrc_applied[bid, :] = 0.0
+
+            # Apply planar propulsion forces to secondary ground rovers
+            for bot_id, bot in list(self.secondary_robot_controllers.items()):
+                bid = self.object_body_ids.get(bot_id, -1)
+                if bid < 0 or bid >= self.data.xfrc_applied.shape[0]:
+                    continue
+                if abs(bot.target_linear) > 0.01 or abs(bot.target_angular) > 0.01:
+                    quat = self.data.xquat[bid]
+                    fwd = quat_to_forward(quat)
+                    f_thrust = bot.target_linear * bot.mass * 8.0
+                    fx = fwd[0] * f_thrust
+                    fy = fwd[1] * f_thrust
+                    tz = bot.target_angular * bot.mass * 1.5
+                    self.data.xfrc_applied[bid, 0] = fx
+                    self.data.xfrc_applied[bid, 1] = fy
+                    self.data.xfrc_applied[bid, 5] = tz
 
     def step(self):
         """Advances physics by one simulation timestep and computes rolling real-time factor."""
@@ -915,25 +1151,52 @@ class MuJoCoEngine:
             forward_vector=fwd_vec
         )
 
-        # Scene object states
+        # Scene object states with drone & multi-robot telemetry
         objects_state: Dict[str, ObjectPhysicsState] = {}
         for obj in self.project.objects:
             bid = self.object_body_ids.get(obj.id, -1)
             if bid >= 0:
                 pos = [float(x) for x in self.data.xpos[bid]]
                 quat = [float(x) for x in self.data.xquat[bid]]
+
+                # Extract freejoint linear velocity if dynamic
+                lvel = [0.0, 0.0, 0.0]
+                jnt = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, f"joint_{obj.id}")
+                if jnt >= 0:
+                    dof = self.model.jnt_dofadr[jnt]
+                    lvel = [float(self.data.qvel[dof]), float(self.data.qvel[dof+1]), float(self.data.qvel[dof+2])]
+
+                is_drone = obj.id in self.drone_controllers
+                drone_ctrl = self.drone_controllers.get(obj.id)
+                flight_mode = drone_ctrl.flight_mode if drone_ctrl else None
+                alt = pos[2] if is_drone else None
+                t_alt = drone_ctrl.target_altitude if drone_ctrl else None
+                rotors_on = drone_ctrl.rotors_active if drone_ctrl else False
+                is_sec = obj.id in self.secondary_robot_controllers
+
                 objects_state[obj.id] = ObjectPhysicsState(
                     id=obj.id,
                     position=pos,
-                    quaternion=quat
+                    quaternion=quat,
+                    linear_velocity=lvel,
+                    is_drone=is_drone,
+                    flight_mode=flight_mode,
+                    altitude=alt,
+                    target_altitude=t_alt,
+                    rotors_active=rotors_on,
+                    is_secondary_robot=is_sec
                 )
 
         # Contacts / Collisions with MuJoCo contact normal & tangent forces and penetration
         contacts: List[ContactInfo] = []
-        ncon = min(int(self.data.ncon), 50)
+        actual_len = len(self.data.contact) if hasattr(self.data, "contact") else 0
+        ncon = min(int(self.data.ncon), actual_len, 50)
         c_force_buf = np.zeros(6, dtype=np.float64)
         for i in range(ncon):
-            con = self.data.contact[i]
+            try:
+                con = self.data.contact[i]
+            except Exception:
+                break
             g1_name = mujoco.mj_id2name(self.model, mujoco.mjtObj.mjOBJ_GEOM, con.geom1) or f"geom_{con.geom1}"
             g2_name = mujoco.mj_id2name(self.model, mujoco.mjtObj.mjOBJ_GEOM, con.geom2) or f"geom_{con.geom2}"
             try:
@@ -1086,8 +1349,207 @@ class MuJoCoEngine:
             joint_positions=joint_positions,
             joint_velocities=joint_velocities,
             joint_torques=joint_torques,
-            encoder_ticks=encoder_ticks
+            encoder_ticks=encoder_ticks,
+            rl_policy_active=bool(self.active_rl_policy_model is not None),
+            active_rl_policy_name=self.active_rl_policy_name,
+            rl_training_active=self.rl_training_active,
+            rl_training_episode=self.rl_training_episode,
+            rl_training_total_episodes=self.rl_training_total_episodes,
+            rl_training_step=self.rl_training_step,
+            rl_training_reward=self.rl_training_reward,
+            rl_training_status=self.rl_training_status,
+            rl_training_model_name=self.rl_training_model_name
         )
+
+    # -------------------------------------------------------------
+    # Multi-Robot & Aerial Drone Control Interface
+    # -------------------------------------------------------------
+
+    def command_drone_takeoff(self, identifier: str = "drone", altitude: float = 1.5) -> Dict[str, Any]:
+        """Commands an aerial drone to take off to target altitude."""
+        ctrl = self._find_drone_controller(identifier)
+        if not ctrl:
+            return {"status": "error", "message": f"Drone '{identifier}' not found in simulation."}
+        ctrl.takeoff(altitude)
+        if self.status != "running":
+            self.play()
+        self.log("info", f"Drone '{ctrl.name}' takeoff initiated to {altitude}m.")
+        return {"status": "success", "drone_id": ctrl.drone_id, "name": ctrl.name, "target_altitude": altitude, "flight_mode": "takeoff"}
+
+    def command_drone_land(self, identifier: str = "drone") -> Dict[str, Any]:
+        """Commands an aerial drone to execute a controlled descent and touchdown."""
+        ctrl = self._find_drone_controller(identifier)
+        if not ctrl:
+            return {"status": "error", "message": f"Drone '{identifier}' not found in simulation."}
+        ctrl.land()
+        self.log("info", f"Drone '{ctrl.name}' landing sequence initiated.")
+        return {"status": "success", "drone_id": ctrl.drone_id, "name": ctrl.name, "flight_mode": "landing"}
+
+    def command_drone_hover(self, identifier: str = "drone") -> Dict[str, Any]:
+        """Commands an aerial drone to hold altitude and stabilize in hover mode."""
+        ctrl = self._find_drone_controller(identifier)
+        if not ctrl:
+            return {"status": "error", "message": f"Drone '{identifier}' not found in simulation."}
+        ctrl.hover()
+        self.log("info", f"Drone '{ctrl.name}' hovering at altitude {ctrl.target_altitude}m.")
+        return {"status": "success", "drone_id": ctrl.drone_id, "name": ctrl.name, "flight_mode": "hover"}
+
+    def command_drone_fly_to(self, identifier: str = "drone", position: Optional[List[float]] = None) -> Dict[str, Any]:
+        """Commands an aerial drone to fly to a 3D target coordinate."""
+        ctrl = self._find_drone_controller(identifier)
+        if not ctrl:
+            return {"status": "error", "message": f"Drone '{identifier}' not found in simulation."}
+        pos = position or [0.0, 0.0, 1.5]
+        ctrl.fly_to(pos)
+        if self.status != "running":
+            self.play()
+        self.log("info", f"Drone '{ctrl.name}' flying to waypoint [{pos[0]}, {pos[1]}, {pos[2]}].")
+        return {"status": "success", "drone_id": ctrl.drone_id, "name": ctrl.name, "target_position": pos, "flight_mode": "waypoint"}
+
+    def command_secondary_robot_drive(self, identifier: str = "robot", linear_velocity: float = 1.0, angular_velocity: float = 0.0) -> Dict[str, Any]:
+        """Commands a secondary ground rover to drive with specified linear and angular velocity."""
+        ctrl = self._find_secondary_robot_controller(identifier)
+        if not ctrl:
+            return {"status": "error", "message": f"Secondary robot '{identifier}' not found in simulation."}
+        ctrl.set_drive(linear_velocity, angular_velocity)
+        if self.status != "running":
+            self.play()
+        self.log("info", f"Secondary robot '{ctrl.name}' drive commanded: linear={linear_velocity} m/s, angular={angular_velocity} rad/s.")
+        return {"status": "success", "robot_id": ctrl.robot_id, "name": ctrl.name, "linear_velocity": linear_velocity, "angular_velocity": angular_velocity}
+
+    def set_active_rl_policy(self, model_id: Optional[str] = None) -> Dict[str, Any]:
+        """Loads and activates a trained RL policy checkpoint to control the robot in live simulation."""
+        from backend.rl_training_manager import training_manager
+        if not model_id or model_id in ("latest", "default"):
+            models = training_manager.list_models()
+            if models:
+                model_id = models[0].model_id
+
+        if model_id:
+            try:
+                model = training_manager.load_model(model_id)
+                meta = training_manager.get_model_metadata(model_id)
+                self.active_rl_policy_id = model_id
+                self.active_rl_policy_name = meta.name if meta else model_id
+                self.active_rl_policy_model = model
+                if self.status != "running":
+                    self.play()
+                self.log("info", f"RL Policy '{self.active_rl_policy_name}' deployed to live robot controller.")
+                return {"status": "success", "model_id": model_id, "name": self.active_rl_policy_name}
+            except Exception as e:
+                self.log("error", f"Failed to load RL model {model_id}: {e}")
+                return {"status": "error", "error": str(e)}
+        else:
+            self.active_rl_policy_id = None
+            self.active_rl_policy_name = None
+            self.active_rl_policy_model = None
+            return {"status": "disengaged"}
+
+    def set_drone_pose(self, drone_id: str, position: Sequence[float], quaternion: Optional[Sequence[float]] = None, velocity: Optional[Sequence[float]] = None):
+        """Sets the exact 6-DOF freejoint pose and velocity of an aerial drone in MuJoCo physics."""
+        if not self.model or not self.data:
+            return
+        with self._physics_lock:
+            ctrl = self._find_drone_controller(drone_id)
+            d_id = ctrl.drone_id if ctrl else drone_id
+
+            jnt = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, f"joint_{d_id}")
+            if jnt >= 0:
+                q_adr = self.model.jnt_qposadr[jnt]
+                d_adr = self.model.jnt_dofadr[jnt]
+                safe_z = max(0.09, float(position[2]))
+                self.data.qpos[q_adr:q_adr+3] = [float(position[0]), float(position[1]), safe_z]
+                if quaternion and len(quaternion) == 4:
+                    self.data.qpos[q_adr+3:q_adr+7] = [float(quaternion[0]), float(quaternion[1]), float(quaternion[2]), float(quaternion[3])]
+                if velocity and len(velocity) >= 3:
+                    self.data.qvel[d_adr:d_adr+3] = [float(velocity[0]), float(velocity[1]), float(velocity[2])]
+                else:
+                    self.data.qvel[d_adr:d_adr+3] = [0.0, 0.0, 0.0]
+                self.data.qvel[d_adr+3:d_adr+6] = [0.0, 0.0, 0.0]
+                if hasattr(self.data, "qacc") and len(self.data.qacc) >= d_adr + 6:
+                    self.data.qacc[d_adr:d_adr+6] = 0.0
+                if hasattr(self.data, "qfrc_applied") and len(self.data.qfrc_applied) >= d_adr + 6:
+                    self.data.qfrc_applied[d_adr:d_adr+6] = 0.0
+                try:
+                    mujoco.mj_forward(self.model, self.data)
+                except Exception:
+                    pass
+
+            if ctrl:
+                ctrl.current_position = [float(position[0]), float(position[1]), float(position[2])]
+                ctrl.current_altitude = float(position[2])
+
+    def set_robot_pose(self, position: Sequence[float], quaternion: Optional[Sequence[float]] = None, velocity: Optional[Sequence[float]] = None):
+        """Sets the exact 6-DOF pose and velocity of the primary mobile robot in MuJoCo physics."""
+        if not self.model or not self.data:
+            return
+        with self._physics_lock:
+            qadr = getattr(self, "robot_qpos_adr", 0)
+            vadr = getattr(self, "robot_qvel_adr", 0)
+            self.data.qpos[qadr:qadr+3] = [float(position[0]), float(position[1]), float(position[2])]
+            if quaternion and len(quaternion) == 4:
+                self.data.qpos[qadr+3:qadr+7] = [float(quaternion[0]), float(quaternion[1]), float(quaternion[2]), float(quaternion[3])]
+            if velocity and len(velocity) >= 3:
+                self.data.qvel[vadr:vadr+3] = [float(velocity[0]), float(velocity[1]), float(velocity[2])]
+            else:
+                self.data.qvel[vadr:vadr+3] = [0.0, 0.0, 0.0]
+            self.data.qvel[vadr+3:vadr+6] = [0.0, 0.0, 0.0]
+            try:
+                mujoco.mj_forward(self.model, self.data)
+            except Exception:
+                pass
+
+    def set_joint_position(self, joint_name: str, position_rad: float):
+        """Sets the exact angular or linear position of an articulated robot joint."""
+        if not self.model or not self.data:
+            return
+        with self._physics_lock:
+            j_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, joint_name)
+            if j_id >= 0:
+                qadr = self.model.jnt_qposadr[j_id]
+                dadr = self.model.jnt_dofadr[j_id]
+                self.data.qpos[qadr] = float(position_rad)
+                self.data.qvel[dadr] = 0.0
+                try:
+                    mujoco.mj_forward(self.model, self.data)
+                except Exception:
+                    pass
+
+    def set_object_pose(self, object_id: str, position: Sequence[float], quaternion: Optional[Sequence[float]] = None):
+        """Sets the exact 3D position and orientation of a scene object."""
+        if not self.model or not self.data:
+            return
+        with self._physics_lock:
+            jnt = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, f"joint_{object_id}")
+            if jnt >= 0:
+                q_adr = self.model.jnt_qposadr[jnt]
+                d_adr = self.model.jnt_dofadr[jnt]
+                self.data.qpos[q_adr:q_adr+3] = [float(position[0]), float(position[1]), float(position[2])]
+                if quaternion and len(quaternion) == 4:
+                    self.data.qpos[q_adr+3:q_adr+7] = [float(quaternion[0]), float(quaternion[1]), float(quaternion[2]), float(quaternion[3])]
+                self.data.qvel[d_adr:d_adr+6] = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+                try:
+                    mujoco.mj_forward(self.model, self.data)
+                except Exception:
+                    pass
+
+    def _find_drone_controller(self, identifier: str) -> Optional[DroneFlightController]:
+        ident_lower = str(identifier).lower().strip()
+        for d_id, ctrl in self.drone_controllers.items():
+            if ident_lower in ctrl.name.lower() or ident_lower == d_id.lower() or ident_lower in ("drone", "all", "uav", "quadcopter"):
+                return ctrl
+        if self.drone_controllers:
+            return next(iter(self.drone_controllers.values()))
+        return None
+
+    def _find_secondary_robot_controller(self, identifier: str) -> Optional[SecondaryRobotController]:
+        ident_lower = str(identifier).lower().strip()
+        for r_id, ctrl in self.secondary_robot_controllers.items():
+            if ident_lower in ctrl.name.lower() or ident_lower == r_id.lower() or ident_lower in ("robot", "rover", "secondary"):
+                return ctrl
+        if self.secondary_robot_controllers:
+            return next(iter(self.secondary_robot_controllers.values()))
+        return None
 
 # Alias for backwards and external compatibility
 SimulationEngine = MuJoCoEngine

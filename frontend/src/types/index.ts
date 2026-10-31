@@ -229,6 +229,12 @@ export interface ObjectPhysicsState {
   position: [number, number, number];
   quaternion: [number, number, number, number];
   linear_velocity?: [number, number, number];
+  is_drone?: boolean;
+  flight_mode?: string;
+  altitude?: number;
+  target_altitude?: number;
+  rotors_active?: boolean;
+  is_secondary_robot?: boolean;
 }
 
 export interface ContactInfo {
@@ -257,6 +263,15 @@ export interface SimulationState {
   joint_velocities?: Record<string, number>;
   joint_torques?: Record<string, number>;
   encoder_ticks?: Record<string, number>;
+  rl_policy_active?: boolean;
+  active_rl_policy_name?: string;
+  rl_training_active?: boolean;
+  rl_training_episode?: number;
+  rl_training_total_episodes?: number;
+  rl_training_step?: number;
+  rl_training_reward?: number;
+  rl_training_status?: string;
+  rl_training_model_name?: string;
 }
 
 export interface LogMessage {
@@ -413,6 +428,8 @@ export interface RLTrainingConfig {
   target_position: [number, number, number];
   scenario_id?: string;
   hyperparameters?: Partial<RLHyperparameters>;
+  custom_reward_code?: string;
+  max_episode_steps?: number;
 }
 
 export interface RLTrainingMetrics {
@@ -533,6 +550,7 @@ export interface AIChatResponse {
   awaiting_approval: boolean;
   approval_plan?: any | null;
   suggested_configuration?: any | null;
+  thought_process?: string;
   actions_executed?: Array<{
     action: string;
     status: string;

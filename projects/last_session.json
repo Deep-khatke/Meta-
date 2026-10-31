@@ -1,29 +1,29 @@
 {
   "schema_version": "1.0.0",
-  "name": "Mobile Navigation Arena",
-  "description": "Open arena with boundary walls, waypoint targets, and scattered cargo props for path planning.",
+  "name": "Workspace Alpha",
+  "description": "Clean RoboForge differential-drive arena",
   "robot": {
-    "id": "robot_nav",
+    "id": "robot_main",
     "name": "ForgeBot-DD1",
     "initial_position": [
-      0.0,
-      0.0,
+      0.5,
+      0.2,
       0.07
     ],
-    "initial_yaw": 0.0,
+    "initial_yaw": 45.0,
     "chassis_size": [
       0.2,
       0.14,
       0.05
     ],
-    "wheel_radius": 0.06,
+    "wheel_radius": 0.075,
     "wheel_width": 0.03,
-    "wheel_base": 0.28,
+    "wheel_base": 0.32,
     "caster_radius": 0.025,
-    "chassis_mass": 3.5,
+    "chassis_mass": 6.0,
     "wheel_mass": 0.5,
-    "max_linear_velocity": 1.5,
-    "max_angular_velocity": 3.0
+    "max_linear_velocity": 2.2,
+    "max_angular_velocity": 3.8
   },
   "generic_robot": null,
   "sensors": {
@@ -34,9 +34,9 @@
         0.0,
         0.09
       ],
-      "num_beams": 24,
+      "num_beams": 32,
       "fov_deg": 360.0,
-      "max_range": 10.0,
+      "max_range": 12.0,
       "min_range": 0.05,
       "noise_std": 0.0,
       "dropout_prob": 0.0,
@@ -86,86 +86,27 @@
   },
   "objects": [
     {
-      "id": "box_nav_1",
-      "name": "Cargo Alpha",
+      "id": "drone_4fe915",
+      "name": "ScoutDrone-01",
       "type": "box",
       "position": [
-        1.5,
-        0.2,
-        0.2
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0
-      ],
-      "size": [
-        0.25,
-        0.25,
-        0.2
-      ],
-      "color": "#e06c75",
-      "is_static": false,
-      "mass": 2.5,
-      "friction": [
-        1.0,
-        0.005,
-        0.0001
-      ],
-      "visible": true,
-      "is_locked": false
-    },
-    {
-      "id": "pylon_nav_1",
-      "name": "Pylon Center",
-      "type": "cylinder",
-      "position": [
-        2.2,
+        2.5,
         -1.0,
-        0.35
+        1.5
       ],
       "rotation": [
         0.0,
         0.0,
-        0.0
+        45.0
       ],
       "size": [
-        0.16,
-        0.35
-      ],
-      "color": "#98c379",
-      "is_static": true,
-      "mass": 12.0,
-      "friction": [
-        1.0,
-        0.005,
-        0.0001
-      ],
-      "visible": true,
-      "is_locked": false
-    },
-    {
-      "id": "box_nav_2",
-      "name": "Cargo Beta",
-      "type": "box",
-      "position": [
-        2.8,
-        1.2,
-        0.2
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0
-      ],
-      "size": [
-        0.2,
-        0.2,
-        0.2
+        0.22,
+        0.22,
+        0.08
       ],
       "color": "#38bdf8",
       "is_static": false,
-      "mass": 2.0,
+      "mass": 1.2,
       "friction": [
         1.0,
         0.005,
@@ -175,12 +116,12 @@
       "is_locked": false
     },
     {
-      "id": "robot_04b624",
+      "id": "robot_40f673",
       "name": "ForgeBot-DD2",
       "type": "box",
       "position": [
-        2.0,
-        0.55,
+        1.0,
+        0.5,
         0.07
       ],
       "rotation": [
@@ -203,23 +144,495 @@
       ],
       "visible": true,
       "is_locked": false
+    },
+    {
+      "id": "obs_course_3c0f1",
+      "name": "Course Obstacle 1",
+      "type": "cylinder",
+      "position": [
+        0.8,
+        0.45,
+        0.3
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "size": [
+        0.18,
+        0.35
+      ],
+      "color": "#e06c75",
+      "is_static": true,
+      "mass": 5.0,
+      "friction": [
+        1.0,
+        0.005,
+        0.0001
+      ],
+      "visible": true,
+      "is_locked": false
+    },
+    {
+      "id": "obs_course_b8062",
+      "name": "Course Obstacle 2",
+      "type": "box",
+      "position": [
+        1.055,
+        -0.53,
+        0.3
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        15.0
+      ],
+      "size": [
+        0.22,
+        0.22,
+        0.25
+      ],
+      "color": "#e5c07b",
+      "is_static": true,
+      "mass": 5.0,
+      "friction": [
+        1.0,
+        0.005,
+        0.0001
+      ],
+      "visible": true,
+      "is_locked": false
+    },
+    {
+      "id": "obs_course_c99f9",
+      "name": "Course Obstacle 3",
+      "type": "cylinder",
+      "position": [
+        1.309,
+        0.61,
+        0.3
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        30.0
+      ],
+      "size": [
+        0.18,
+        0.35
+      ],
+      "color": "#98c379",
+      "is_static": true,
+      "mass": 5.0,
+      "friction": [
+        1.0,
+        0.005,
+        0.0001
+      ],
+      "visible": true,
+      "is_locked": false
+    },
+    {
+      "id": "obs_course_04fb7",
+      "name": "Course Obstacle 4",
+      "type": "box",
+      "position": [
+        1.564,
+        -0.69,
+        0.3
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        45.0
+      ],
+      "size": [
+        0.22,
+        0.22,
+        0.25
+      ],
+      "color": "#61afef",
+      "is_static": true,
+      "mass": 5.0,
+      "friction": [
+        1.0,
+        0.005,
+        0.0001
+      ],
+      "visible": true,
+      "is_locked": false
+    },
+    {
+      "id": "obs_course_7d357",
+      "name": "Course Obstacle 5",
+      "type": "cylinder",
+      "position": [
+        1.818,
+        0.77,
+        0.3
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        60.0
+      ],
+      "size": [
+        0.18,
+        0.35
+      ],
+      "color": "#c678dd",
+      "is_static": true,
+      "mass": 5.0,
+      "friction": [
+        1.0,
+        0.005,
+        0.0001
+      ],
+      "visible": true,
+      "is_locked": false
+    },
+    {
+      "id": "obs_course_3c0b0",
+      "name": "Course Obstacle 6",
+      "type": "box",
+      "position": [
+        2.073,
+        -0.45,
+        0.3
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        75.0
+      ],
+      "size": [
+        0.22,
+        0.22,
+        0.25
+      ],
+      "color": "#56b6c2",
+      "is_static": true,
+      "mass": 5.0,
+      "friction": [
+        1.0,
+        0.005,
+        0.0001
+      ],
+      "visible": true,
+      "is_locked": false
+    },
+    {
+      "id": "obs_course_40271",
+      "name": "Course Obstacle 7",
+      "type": "cylinder",
+      "position": [
+        2.327,
+        0.53,
+        0.3
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        90.0
+      ],
+      "size": [
+        0.18,
+        0.35
+      ],
+      "color": "#d19a66",
+      "is_static": true,
+      "mass": 5.0,
+      "friction": [
+        1.0,
+        0.005,
+        0.0001
+      ],
+      "visible": true,
+      "is_locked": false
+    },
+    {
+      "id": "obs_course_c3425",
+      "name": "Course Obstacle 8",
+      "type": "box",
+      "position": [
+        2.582,
+        -0.61,
+        0.3
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        105.0
+      ],
+      "size": [
+        0.22,
+        0.22,
+        0.25
+      ],
+      "color": "#4ade80",
+      "is_static": true,
+      "mass": 5.0,
+      "friction": [
+        1.0,
+        0.005,
+        0.0001
+      ],
+      "visible": true,
+      "is_locked": false
+    },
+    {
+      "id": "obs_course_66bc6",
+      "name": "Course Obstacle 9",
+      "type": "cylinder",
+      "position": [
+        2.836,
+        0.69,
+        0.3
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        120.0
+      ],
+      "size": [
+        0.18,
+        0.35
+      ],
+      "color": "#e06c75",
+      "is_static": true,
+      "mass": 5.0,
+      "friction": [
+        1.0,
+        0.005,
+        0.0001
+      ],
+      "visible": true,
+      "is_locked": false
+    },
+    {
+      "id": "obs_course_0f175",
+      "name": "Course Obstacle 10",
+      "type": "box",
+      "position": [
+        3.091,
+        -0.77,
+        0.3
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        135.0
+      ],
+      "size": [
+        0.22,
+        0.22,
+        0.25
+      ],
+      "color": "#e5c07b",
+      "is_static": true,
+      "mass": 5.0,
+      "friction": [
+        1.0,
+        0.005,
+        0.0001
+      ],
+      "visible": true,
+      "is_locked": false
+    },
+    {
+      "id": "obs_course_8bc6d",
+      "name": "Course Obstacle 11",
+      "type": "cylinder",
+      "position": [
+        3.345,
+        0.45,
+        0.3
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        150.0
+      ],
+      "size": [
+        0.18,
+        0.35
+      ],
+      "color": "#98c379",
+      "is_static": true,
+      "mass": 5.0,
+      "friction": [
+        1.0,
+        0.005,
+        0.0001
+      ],
+      "visible": true,
+      "is_locked": false
+    },
+    {
+      "id": "obs_course_98e77",
+      "name": "Course Obstacle 12",
+      "type": "box",
+      "position": [
+        3.6,
+        -0.53,
+        0.3
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        165.0
+      ],
+      "size": [
+        0.22,
+        0.22,
+        0.25
+      ],
+      "color": "#61afef",
+      "is_static": true,
+      "mass": 5.0,
+      "friction": [
+        1.0,
+        0.005,
+        0.0001
+      ],
+      "visible": true,
+      "is_locked": false
+    },
+    {
+      "id": "drone_b11856",
+      "name": "TestDrone-01",
+      "type": "box",
+      "position": [
+        2.0,
+        0.0,
+        0.5
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        45.0
+      ],
+      "size": [
+        0.22,
+        0.22,
+        0.08
+      ],
+      "color": "#38bdf8",
+      "is_static": false,
+      "mass": 1.8,
+      "friction": [
+        1.0,
+        0.005,
+        0.0001
+      ],
+      "visible": true,
+      "is_locked": false
+    },
+    {
+      "id": "robot_a2e5d9",
+      "name": "ForgeBot-DD1",
+      "type": "box",
+      "position": [
+        0.5,
+        0.2,
+        0.07
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "size": [
+        0.18,
+        0.12,
+        0.08
+      ],
+      "color": "#00FF00",
+      "is_static": false,
+      "mass": 10.0,
+      "friction": [
+        1.0,
+        0.005,
+        0.0001
+      ],
+      "visible": true,
+      "is_locked": false
+    },
+    {
+      "id": "target_b802c2",
+      "name": "Goal Target Beacon",
+      "type": "sphere",
+      "position": [
+        3.6,
+        -0.53,
+        0.1
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "size": [
+        0.25
+      ],
+      "color": "#facc15",
+      "is_static": true,
+      "mass": 1.0,
+      "friction": [
+        1.0,
+        0.005,
+        0.0001
+      ],
+      "visible": true,
+      "is_locked": false
+    },
+    {
+      "id": "drone_f5e6b1",
+      "name": "TrainingDrone-01",
+      "type": "box",
+      "position": [
+        1.0,
+        0.0,
+        0.5
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        45.0
+      ],
+      "size": [
+        0.22,
+        0.22,
+        0.08
+      ],
+      "color": "#38bdf8",
+      "is_static": false,
+      "mass": 0.5,
+      "friction": [
+        1.0,
+        0.005,
+        0.0001
+      ],
+      "visible": true,
+      "is_locked": false
     }
   ],
   "settings": {
-    "timestep": 0.005,
-    "speed_multiplier": 1.0,
+    "timestep": 0.004,
+    "speed_multiplier": 1.5,
     "gravity": [
       0.0,
       0.0,
       -9.81
     ],
     "world_boundaries": [
-      -15.0,
-      15.0,
-      -15.0,
-      15.0,
+      -4.0,
+      4.0,
+      -3.0,
+      3.0,
       0.0,
-      8.0
+      3.0
     ],
     "enable_boundaries": true
   }

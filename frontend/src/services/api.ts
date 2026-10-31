@@ -464,7 +464,7 @@ export async function executeRLPolicyLive(
   modelId: string,
   scenarioId?: string,
   targetPosition?: [number, number, number],
-  duration: number = 14.0
+  duration: number = 0.0
 ): Promise<any> {
   const res = await fetch(`${API_BASE}/rl/execute-live`, {
     method: 'POST',
@@ -474,6 +474,7 @@ export async function executeRLPolicyLive(
       scenario_id: scenarioId,
       target_position: targetPosition,
       duration,
+      run_until_goal: true,
     }),
   });
   if (!res.ok) {
@@ -887,3 +888,163 @@ export class SimulationSocket {
     }
   }
 }
+
+// --- ROS 2 & Swarm API Client ---
+
+export interface ROS2TopicInfo {
+  topic: string;
+  type: string;
+  mode: string;
+  rate_hz?: number | string;
+}
+
+export interface ROS2TopicsResponse {
+  node: string;
+  domain_id: number;
+  topics: ROS2TopicInfo[];
+}
+
+export interface ROS2BagMetadata {
+  bag_id: string;
+  bag_name: string;
+  created_at: number;
+  wall_duration_sec: number;
+  sim_duration_sec: number;
+  total_messages: number;
+  topic_counts: Record<string, number>;
+  storage_format: string;
+  file_size_bytes?: number;
+  topics: Array<{ name: string; type: string }>;
+}
+
+export interface ROS2BagStatus {
+  is_recording: boolean;
+  current_bag_id: string | null;
+  current_bag_name: string | null;
+  message_count: number;
+}
+
+export interface SwarmStatusResponse {
+  active: boolean;
+  config: {
+    formation: string;
+    agent_count: number;
+    spacing: number;
+    leader_pos: [number, number, number];
+    followers: Array<{ id: string; name: string; position: [number, number, number] }>;
+  } | null;
+  available_formations: string[];
+}
+
+export async function fetchROS2Topics(): Promise<ROS2TopicsResponse> {
+  const res = await fetch(`${API_BASE}/ros2/topics`);
+  if (!res.ok) throw new Error('Failed to fetch ROS 2 topics');
+  return res.json();
+}
+
+export async function fetchROS2TopicMessage(topicName: string): Promise<any> {
+  const clean = topicName.replace(/^\//, '');
+  const res = await fetch(`${API_BASE}/ros2/messages/${clean}`);
+  if (!res.ok) throw new Error(`Failed to fetch message for /${clean}`);
+  return res.json();
+}
+
+export async function fetchROS2TF(): Promise<any> {
+  const res = await fetch(`${API_BASE}/ros2/tf`);
+  if (!res.ok) throw new Error('Failed to fetch TF2 tree');
+  return res.json();
+}
+
+export async function sendROS2CmdVel(twist: { linear: { x: number; y?: number; z?: number }; angular: { x?: number; y?: number; z: number } }): Promise<any> {
+  const res = await fetch(`${API_BASE}/ros2/cmd_vel`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(twist)
+  });
+  if (!res.ok) throw new Error('Failed to publish /cmd_vel');
+  return res.json();
+}
+
+export async function startROS2Bag(name?: string, topics?: string[]): Promise<any> {
+  const res = await fetch(`${API_BASE}/ros2/bag/start`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: name || 'rosbag2_recording', topics })
+  });
+  if (!res.ok) throw new Error('Failed to start ROS 2 Bag recording');
+  return res.json();
+}
+
+export async function stopROS2Bag(): Promise<any> {
+  const res = await fetch(`${API_BASE}/ros2/bag/stop`, { method: 'POST' });
+  if (!res.ok) throw new Error('Failed to stop ROS 2 Bag recording');
+  return res.json();
+}
+
+export async function fetchROS2BagStatus(): Promise<ROS2BagStatus> {
+  const res = await fetch(`${API_BASE}/ros2/bag/status`);
+  if (!res.ok) throw new Error('Failed to fetch ROS 2 Bag status');
+  return res.json();
+}
+
+export async function fetchROS2Bags(): Promise<{ bags: ROS2BagMetadata[] }> {
+  const res = await fetch(`${API_BASE}/ros2/bags`);
+  if (!res.ok) throw new Error('Failed to list ROS 2 Bags');
+  return res.json();
+}
+
+export async function fetchROS2Bag(bagId: string): Promise<any> {
+  const res = await fetch(`${API_BASE}/ros2/bag/${bagId}`);
+  if (!res.ok) throw new Error(`Failed to fetch bag ${bagId}`);
+  return res.json();
+}
+
+export async function deleteROS2Bag(bagId: string): Promise<any> {
+  const res = await fetch(`${API_BASE}/ros2/bag/${bagId}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error(`Failed to delete bag ${bagId}`);
+  return res.json();
+}
+
+export async function deploySwarm(formation: string, agentCount: number, spacing: number): Promise<any> {
+  const res = await fetch(`${API_BASE}/swarm/deploy`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      formation,
+      agent_count: agentCount,
+      spacing
+    })
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Failed to deploy swarm' }));
+    throw new Error(err.detail || 'Failed to deploy swarm');
+  }
+  return res.json();
+}
+
+export async function fetchSwarmStatus(): Promise<SwarmStatusResponse> {
+  const res = await fetch(`${API_BASE}/swarm/status`);
+  if (!res.ok) throw new Error('Failed to fetch swarm status');
+  return res.json();
+}
+
+export async function clearSwarm(): Promise<any> {
+  const res = await fetch(`${API_BASE}/swarm/clear`, { method: 'POST' });
+  if (!res.ok) throw new Error('Failed to clear swarm');
+  return res.json();
+}
+
+
+export async function importMJCF(mjcfXml: string, setAsActiveRobot: boolean = true): Promise<any> {
+  const res = await fetch(`${API_BASE}/robot/import-mjcf`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mjcf_xml: mjcfXml, set_as_active_robot: setAsActiveRobot })
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Failed to import MJCF' }));
+    throw new Error(err.detail || 'Failed to import MJCF');
+  }
+  return res.json();
+}
+

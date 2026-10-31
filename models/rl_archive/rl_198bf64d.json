@@ -1,0 +1,22 @@
+{
+  "model_id": "rl_198bf64d",
+  "name": "drone_takeoff_land",
+  "checkpoint_path": "models\\rl\\rl_198bf64d.zip",
+  "timesteps_trained": 10000,
+  "training_duration_seconds": 24.24,
+  "success_rate": 0.0,
+  "collision_rate": 0.333,
+  "mean_reward": 29.05,
+  "created_at": 1793200841.7275097,
+  "hyperparameters": {
+    "learning_rate": 0.0003,
+    "n_steps": 512,
+    "batch_size": 64,
+    "n_epochs": 10,
+    "gamma": 0.99,
+    "gae_lambda": 0.95,
+    "clip_range": 0.2,
+    "ent_coef": 0.01
+  },
+  "scenario_id": null
+}

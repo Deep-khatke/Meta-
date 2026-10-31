@@ -1,0 +1,201 @@
+{
+  "mission_id": "mission_eeb338e9",
+  "title": "Safety and Navigation Efficiency for ForgeBot-DD1",
+  "goal_description": "Investigate navigation safety and propose a supervised research mission.",
+  "mode": "supervised",
+  "status": "cancelled",
+  "target_metric": "total_collisions",
+  "target_threshold": 0.0,
+  "optimization_direction": "minimize",
+  "constraints": [
+    "max_linear_velocity <= 2.2",
+    "max_angular_velocity <= 3.8",
+    "total_obstacles == 7"
+  ],
+  "budget": {
+    "max_iterations": 2,
+    "max_experiments": 3,
+    "max_time_seconds": 120.0,
+    "used_iterations": 1,
+    "used_experiments": 1,
+    "elapsed_time": 0.0
+  },
+  "base_scenario_id": "scen_slalom_beta",
+  "baseline_run_id": "run_c34c4d4b",
+  "baseline_metrics": {
+    "run_id": "run_c34c4d4b",
+    "total_collisions": 0,
+    "success": false,
+    "time_to_goal": null,
+    "total_duration": 9.95,
+    "max_speed": 0.837,
+    "distance_traveled": 3.288
+  },
+  "active_hypothesis_id": "hypo_500840a4",
+  "active_plan_id": "plan_bdd30a49",
+  "best_candidate_plan_id": null,
+  "hypotheses": [
+    {
+      "hypothesis_id": "hypo_500840a4",
+      "mission_id": "mission_eeb338e9",
+      "title": "Increasing Tangential Gain for Improved Path Following",
+      "statement": "By increasing the tangential gain, the robot will be able to follow the path more closely, reducing the risk of collisions.",
+      "mechanism": "task.policy.tangential_gain",
+      "controlled_variable": "task.policy.tangential_gain",
+      "baseline_value": 0.5,
+      "proposed_value": 0.7,
+      "status": "untested",
+      "confidence": 0.5,
+      "supporting_evidence": [],
+      "contradicting_evidence": [],
+      "experiment_ids": [],
+      "created_at": 1793198033.8019195,
+      "updated_at": 1793198033.8019195
+    },
+    {
+      "hypothesis_id": "hypo_dd7c6434",
+      "mission_id": "mission_eeb338e9",
+      "title": "Reducing Safety Margin to Enhance Speed and Efficiency",
+      "statement": "Reducing the safety margin will allow the robot to navigate more closely to the path, potentially increasing its speed and efficiency without compromising too much on safety.",
+      "mechanism": "task.policy.safety_margin",
+      "controlled_variable": "task.policy.safety_margin",
+      "baseline_value": 0.2,
+      "proposed_value": 0.15,
+      "status": "untested",
+      "confidence": 0.5,
+      "supporting_evidence": [],
+      "contradicting_evidence": [],
+      "experiment_ids": [],
+      "created_at": 1793198033.8024275,
+      "updated_at": 1793198033.8024275
+    }
+  ],
+  "plans": [
+    {
+      "plan_id": "plan_bdd30a49",
+      "mission_id": "mission_eeb338e9",
+      "hypothesis_id": "hypo_500840a4",
+      "title": "Experiment for: Increasing Tangential Gain for Improved Path Following",
+      "rationale": "Candidate task.policy.tangential_gain=0.7: Expected Improvement=0.50, Info Gain=1.00, Prior Influence=No direct prior bias. Mechanism: task.policy.tangential_gain",
+      "base_scenario_id": "scen_slalom_beta",
+      "parameter_modifications": {
+        "task.policy.tangential_gain": 0.7
+      },
+      "seeds": [
+        100,
+        101,
+        102
+      ],
+      "expected_outcome": "By increasing the tangential gain, the robot will be able to follow the path more closely, reducing the risk of collisions.",
+      "candidate_rank": 1,
+      "expected_improvement": 0.5,
+      "information_gain": 1.0,
+      "acquisition_score": 0.65,
+      "selection_rationale": "Candidate task.policy.tangential_gain=0.7: Expected Improvement=0.50, Info Gain=1.00, Prior Influence=No direct prior bias. Mechanism: task.policy.tangential_gain",
+      "prior_evidence_influence": "Evaluated against 41 compatible prior runs (0 incompatible runs excluded). No direct prior bias",
+      "is_validated": true,
+      "validation_messages": [],
+      "user_approved": false,
+      "status": "pending_approval",
+      "created_at": 1793198034.9080772
+    }
+  ],
+  "outcomes": [],
+  "validation_report": null,
+  "action_log": [
+    {
+      "timestamp": 1793198029.2578545,
+      "step": "mission_compilation",
+      "action": "compile_objectives",
+      "status": "success",
+      "details": {
+        "target_metric": "total_collisions",
+        "target_threshold": 0.0,
+        "constraints": [
+          "max_linear_velocity <= 2.2",
+          "max_angular_velocity <= 3.8",
+          "total_obstacles == 7"
+        ],
+        "base_scenario_id": "scen_slalom_beta",
+        "reasoning_engine": "Ollama (qwen2.5:7b)"
+      },
+      "message": "Mission successfully compiled with target: total_collisions (minimize towards 0.0)."
+    },
+    {
+      "timestamp": 1793198029.3563945,
+      "step": "baseline_collection",
+      "action": "run_baseline_simulation",
+      "status": "success",
+      "details": {
+        "run_id": "run_c34c4d4b",
+        "total_collisions": 0,
+        "success": false,
+        "time_to_goal": null,
+        "total_duration": 9.95,
+        "max_speed": 0.837,
+        "distance_traveled": 3.288
+      },
+      "message": "Baseline established: 0 collisions, success=False, duration=9.95s."
+    },
+    {
+      "timestamp": 1793198033.8024275,
+      "step": "hypothesis_formulation",
+      "action": "formulate_competing_hypotheses",
+      "status": "success",
+      "details": {
+        "hypotheses_count": 2,
+        "titles": [
+          "Increasing Tangential Gain for Improved Path Following",
+          "Reducing Safety Margin to Enhance Speed and Efficiency"
+        ],
+        "reasoning_engine": "Ollama (qwen2.5:7b)"
+      },
+      "message": "Formulated 2 competing testable hypotheses grounded in physical dynamics."
+    },
+    {
+      "timestamp": 1793198034.909096,
+      "step": "experiment_design",
+      "action": "design_controlled_experiment",
+      "status": "success",
+      "details": {
+        "plan_id": "plan_bdd30a49",
+        "hypothesis_id": "hypo_500840a4",
+        "modifications": {
+          "task.policy.tangential_gain": 0.7
+        },
+        "seeds": [
+          100,
+          101,
+          102
+        ],
+        "status": "pending_approval"
+      },
+      "message": "Designed experiment plan 'Experiment for: Increasing Tangential Gain for Improved Path Following' with 3 trial seeds. Validation: PASSED."
+    },
+    {
+      "timestamp": 1793198034.9617462,
+      "step": "mission_control",
+      "action": "cancel_mission",
+      "status": "cancelled",
+      "details": {
+        "reason": "Safety margin too aggressive for arena constraints"
+      },
+      "message": "Mission cancelled: Safety margin too aggressive for arena constraints."
+    }
+  ],
+  "final_report_markdown": null,
+  "error_message": "Safety margin too aggressive for arena constraints",
+  "task_signature": {
+    "robot_type": "differential_drive_robot",
+    "robot_mass": 8.5,
+    "control_mode": "goal_seeking",
+    "physics_timestep": 0.005,
+    "sensor_types": [
+      "lidar",
+      "imu",
+      "wheel_encoders"
+    ]
+  },
+  "created_at": 1793198029.2578545,
+  "updated_at": 1793198029.2578545
+}

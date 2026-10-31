@@ -2,12 +2,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Activity, Terminal, ChevronUp, ChevronDown, Trash2,
   Copy, Check, AlertTriangle, Info, AlertCircle, FlaskConical,
-  ShieldAlert, Play, Pause, RotateCcw, CircleDot, Brain, Sparkles
+  ShieldAlert, Play, Pause, RotateCcw, CircleDot, Brain, Sparkles, Radio
 } from 'lucide-react';
 import { SimulationState, LogMessage, Project, ExperimentRunResult } from '../types';
 import { ExperimentPanel } from './ExperimentPanel';
 import { ResearchDashboard } from './ResearchDashboard';
 import { AIAssistantChat } from './AIAssistantChat';
+import { ROS2StudioPanel } from './ROS2StudioPanel';
 
 export interface TrajectoryPoint {
   time: number;
@@ -60,7 +61,7 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
   forcedTab = null,
 }) => {
   const [isExpanded, setIsExpanded] = useState(Boolean(forcedTab));
-  const [activeTab, setActiveTab] = useState<'telemetry' | 'contacts' | 'console' | 'experiments' | 'research' | 'ai_studio'>('experiments');
+  const [activeTab, setActiveTab] = useState<'telemetry' | 'contacts' | 'console' | 'experiments' | 'research' | 'ai_studio' | 'ros2'>('experiments');
   const [copied, setCopied] = useState(false);
   const [logFilter, setLogFilter] = useState<'all' | 'info' | 'warning' | 'error'>('all');
   const [panelHeight, setPanelHeight] = useState<number>(240);
@@ -314,6 +315,7 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
               e.stopPropagation();
               setActiveTab('ai_studio');
               setIsExpanded(true);
+              if (panelHeight < 420) setPanelHeight(480);
             }}
             style={{
               display: 'flex',
@@ -329,6 +331,28 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
           >
             <Sparkles size={13} color="#c084fc" />
             <span>Autonomous AI</span>
+          </div>
+
+          <div
+            onClick={(e) => {
+              e.stopPropagation();
+              setActiveTab('ros2');
+              setIsExpanded(true);
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+              padding: '3px 8px',
+              borderRadius: 4,
+              backgroundColor: activeTab === 'ros2' ? 'rgba(56, 189, 248, 0.2)' : 'transparent',
+              color: activeTab === 'ros2' ? '#38bdf8' : 'var(--text-secondary)',
+              cursor: 'pointer',
+            }}
+            title="ROS 2 Interoperability Studio, Live Topics & Bag Recorder"
+          >
+            <Radio size={13} color="#38bdf8" />
+            <span>ROS 2 Studio</span>
           </div>
         </div>
 
@@ -451,6 +475,10 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
                 activeLiveRun={activeLiveRun}
                 targetPosition={targetPosition}
               />
+            </div>
+          ) : activeTab === 'ros2' ? (
+            <div style={{ flex: 1, overflow: 'hidden' }}>
+              <ROS2StudioPanel onShowToast={onShowToast} simState={simState} />
             </div>
           ) : activeTab === 'telemetry' ? (
             <div style={{ flex: 1, display: 'flex', gap: 16, alignItems: 'center', overflow: 'hidden' }}>

@@ -256,6 +256,12 @@ class ObjectPhysicsState(BaseModel):
     position: List[float]
     quaternion: List[float] # [w, x, y, z]
     linear_velocity: List[float] = [0.0, 0.0, 0.0]
+    is_drone: bool = False
+    flight_mode: Optional[str] = None
+    altitude: Optional[float] = None
+    target_altitude: Optional[float] = None
+    rotors_active: bool = False
+    is_secondary_robot: bool = False
 
 
 class ContactInfo(BaseModel):
@@ -312,6 +318,19 @@ class SimulationState(BaseModel):
     joint_velocities: Dict[str, float] = Field(default_factory=dict)
     joint_torques: Dict[str, float] = Field(default_factory=dict)
     encoder_ticks: Dict[str, int] = Field(default_factory=dict)
+    
+    # Active RL Policy Status
+    rl_policy_active: bool = False
+    active_rl_policy_name: Optional[str] = None
+
+    # Live Interactive RL Training Telemetry (Isaac Lab Mode)
+    rl_training_active: bool = False
+    rl_training_episode: int = 0
+    rl_training_total_episodes: int = 0
+    rl_training_step: int = 0
+    rl_training_reward: float = 0.0
+    rl_training_status: Optional[str] = None
+    rl_training_model_name: Optional[str] = None
 
 
 class LogMessage(BaseModel):

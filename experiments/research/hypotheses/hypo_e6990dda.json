@@ -1,0 +1,17 @@
+{
+  "hypothesis_id": "hypo_e6990dda",
+  "mission_id": "mission_143487b6",
+  "title": "Repulsion Corridor Clearance Hypothesis",
+  "statement": "Decreasing safety margin slightly will reduce premature deceleration and repulsive drag between closely-spaced obstacles.",
+  "mechanism": "A slightly tighter safety margin allows the robot to enter navigable gaps without excessive repulsive braking.",
+  "controlled_variable": "task.policy.safety_margin",
+  "baseline_value": 0.65,
+  "proposed_value": 0.55,
+  "status": "untested",
+  "confidence": 0.5,
+  "supporting_evidence": [],
+  "contradicting_evidence": [],
+  "experiment_ids": [],
+  "created_at": 1793192383.170139,
+  "updated_at": 1793192383.170139
+}

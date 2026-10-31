@@ -1,0 +1,219 @@
+{
+  "mission_id": "mission_98f0abf6",
+  "title": "Scientific Investigation: Propose a supervised research mission to test aggr",
+  "goal_description": "Propose a supervised research mission to test aggressive speed",
+  "mode": "supervised",
+  "status": "cancelled",
+  "target_metric": "time_to_goal",
+  "target_threshold": 8.0,
+  "optimization_direction": "minimize",
+  "constraints": [
+    "max_linear_velocity <= 1.5",
+    "timeout <= 25.0",
+    "total_collisions == 0"
+  ],
+  "budget": {
+    "max_iterations": 5,
+    "max_experiments": 8,
+    "max_time_seconds": 120.0,
+    "used_iterations": 1,
+    "used_experiments": 1,
+    "elapsed_time": 0.0
+  },
+  "base_scenario_id": "scen_slalom_beta",
+  "baseline_run_id": "run_d02198d7",
+  "baseline_metrics": {
+    "run_id": "run_d02198d7",
+    "total_collisions": 0,
+    "success": false,
+    "time_to_goal": null,
+    "total_duration": 9.95,
+    "max_speed": 0.837,
+    "distance_traveled": 3.288
+  },
+  "active_hypothesis_id": "hypo_c6cf34b6",
+  "active_plan_id": "plan_5ae7826a",
+  "best_candidate_plan_id": null,
+  "hypotheses": [
+    {
+      "hypothesis_id": "hypo_c6cf34b6",
+      "mission_id": "mission_98f0abf6",
+      "title": "Vortex Circulation Obstacle Bypass Hypothesis",
+      "statement": "Increasing tangential vortex circulation gain will break repulsive equilibrium and guide the robot smoothly past obstacles.",
+      "mechanism": "Tangential circulation creates a perpendicular vortex force around obstacles, preventing head-on stall.",
+      "controlled_variable": "task.policy.tangential_gain",
+      "baseline_value": 1.3,
+      "proposed_value": 2.2,
+      "status": "untested",
+      "confidence": 0.5,
+      "supporting_evidence": [],
+      "contradicting_evidence": [],
+      "experiment_ids": [],
+      "created_at": 1793196143.042499,
+      "updated_at": 1793196143.042499
+    },
+    {
+      "hypothesis_id": "hypo_fa9b0ba5",
+      "mission_id": "mission_98f0abf6",
+      "title": "Repulsion Corridor Clearance Hypothesis",
+      "statement": "Decreasing safety margin slightly will reduce premature deceleration and repulsive drag between closely-spaced obstacles.",
+      "mechanism": "A slightly tighter safety margin allows the robot to enter navigable gaps without excessive repulsive braking.",
+      "controlled_variable": "task.policy.safety_margin",
+      "baseline_value": 0.65,
+      "proposed_value": 0.55,
+      "status": "untested",
+      "confidence": 0.5,
+      "supporting_evidence": [],
+      "contradicting_evidence": [],
+      "experiment_ids": [],
+      "created_at": 1793196143.042499,
+      "updated_at": 1793196143.042499
+    },
+    {
+      "hypothesis_id": "hypo_bc9918d5",
+      "mission_id": "mission_98f0abf6",
+      "title": "Angular Steering Agility Hypothesis",
+      "statement": "Increasing maximum turn rate will allow the robot to quickly align with tangent escape vectors.",
+      "mechanism": "Higher angular agility avoids control saturation during rapid heading changes around obstacles.",
+      "controlled_variable": "task.policy.max_turn_rate",
+      "baseline_value": 2.5,
+      "proposed_value": 3.2,
+      "status": "untested",
+      "confidence": 0.5,
+      "supporting_evidence": [],
+      "contradicting_evidence": [],
+      "experiment_ids": [],
+      "created_at": 1793196143.042499,
+      "updated_at": 1793196143.042499
+    }
+  ],
+  "plans": [
+    {
+      "plan_id": "plan_5ae7826a",
+      "mission_id": "mission_98f0abf6",
+      "hypothesis_id": "hypo_c6cf34b6",
+      "title": "Experiment for: Vortex Circulation Obstacle Bypass Hypothesis",
+      "rationale": "Candidate task.policy.tangential_gain=2.2: Expected Improvement=0.50, Info Gain=1.00, Prior Influence=No direct prior bias. Mechanism: Tangential circulation creates a perpendicular vortex force around obstacles, preventing head-on stall.",
+      "base_scenario_id": "scen_slalom_beta",
+      "parameter_modifications": {
+        "task.policy.tangential_gain": 2.2
+      },
+      "seeds": [
+        100,
+        101,
+        102
+      ],
+      "expected_outcome": "Increasing tangential vortex circulation gain will break repulsive equilibrium and guide the robot smoothly past obstacles.",
+      "candidate_rank": 1,
+      "expected_improvement": 0.5,
+      "information_gain": 1.0,
+      "acquisition_score": 0.65,
+      "selection_rationale": "Candidate task.policy.tangential_gain=2.2: Expected Improvement=0.50, Info Gain=1.00, Prior Influence=No direct prior bias. Mechanism: Tangential circulation creates a perpendicular vortex force around obstacles, preventing head-on stall.",
+      "prior_evidence_influence": "Evaluated against 40 compatible prior runs (0 incompatible runs excluded). No direct prior bias",
+      "is_validated": true,
+      "validation_messages": [],
+      "user_approved": false,
+      "status": "pending_approval",
+      "created_at": 1793196143.8889458
+    }
+  ],
+  "outcomes": [],
+  "validation_report": null,
+  "action_log": [
+    {
+      "timestamp": 1793196142.9426296,
+      "step": "mission_compilation",
+      "action": "compile_objectives",
+      "status": "success",
+      "details": {
+        "target_metric": "time_to_goal",
+        "target_threshold": 8.0,
+        "constraints": [
+          "max_linear_velocity <= 1.5",
+          "timeout <= 25.0",
+          "total_collisions == 0"
+        ],
+        "base_scenario_id": "scen_slalom_beta",
+        "reasoning_engine": "DeterministicRoboticsHeuristicEngine-v1"
+      },
+      "message": "Mission successfully compiled with target: time_to_goal (minimize towards 8.0)."
+    },
+    {
+      "timestamp": 1793196143.0416424,
+      "step": "baseline_collection",
+      "action": "run_baseline_simulation",
+      "status": "success",
+      "details": {
+        "run_id": "run_d02198d7",
+        "total_collisions": 0,
+        "success": false,
+        "time_to_goal": null,
+        "total_duration": 9.95,
+        "max_speed": 0.837,
+        "distance_traveled": 3.288
+      },
+      "message": "Baseline established: 0 collisions, success=False, duration=9.95s."
+    },
+    {
+      "timestamp": 1793196143.0430088,
+      "step": "hypothesis_formulation",
+      "action": "formulate_competing_hypotheses",
+      "status": "success",
+      "details": {
+        "hypotheses_count": 3,
+        "titles": [
+          "Vortex Circulation Obstacle Bypass Hypothesis",
+          "Repulsion Corridor Clearance Hypothesis",
+          "Angular Steering Agility Hypothesis"
+        ],
+        "reasoning_engine": "DeterministicRoboticsHeuristicEngine-v1"
+      },
+      "message": "Formulated 3 competing testable hypotheses grounded in physical dynamics."
+    },
+    {
+      "timestamp": 1793196143.8904686,
+      "step": "experiment_design",
+      "action": "design_controlled_experiment",
+      "status": "success",
+      "details": {
+        "plan_id": "plan_5ae7826a",
+        "hypothesis_id": "hypo_c6cf34b6",
+        "modifications": {
+          "task.policy.tangential_gain": 2.2
+        },
+        "seeds": [
+          100,
+          101,
+          102
+        ],
+        "status": "pending_approval"
+      },
+      "message": "Designed experiment plan 'Experiment for: Vortex Circulation Obstacle Bypass Hypothesis' with 3 trial seeds. Validation: PASSED."
+    },
+    {
+      "timestamp": 1793196144.0147943,
+      "step": "mission_control",
+      "action": "cancel_mission",
+      "status": "cancelled",
+      "details": {
+        "reason": "Speed is excessively risky in crowded arena"
+      },
+      "message": "Mission cancelled: Speed is excessively risky in crowded arena."
+    }
+  ],
+  "final_report_markdown": null,
+  "error_message": "Speed is excessively risky in crowded arena",
+  "task_signature": {
+    "robot_type": "differential_drive_robot",
+    "robot_mass": 8.5,
+    "control_mode": "goal_seeking",
+    "physics_timestep": 0.005,
+    "sensor_types": [
+      "lidar",
+      "imu",
+      "wheel_encoders"
+    ]
+  },
+  "created_at": 1793196142.9426296,
+  "updated_at": 1793196142.9426296
+}
