@@ -131,7 +131,7 @@ def get_reasoning_provider_status():
 
 class RunBenchmarkRequest(BaseModel):
     scenario_id: str = Field(default="scen_slalom_beta", description="Scenario ID to benchmark")
-    evaluation_budget: int = Field(default=9, ge=3, le=30, description="Total simulation evaluations allowed per strategy")
+    evaluation_budget: int = Field(default=24, ge=3, le=60, description="Total simulation evaluations allowed per strategy (>=18 recommended so Bayesian optimization can fit its GP surrogate fairly)")
     seeds: Optional[List[int]] = Field(default=None)
 
 

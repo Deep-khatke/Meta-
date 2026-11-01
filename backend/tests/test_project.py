@@ -33,16 +33,25 @@ def test_project_manager_persistence():
 def test_project_manager_reset_to_saved():
     with tempfile.TemporaryDirectory() as tmpdir:
         pm = ProjectManager(storage_dir=Path(tmpdir))
+        # Seed a scene object, then save, so the snapshot has content to restore.
+        pm.get_current().objects.append(SceneObject(
+            id="snapshot_box",
+            name="Snapshot Box",
+            type="box",
+            position=[1.0, 0.0, 0.3],
+            size=[0.2, 0.2, 0.2],
+        ))
         pm.save_project_to_disk("base.rfproj.json")
-        
+
         # Mutate current project
         pm.get_current().name = "Modified Name"
         pm.get_current().objects.clear()
-        
+
         # Reset to saved
         restored = pm.reset_to_saved()
         assert restored.name == "Workspace Alpha"
         assert len(restored.objects) > 0
+        assert any(o.id == "snapshot_box" for o in restored.objects)
 
 def test_reject_incompatible_version():
     pm = ProjectManager()

@@ -227,6 +227,11 @@ class Project(BaseModel):
     name: str = Field(default="Default Scene", min_length=1, max_length=100)
     description: Optional[str] = "RoboForge Simulation Project"
     robot: RobotConfig = Field(default_factory=RobotConfig)
+    robot_active: bool = Field(
+        default=True,
+        description="When False, the built-in differential-drive robot is omitted from the "
+                    "world so the workspace can start empty with nothing active.",
+    )
     generic_robot: Optional[GenericRobotModel] = None
     sensors: SensorSettings = Field(default_factory=SensorSettings)
     objects: List[SceneObject] = Field(default_factory=list)
@@ -331,6 +336,8 @@ class SimulationState(BaseModel):
     rl_training_reward: float = 0.0
     rl_training_status: Optional[str] = None
     rl_training_model_name: Optional[str] = None
+    rl_training_percent: float = 0.0  # 0..100 live progress within the active training job
+    rl_target_position: Optional[List[float]] = None  # authoritative goal of the active policy
 
 
 class LogMessage(BaseModel):

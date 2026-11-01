@@ -7,7 +7,7 @@ import {
   Move, RotateCw, Maximize2, X, Eye, EyeOff, Radio, Magnet, Video, Zap,
   GitFork, Layers, Route, FileUp, Trash2, Cpu, Sparkles
 } from 'lucide-react';
-import { importURDF, importMJCF } from '../services/api';
+import { importURDF, importMJCF, trainDroneLive, trainArmLive, trainRoverLive } from '../services/api';
 
 interface Viewport3DProps {
   project: Project;
@@ -191,7 +191,8 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
       obstaclesGroupRef.current = obsGrp;
     }
 
-    // 3. Create Robot Visual Model
+    // 3. Create Robot Visual Model (only when a robot is active in the workspace)
+    if (proj.robot_active !== false) {
     const rConfig = proj.robot;
     const robotGroup = new THREE.Group();
     robotGroup.name = 'robot';
@@ -351,6 +352,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     robotGroup.position.set(initX, initY, initZ);
     scene.add(robotGroup);
     robotGroupRef.current = robotGroup;
+    } // end robot_active guard
 
     // 4. Generic Articulated Robot Kinematic Tree
     const oldGeneric = scene.getObjectByName('generic_robot_group');
@@ -2052,11 +2054,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
             onClick={async (e) => {
               e.stopPropagation();
               try {
-                await fetch('http://127.0.0.1:8000/api/rl/train-drone-live', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ drone_identifier: 'drone', target_altitude: 1.5, total_episodes: 4 })
-                });
+                await trainDroneLive(4);
               } catch (err) {
                 console.error('Failed to trigger live drone training:', err);
               }
@@ -2084,11 +2082,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
             onClick={async (e) => {
               e.stopPropagation();
               try {
-                await fetch('http://127.0.0.1:8000/api/rl/train-arm-live', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ arm_identifier: 'arm', total_episodes: 4 })
-                });
+                await trainArmLive(4);
               } catch (err) {
                 console.error('Failed to trigger live arm training:', err);
               }
@@ -2115,11 +2109,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
             onClick={async (e) => {
               e.stopPropagation();
               try {
-                await fetch('http://127.0.0.1:8000/api/rl/train-rover-live', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ robot_identifier: 'robot', total_episodes: 4 })
-                });
+                await trainRoverLive(4);
               } catch (err) {
                 console.error('Failed to trigger live rover training:', err);
               }
@@ -2362,7 +2352,61 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
         </div>
       )}
 
+      {/* Live PPO Training HUD (top-center) -- shows genuine, streaming training progress */}
+      {simState?.rl_training_active && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 56,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 20,
+            minWidth: 340,
+            maxWidth: 460,
+            backgroundColor: 'rgba(12, 14, 20, 0.92)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(168, 85, 247, 0.6)',
+            borderRadius: 12,
+            padding: '12px 16px',
+            boxShadow: '0 8px 32px rgba(168, 85, 247, 0.35)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontWeight: 700, fontSize: 13, color: '#e9d5ff' }}>
+              <Cpu size={15} color="#c084fc" />
+              <span>Live PPO Training{simState.rl_training_model_name ? ` — ${simState.rl_training_model_name}` : ''}</span>
+            </div>
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#c084fc' }}>
+              {Math.round(simState.rl_training_percent ?? 0)}%
+            </span>
+          </div>
+          {/* Progress bar */}
+          <div style={{ height: 8, borderRadius: 999, background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+            <div
+              style={{
+                height: '100%',
+                width: `${Math.max(2, Math.min(100, simState.rl_training_percent ?? 0))}%`,
+                background: 'linear-gradient(90deg, #a855f7, #38bdf8)',
+                transition: 'width 0.3s ease',
+                boxShadow: '0 0 12px rgba(168,85,247,0.7)',
+              }}
+            />
+          </div>
+          <div style={{ display: 'flex', gap: 16, marginTop: 8, fontSize: 11, color: 'var(--text-secondary, #9ca3af)' }}>
+            <span>Chunk: <b style={{ color: '#e5e7eb' }}>{simState.rl_training_episode ?? 0}/{simState.rl_training_total_episodes ?? 0}</b></span>
+            <span>Steps: <b style={{ color: '#e5e7eb' }}>{(simState.rl_training_step ?? 0).toLocaleString()}</b></span>
+            <span>Reward: <b style={{ color: (simState.rl_training_reward ?? 0) >= 0 ? '#34d399' : '#f87171' }}>{(simState.rl_training_reward ?? 0).toFixed(1)}</b></span>
+          </div>
+          {simState.rl_training_status && (
+            <div style={{ marginTop: 6, fontSize: 10.5, color: '#8b5cf6', fontFamily: 'monospace', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {simState.rl_training_status}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Real-time Telemetry HUD (Top Left) */}
+      {project?.robot_active !== false && (
       <div
         style={{
           position: 'absolute',
@@ -2401,6 +2445,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
           </div>
         )}
       </div>
+      )}
 
       {/* Picture-in-Picture Robot Eye Vision Camera Feed HUD (Bottom Right) */}
       {isCameraEnabled && (

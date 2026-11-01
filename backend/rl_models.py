@@ -27,6 +27,10 @@ class RLTrainingConfig(BaseModel):
     hyperparameters: RLHyperparameters = Field(default_factory=RLHyperparameters)
     custom_reward_code: Optional[str] = None
     max_episode_steps: int = 1000
+    # Free-form hint describing the robot/task (e.g. "drone takeoff", "arm reach"); used to
+    # select the correct Gym environment and by the AI to carry task context.
+    notes: Optional[str] = None
+    robot_kind: Optional[str] = None  # "mobile" | "arm" | "drone" | "generic" (auto-detected if None)
 
 
 class RLTrainingMetrics(BaseModel):
@@ -65,6 +69,9 @@ class RLModelMetadata(BaseModel):
     created_at: float = Field(default_factory=time.time)
     hyperparameters: Dict[str, Any] = Field(default_factory=dict)
     scenario_id: Optional[str] = None
+    robot_kind: str = "rover"  # "drone" | "arm" | "generic" | "rover" -- which entity the policy drives
+    target_entity_id: Optional[str] = None  # id of the scene entity (e.g. drone id) the policy controls
+    target_position: Optional[List[float]] = None  # world goal the policy was trained to reach
 
 
 class RLEvaluationRequest(BaseModel):

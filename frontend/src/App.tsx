@@ -9,7 +9,7 @@ import {
   resetProjectToSaved, controlSim, addSceneObject, updateSceneObject,
   deleteSceneObject, clearServerLogs, SimulationSocket, trainAvoidancePolicy, runLiveExperiment,
   duplicateSceneObject, duplicateProject, exportScene, importScene, importURDF, controlRobotJoint,
-  clearGenericRobot, setAutoDrive, setGenericRobotModel
+  clearGenericRobot, setAutoDrive, setGenericRobotModel, setRobotActive, removeActiveRobot
 } from './services/api';
 import { Toolbar } from './components/Toolbar';
 import { ScenePanel } from './components/ScenePanel';
@@ -20,6 +20,7 @@ import { AssetLibraryPanel } from './components/AssetLibraryPanel';
 import { RobotCreatorModal } from './components/RobotCreatorModal';
 import { EnvironmentCreatorModal } from './components/EnvironmentCreatorModal';
 import { RobotStudioModal } from './components/RobotStudioModal';
+import { LandingScreen, WorkspaceChoice } from './components/LandingScreen';
 import { useKeyboardTeleop } from './hooks/useKeyboardTeleop';
 import { BrainCircuit, Sparkles, CheckCircle2, XCircle, X, Play, ShieldAlert, Upload, FileCode, AlertTriangle, FileText } from 'lucide-react';
 
@@ -156,6 +157,10 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
 
 export const AppContent: React.FC = () => {
   const [project, setProject] = useState<Project | null>(null);
+  // Landing / onboarding: show the workspace chooser before entering the main app.
+  const [showLanding, setShowLanding] = useState<boolean>(() => {
+    try { return sessionStorage.getItem('roboforge_entered') !== '1'; } catch { return true; }
+  });
   const [simState, setSimState] = useState<SimulationState>(initialSimState);
   const [logs, setLogs] = useState<LogMessage[]>([]);
   const [isConnected, setIsConnected] = useState<boolean>(false);
@@ -342,13 +347,36 @@ export const AppContent: React.FC = () => {
     }
   };
 
+  const handleRemoveRobot = async () => {
+    try {
+      await removeActiveRobot();
+      setProject((prev) => (prev ? { ...prev, robot_active: false } : prev));
+      setSelectedObjectId(null);
+      showToast('Robot removed — workspace now has nothing active');
+    } catch (e: any) {
+      showToast(e.message);
+    }
+  };
+
+  const handleRestoreRobot = async () => {
+    try {
+      await setRobotActive(true);
+      setProject((prev) => (prev ? { ...prev, robot_active: true } : prev));
+      showToast('Differential-drive robot added to workspace');
+    } catch (e: any) {
+      showToast(e.message);
+    }
+  };
+
   // Push snapshot to undo stack
   const pushHistory = useCallback((currentObjects: SceneObject[]) => {
     setUndoStack((prev) => [...prev.slice(-30), currentObjects.map((o) => ({ ...o }))]);
     setRedoStack([]);
   }, []);
 
-  // Initial Project Load
+  // Initial Project Load: fetch the current project so the backend is reachable and the
+  // "Continue Last Session" card is available, but stay on the landing screen until the user
+  // chooses a workspace.
   useEffect(() => {
     fetchProject()
       .then((p) => {
@@ -360,11 +388,54 @@ export const AppContent: React.FC = () => {
       });
   }, []);
 
+  // Handle the user's workspace choice from the landing screen.
+  const handleWorkspaceChoice = useCallback(async (choice: WorkspaceChoice) => {
+    try {
+      if (choice.kind === 'continue') {
+        const p = await fetchProject();
+        setProject(p);
+      } else if (choice.kind === 'empty') {
+        const p = await createNewProject(choice.name, 'empty');
+        setProject(p);
+      } else if (choice.kind === 'diff_drive') {
+        const p = await createNewProject(choice.name, 'diff_drive');
+        setProject(p);
+      } else if (choice.kind === 'open') {
+        const p = await loadProjectFromJSON(choice.json);
+        setProject(p);
+      } else if (choice.kind === 'import_urdf') {
+        // Fresh empty workspace, then import the robot into it.
+        await createNewProject(choice.name, 'empty');
+        await importURDF(choice.urdf);
+        const p = await fetchProject();
+        setProject(p);
+        showToast(`Imported robot into '${choice.name}'`);
+      }
+      setSelectedObjectId(null);
+      try { sessionStorage.setItem('roboforge_entered', '1'); } catch {}
+      setShowLanding(false);
+    } catch (e: any) {
+      showToast(e.message || 'Failed to start workspace');
+    }
+  }, []);
+
   // Initialize WebSocket stream
   useEffect(() => {
     const sock = new SimulationSocket(
       (newState) => {
         setSimState(newState);
+
+        // Keep the 3D target beacon synced to the authoritative policy goal when a policy is
+        // active, so the user always sees where the robot is driving.
+        const rlTgt = (newState as any).rl_target_position;
+        if (rlTgt && Array.isArray(rlTgt) && rlTgt.length >= 2) {
+          setTargetPosition((prev) => {
+            if (prev && Math.abs(prev[0] - rlTgt[0]) < 1e-3 && Math.abs(prev[1] - rlTgt[1]) < 1e-3) {
+              return prev;
+            }
+            return [rlTgt[0], rlTgt[1], rlTgt[2] ?? 0.25];
+          });
+        }
 
         // Record live trajectory points if active
         if (isRecordingTrajectory && newState.robot) {
@@ -535,10 +606,12 @@ export const AppContent: React.FC = () => {
     const name = window.prompt('Enter new simulation project name:', 'New Robotics Scene');
     if (!name) return;
     try {
-      const newProj = await createNewProject(name);
+      // Start empty (no active robot) so the workspace is a blank slate; the user adds a robot,
+      // drone, or imports a URDF when they want one.
+      const newProj = await createNewProject(name, 'empty');
       setProject(newProj);
       setSelectedObjectId(null);
-      showToast(`Created new project '${newProj.name}'`);
+      showToast(`Created new empty project '${newProj.name}'`);
     } catch (e: any) {
       showToast(e.message);
     }
@@ -759,11 +832,43 @@ export const AppContent: React.FC = () => {
     try {
       const res = await importURDF(urdfInputText);
       setUrdfImportResult(res);
+      if (res.status === 'error') {
+        const msg = (res.errors && res.errors[0]) || res.message || 'URDF parse failed';
+        showToast(`URDF import failed: ${msg}`);
+        return;
+      }
       const p = await fetchProject();
       setProject(p);
-      showToast(res.robot ? `Imported robot '${res.robot.name}'` : 'URDF parsed');
+      setSelectedObjectId('generic_robot');
+      showToast(res.robot ? `Imported robot '${res.robot.name}' (${res.total_links} links, ${res.total_joints} joints)` : 'URDF parsed');
+      setShowURDFModal(false);
     } catch (e: any) {
       showToast(`URDF import failed: ${e.message}`);
+    } finally {
+      setIsImportingURDF(false);
+    }
+  };
+
+  const handleURDFFileSelected = async (file: File) => {
+    try {
+      const text = await file.text();
+      setUrdfInputText(text);
+      // Auto-import immediately after loading a file for a frictionless flow.
+      setIsImportingURDF(true);
+      const res = await importURDF(text);
+      setUrdfImportResult(res);
+      if (res.status === 'error') {
+        const msg = (res.errors && res.errors[0]) || res.message || 'URDF parse failed';
+        showToast(`URDF import failed: ${msg}`);
+        return;
+      }
+      const p = await fetchProject();
+      setProject(p);
+      setSelectedObjectId('generic_robot');
+      showToast(res.robot ? `Imported '${res.robot.name}' from ${file.name}` : `Loaded ${file.name}`);
+      setShowURDFModal(false);
+    } catch (e: any) {
+      showToast(`Failed to load URDF file: ${e.message}`);
     } finally {
       setIsImportingURDF(false);
     }
@@ -866,6 +971,16 @@ export const AppContent: React.FC = () => {
     await clearServerLogs();
     setLogs([]);
   };
+
+  // Landing / workspace chooser gate (shown on first entry each browser session).
+  if (showLanding) {
+    return (
+      <LandingScreen
+        hasLastSession={project !== null}
+        onChoose={handleWorkspaceChoice}
+      />
+    );
+  }
 
   if (!project) {
     return (
@@ -970,6 +1085,8 @@ export const AppContent: React.FC = () => {
               onDuplicateObject={handleDuplicateObject}
               onOpenURDFModal={() => setShowURDFModal(true)}
               onClearGenericRobot={handleClearGenericRobot}
+              onRemoveRobot={handleRemoveRobot}
+              onRestoreRobot={handleRestoreRobot}
             />
           )}
           <button
@@ -1149,16 +1266,51 @@ export const AppContent: React.FC = () => {
             <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
-                  Paste standard URDF XML definition or load sample:
+                  Paste URDF XML, or load from your computer:
                 </span>
-                <button
-                  className="rf-btn"
-                  style={{ fontSize: 11, padding: '2px 8px' }}
-                  onClick={() => setUrdfInputText(SAMPLE_URDF_TEXT)}
-                >
-                  Load 2-DOF Sample Arm
-                </button>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <input
+                    type="file"
+                    accept=".urdf,.xml,text/xml,application/xml"
+                    style={{ display: 'none' }}
+                    id="urdf-file-input"
+                    onChange={(e) => {
+                      const f = e.target.files && e.target.files[0];
+                      if (f) handleURDFFileSelected(f);
+                      e.currentTarget.value = '';
+                    }}
+                  />
+                  <button
+                    className="rf-btn"
+                    style={{ fontSize: 11, padding: '2px 8px', gap: 4, color: 'var(--accent-blue)', borderColor: 'rgba(56,189,248,0.4)' }}
+                    onClick={() => document.getElementById('urdf-file-input')?.click()}
+                  >
+                    <Upload size={12} />
+                    <span>Upload .urdf / .xml</span>
+                  </button>
+                  <button
+                    className="rf-btn"
+                    style={{ fontSize: 11, padding: '2px 8px' }}
+                    onClick={() => setUrdfInputText(SAMPLE_URDF_TEXT)}
+                  >
+                    Load Sample
+                  </button>
+                </div>
               </div>
+
+              {/* Parse error banner */}
+              {urdfImportResult && urdfImportResult.status === 'error' && (
+                <div
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    background: 'rgba(239, 68, 68, 0.12)', border: '1px solid rgba(239, 68, 68, 0.4)',
+                    padding: 10, borderRadius: 6, fontSize: 11, color: '#fca5a5',
+                  }}
+                >
+                  <AlertTriangle size={15} />
+                  <span>{(urdfImportResult.errors && urdfImportResult.errors[0]) || (urdfImportResult as any).message || 'Failed to parse URDF.'}</span>
+                </div>
+              )}
 
               <textarea
                 value={urdfInputText}

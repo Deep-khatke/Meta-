@@ -206,6 +206,7 @@ export interface Project {
   name: string;
   description?: string;
   robot: RobotConfig;
+  robot_active?: boolean;
   generic_robot?: GenericRobotModel | null;
   sensors?: SensorSettings;
   objects: SceneObject[];
@@ -272,6 +273,8 @@ export interface SimulationState {
   rl_training_reward?: number;
   rl_training_status?: string;
   rl_training_model_name?: string;
+  rl_training_percent?: number;
+  rl_target_position?: [number, number, number] | null;
 }
 
 export interface LogMessage {
@@ -467,6 +470,8 @@ export interface RLModelMetadata {
   created_at: number;
   hyperparameters: Record<string, any>;
   scenario_id?: string;
+  robot_kind?: string;
+  target_entity_id?: string | null;
 }
 
 export interface PolicyBenchmarkComparison {

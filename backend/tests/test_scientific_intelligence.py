@@ -304,8 +304,12 @@ def test_research_memory_persistence_and_search():
 # 8. Model Provider Transparency & Blocked State
 # ---------------------------------------------------------------------------
 
-def test_model_provider_blocked_state_on_missing_credentials():
+def test_model_provider_blocked_state_on_missing_credentials(monkeypatch):
     """Verify LLM reasoning provider truthfully reports blocked status when no API key is set."""
+    # Ensure a hermetic no-credentials environment regardless of any ambient .env configuration.
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
     provider = LanguageModelReasoningProvider(api_key=None)
     assert provider.is_available() is False
     assert provider.provider_type == "blocked"

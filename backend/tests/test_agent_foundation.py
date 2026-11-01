@@ -81,6 +81,14 @@ def test_continuous_trajectory_turn_in_place_alignment():
 
 def test_continuous_trajectory_cancellation_via_agent_interface():
     """Verify trajectory execution and cancellation through the agent interface."""
+    # Hermetic: reset to a clean default project (robot at origin, no obstacles) so planning
+    # does not depend on an ambient last_session.json that may hold a teleported robot.
+    from backend.project_manager import get_default_project
+    clean = get_default_project()
+    engine.project = clean
+    project_manager.current_project = clean
+    engine.rebuild_model(preserve_state=False)
+
     # Execute trajectory towards clear workspace coordinate
     traj_state = agent_interface.execute_motion_trajectory(target_pos=[0.0, 1.2])
     assert traj_state.status in ("running", "idle", "planning")

@@ -59,3 +59,30 @@ Thumbs.db
 experiments/runs/run_*.json
 experiments/chat_memory/
 
+
+# Generated RL model checkpoints & registry (trained at runtime, not source)
+models/rl/*.zip
+models/rl/*.json
+models/rl_archive/
+models/rl/registry.json
+
+# Generated experiment artifacts (produced by running the app)
+experiments/research/missions/
+experiments/research/plans/
+experiments/research/hypotheses/
+experiments/research/reports/
+experiments/hypotheses/
+experiments/rl_evaluations/
+experiments/rosbags/
+experiments/scenarios/
+experiments/chat_memory/
+experiments/archive/
+
+# Generated benchmark outputs
+benchmarks/discovery/benchmark_report.json
+benchmarks/discovery/benchmark_summary.md
+
+# Saved project sessions (runtime state)
+projects/last_session.json
+projects/*.rfproj.json
+projects/archive/

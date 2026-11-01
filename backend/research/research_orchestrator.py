@@ -19,6 +19,7 @@ from backend.research.evidence_analyzer import evidence_analyzer
 from backend.research.research_validator import research_validator
 from backend.research.simulation_tools import simulation_tools
 from backend.research.research_memory import research_memory
+from backend.research.optimization_campaign import optimization_campaign, TUNABLE_PARAMETERS
 
 logger = logging.getLogger("roboforge.research.orchestrator")
 
@@ -29,6 +30,8 @@ class ResearchOrchestrator:
     def __init__(self, memory=None, tools=None):
         self.memory = memory or research_memory
         self.tools = tools or simulation_tools
+        # Per-mission per-seed baseline samples for genuine statistical testing.
+        self._baseline_samples: Dict[str, Dict[str, List[float]]] = {}
 
     def start_mission(
         self,
@@ -72,22 +75,37 @@ class ResearchOrchestrator:
                 mission.status = "baseline_running"
                 self.memory.save_mission(mission)
 
-                logger.info("Executing authoritative baseline simulation for mission '%s'", mission.mission_id)
-                base_run = self.tools.run_scenario(mission.base_scenario_id, seed=100)
+                logger.info("Executing authoritative multi-seed baseline for mission '%s'", mission.mission_id)
+                baseline_seeds = [100, 101, 102]
+                base_agg = self.tools.run_multi_trial(mission.base_scenario_id, seeds=baseline_seeds)
+                base_runs = base_agg.get("runs", [])
+                base_run = base_runs[0]
+
+                # Store per-seed baseline samples for genuine statistical testing downstream.
+                self._baseline_samples[mission.mission_id] = {
+                    "collisions": [float(r.metrics.total_collisions) for r in base_runs],
+                    "success": [1.0 if r.metrics.success else 0.0 for r in base_runs],
+                    "time": [
+                        float(r.metrics.time_to_goal if r.metrics.time_to_goal is not None else r.metrics.total_duration)
+                        for r in base_runs
+                    ],
+                }
 
                 b_dict = {
                     "run_id": base_run.run_id,
-                    "total_collisions": base_run.metrics.total_collisions,
-                    "success": base_run.metrics.success,
-                    "time_to_goal": base_run.metrics.time_to_goal,
-                    "total_duration": base_run.metrics.total_duration,
+                    "total_collisions": base_agg.get("mean_collisions", base_run.metrics.total_collisions),
+                    "success": base_agg.get("success_rate", 0.0) >= 0.5,
+                    "success_rate": base_agg.get("success_rate", 0.0),
+                    "time_to_goal": base_agg.get("mean_time_to_goal", base_run.metrics.time_to_goal),
+                    "total_duration": base_agg.get("mean_duration", base_run.metrics.total_duration),
                     "max_speed": base_run.metrics.max_linear_speed,
-                    "distance_traveled": base_run.metrics.total_distance_traveled
+                    "distance_traveled": base_run.metrics.total_distance_traveled,
+                    "baseline_seeds": baseline_seeds,
                 }
 
                 mission.baseline_run_id = base_run.run_id
                 mission.baseline_metrics = b_dict
-                mission.budget.used_experiments += 1
+                mission.budget.used_experiments += len(baseline_seeds)
 
                 mission.action_log.append(ActionLogEntry(
                     step="baseline_collection",
@@ -144,13 +162,14 @@ class ResearchOrchestrator:
                 )
                 mission.budget.used_experiments += len(active_plan.seeds)
 
-                # STATE 4: ANALYZING -> EVIDENCE COMPARISON
+                # STATE 4: ANALYZING -> EVIDENCE COMPARISON (with real statistical tests)
                 outcome = evidence_analyzer.analyze(
                     plan=active_plan,
                     baseline_metrics=mission.baseline_metrics or {},
                     trial_data=trial_data,
                     target_metric=mission.target_metric,
-                    optimization_direction=mission.optimization_direction
+                    optimization_direction=mission.optimization_direction,
+                    baseline_samples=self._baseline_samples.get(mission.mission_id)
                 )
                 mission.outcomes.append(outcome)
 

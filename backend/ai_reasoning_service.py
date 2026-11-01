@@ -488,19 +488,48 @@ class AIReasoningService:
         else:
             drone_id = drone_obj.id
 
+        # Resolve a trained DRONE policy to deploy (prefer the explicitly requested id, else the
+        # most recent drone-kind model).
+        if not policy_id:
+            models = training_manager.list_models()
+            drone_models = [m for m in models if getattr(m, "robot_kind", "") == "drone"]
+            if drone_models:
+                policy_id = drone_models[0].model_id
+            # Do NOT fall back to a non-drone policy -- deploying e.g. a rover policy on a drone
+            # would leave the drone uncontrolled. If no drone policy exists, use the PID autopilot.
+
+        engaged = False
         if hasattr(self, "engine") and self.engine is not None:
+            # Ensure the drone controller exists and knows this is its target.
             if hasattr(self.engine, "command_drone_takeoff"):
                 self.engine.command_drone_takeoff(drone_id, altitude=1.5)
             if self.engine.status != "running":
                 self.engine.play()
+            # Engage the trained neural policy on THIS drone body (not just PID).
+            if policy_id and hasattr(self.engine, "set_active_rl_policy"):
+                meta = training_manager.get_model_metadata(policy_id)
+                if meta is not None and getattr(meta, "target_entity_id", None) != drone_id:
+                    # Point the policy at the drone currently in the scene.
+                    meta.target_entity_id = drone_id
+                res = self.engine.set_active_rl_policy(policy_id)
+                engaged = res.get("status") == "success"
+                # Bind the policy to this specific drone.
+                self.engine.active_rl_policy_kind = "drone"
+                self.engine.active_rl_policy_target = drone_id
 
         return {
             "action": "deploy_drone_policy",
             "status": "success",
             "drone_id": drone_id,
             "drone_name": drone_name,
-            "policy_id": policy_id or "latest_drone_flight_policy",
-            "details": f"Deployed 6-DOF Takeoff/Landing Flight Policy to {drone_name}. Avionics and active rotor propulsion activated in live MuJoCo simulation."
+            "policy_id": policy_id or "pid_flight_controller",
+            "policy_engaged": engaged,
+            "details": (
+                f"Deployed trained PPO flight policy '{policy_id}' to {drone_name}; the neural policy is now "
+                f"actively driving the drone's 6-DOF propulsion in live MuJoCo."
+                if engaged else
+                f"Engaged PID flight controller on {drone_name} (no trained drone policy found to deploy yet)."
+            ),
         }
 
     def tool_control_secondary_robot(
@@ -942,17 +971,50 @@ class AIReasoningService:
             "details": f"Spawned {obj_name} ({shape_type}) at [{safe_pos[0]}, {safe_pos[1]}, {safe_pos[2]}]."
         }
 
+    @staticmethod
+    def _is_protected_entity(obj: Any) -> bool:
+        """The primary robot(s) in the scene are protected from AI deletion.
+
+        The user's imported/active robot must never be removed by a chat command. Obstacles,
+        clutter, and AI-spawned props remain freely removable.
+        """
+        name = (getattr(obj, "name", "") or "").lower()
+        oid = (getattr(obj, "id", "") or "").lower()
+        protected_markers = ("robot", "forgebot", "drone", "rover", "arm", "manipulator")
+        return any(m in name for m in protected_markers) or any(oid.startswith(m) for m in ("robot", "drone", "arm", "rover"))
+
     def tool_remove_obstacle(self, identifier: str) -> Dict[str, Any]:
-        """Tool: Removes an obstacle by name or ID and refreshes the physics scene."""
+        """Tool: Removes an obstacle by name or ID and refreshes the physics scene.
+
+        Guardrail: will refuse to remove the active robot/drone/arm. Only props and obstacles
+        can be removed by the AI.
+        """
         proj = self.pm.get_current()
         ident_lower = str(identifier).lower().strip()
         matched = []
         remaining = []
+        blocked_protected = False
         for o in proj.objects:
-            if ident_lower and (ident_lower in o.name.lower() or ident_lower == o.id.lower()):
+            is_match = ident_lower and (ident_lower in o.name.lower() or ident_lower == o.id.lower())
+            if is_match and self._is_protected_entity(o):
+                # Protected: never let the AI delete the robot. Keep it.
+                blocked_protected = True
+                remaining.append(o)
+            elif is_match:
                 matched.append(o)
             else:
                 remaining.append(o)
+
+        if blocked_protected and not matched:
+            return {
+                "action": "remove_obstacle",
+                "status": "blocked",
+                "details": (
+                    f"'{identifier}' refers to the active robot, which is protected and cannot be removed "
+                    f"by a chat command. I can remove obstacles and props, or you can delete the robot "
+                    f"manually from the Scene panel."
+                ),
+            }
 
         if not matched:
             return {"action": "remove_obstacle", "status": "not_found", "details": f"No obstacle found matching '{identifier}'"}
@@ -2110,7 +2172,8 @@ class AIReasoningService:
             engine=self.engine,
             drone_identifier=drone_identifier,
             target_altitude=target_altitude,
-            total_episodes=total_episodes
+            total_episodes=total_episodes,
+            custom_reward_code=getattr(self, "active_custom_reward_script", None),
         )
 
         return {
@@ -2121,11 +2184,14 @@ class AIReasoningService:
             "target_altitude": target_altitude,
             "total_episodes": total_episodes,
             "details": (
-                f"⚡ Isaac Lab Live Interactive RL Training Mode Activated!\n\n"
-                f"• Target Altitude: {target_altitude}m\n"
-                f"• Curriculum: 4 Live Training Episodes (1: Random Unstable Exploration & Crash -> 2: Overcorrecting Oscillations -> 3: Attitude Convergence -> 4: Rock-Solid Pinpoint Hover)\n"
-                f"• Real-Time Viewport: Look directly at the 3D scene! The drone will experience uncalibrated rotor thrust, wobble, tilt past 45°, crash into the floor, cleanly reset onto the launchpad, adapt its policy gradients, and converge to a stable 1.5m hover.\n"
-                f"• Model Storage: Once converged, the neural network weights are serialized into models/rl/{res.get('job_id', 'ppo_drone_live')}.zip and registered in the PPO Model Registry."
+                f"🚁 Live PPO flight training started (real reinforcement learning on MuJoCo physics).\n\n"
+                f"• Task: hover/takeoff toward {target_altitude}m altitude.\n"
+                f"• What you'll see: genuine PPO learning in background chunks. Between chunks the "
+                f"*actual current policy* is rolled out live in the viewport, so the behavior you watch "
+                f"is the robot's real, in-progress skill -- it improves over real training time, not a scripted clip.\n"
+                f"• Honest metrics: measured reward and success rate stream to the RL panel each chunk.\n"
+                f"• On completion the trained checkpoint is saved to models/rl/{res.get('job_id', 'ppo_drone_live')}.zip "
+                f"and listed in the Experiments tab, ready to run in the viewport."
             )
         }
 
@@ -2155,11 +2221,14 @@ class AIReasoningService:
             "arm_name": res.get("arm_name", arm_identifier),
             "total_episodes": total_episodes,
             "details": (
-                f"⚡ Isaac Lab Live Interactive Robotic Arm Training Mode Activated!\n\n"
-                f"• Task: Pick-and-Place Manipulation\n"
-                f"• Curriculum: 4 Live Training Episodes (1: Joint Overshoot & Target Miss -> 2: Slipping Grip & Premature Drop -> 3: Kinematic Pre-Grasp Alignment -> 4: Precise Stable Grasp & Vertical Lift)\n"
-                f"• Real-Time Viewport: Watch the arm reach for the target object on the workbench, overshoot, drop the block, re-attempt with adjusted impedance gains, align end-effector jaws, and achieve a clean lift!\n"
-                f"• Model Storage: Once converged, the neural network weights are serialized into models/rl/{res.get('job_id', 'ppo_arm_live')}.zip and registered in the PPO Model Registry."
+                f"🦾 Live PPO reach training started on the articulated arm (real RL on MuJoCo physics).\n\n"
+                f"• Task: drive the end-effector to a Cartesian target. The environment is built from the "
+                f"arm's actual joints, so this works for any imported URDF/MJCF arm.\n"
+                f"• What you'll see: real PPO learning in chunks; between chunks the current policy drives the "
+                f"arm live in the viewport -- genuine in-progress behavior that sharpens as training proceeds.\n"
+                f"• Honest metrics: measured mean reward and reach success stream to the RL panel.\n"
+                f"• On completion the checkpoint is saved to models/rl/{res.get('job_id', 'ppo_arm_live')}.zip "
+                f"and appears in the Experiments tab for one-click execution in the viewport."
             )
         }
 
@@ -2189,11 +2258,13 @@ class AIReasoningService:
             "robot_name": res.get("robot_name", robot_identifier),
             "total_episodes": total_episodes,
             "details": (
-                f"⚡ Isaac Lab Live Interactive Ground Rover Training Mode Activated!\n\n"
-                f"• Task: Autonomous Obstacle Avoidance & Goal Navigation\n"
-                f"• Curriculum: 4 Live Training Episodes (1: Blind Acceleration & Obstacle Impact -> 2: Overcorrecting Oscillatory Retry -> 3: LiDAR Raycast Avoidance -> 4: Smooth Optimal Path to Target Beacon)\n"
-                f"• Real-Time Viewport: Watch the rover navigate the course, collide with obstacles, recover, calibrate steering angles, scan with LiDAR, and drive smoothly to the destination!\n"
-                f"• Model Storage: Once converged, the neural network weights are serialized into models/rl/{res.get('job_id', 'ppo_rover_live')}.zip and registered in the PPO Model Registry."
+                f"🤖 Live PPO navigation training started on the rover (real RL on MuJoCo physics).\n\n"
+                f"• Task: autonomous obstacle avoidance and goal navigation using the robot's LiDAR observations.\n"
+                f"• What you'll see: real PPO learning in chunks; between chunks the current policy drives the "
+                f"rover live in the viewport -- authentic in-progress behavior that improves with training.\n"
+                f"• Honest metrics: measured reward and success rate stream to the RL panel each chunk.\n"
+                f"• On completion the checkpoint is saved to models/rl/{res.get('job_id', 'ppo_rover_live')}.zip "
+                f"and appears in the Experiments tab, ready to run in the viewport."
             )
         }
 
@@ -2601,6 +2672,25 @@ class AIReasoningService:
         """Unified executor for simulation mutation and inspection tools."""
         params = params or {}
         tool_name = str(tool_name).lower().strip()
+
+        # --- Guardrail: the AI may never delete the user's active robot. ---
+        # Block any tool that would remove the imported/primary robot via an explicit
+        # robot-removal alias or an identifier pointing at a protected entity.
+        robot_removal_aliases = {
+            "remove_robot", "delete_robot", "clear_robot", "clear_generic_robot",
+            "remove_generic_robot", "delete_generic_robot", "destroy_robot",
+        }
+        if tool_name in robot_removal_aliases:
+            return {
+                "action": tool_name,
+                "status": "blocked",
+                "details": (
+                    "The active robot is protected and cannot be removed by a chat command. "
+                    "If you really want to change robots, import a new one (URDF/MJCF) or remove "
+                    "it manually from the Scene panel. I can freely manage obstacles, props, "
+                    "sensors, physics, targets, and training."
+                ),
+            }
 
         try:
             # 1. Scene & Obstacle Geometry
@@ -3065,11 +3155,19 @@ class AIReasoningService:
                 "contents": [{"role": "user", "parts": [{"text": f"SYSTEM INSTRUCTION:\n{system_instruction}\n\n{user_content}"}]}],
                 "generationConfig": {"responseMimeType": "application/json", "temperature": 0.2}
             }
-            with httpx.Client(timeout=25.0) as client:
-                res = client.post(url, json=payload, headers={"Content-Type": "application/json"})
-                res.raise_for_status()
-                raw_text = res.json()["candidates"][0]["content"]["parts"][0]["text"]
-                data = json.loads(raw_text)
+            try:
+                with httpx.Client(timeout=25.0) as client:
+                    res = client.post(url, json=payload, headers={"Content-Type": "application/json"})
+                    res.raise_for_status()
+                    raw_text = res.json()["candidates"][0]["content"]["parts"][0]["text"]
+                    data = json.loads(raw_text)
+            except Exception as e:
+                # Gemini is primary; fall back to local Ollama on any failure (quota/429, network).
+                logger.warning("Gemini primary layout inference failed (%s). Attempting Ollama fallback.", e)
+                data = self._ollama_chat_fallback(
+                    system_instruction,
+                    [{"role": "user", "content": user_content}],
+                )
         elif openai_key:
             model = provider_info.get("model", "gpt-4o-mini")
             url = "https://api.openai.com/v1/chat/completions"
@@ -3376,6 +3474,56 @@ class AIReasoningService:
     # Conversational Agent Loop (Supervised & Autonomous Modes)
     # -------------------------------------------------------------
 
+    def _ollama_chat_fallback(
+        self,
+        system_instruction: str,
+        conversation_messages: List[Dict[str, str]],
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Fallback path when the primary cloud provider (Gemini) fails or is rate-limited.
+        Attempts a local Ollama chat completion. Returns the parsed JSON dict on success,
+        or None if Ollama is disabled/unavailable. Never raises.
+        """
+        if os.getenv("OLLAMA_DISABLED") == "1":
+            return None
+        try:
+            ollama = OllamaReasoningProvider()
+        except Exception as e:
+            logger.debug("Ollama fallback construction failed: %s", e)
+            return None
+        if not ollama.is_available():
+            logger.info("Gemini unavailable and no local Ollama model installed; dropping to deterministic reasoning.")
+            return None
+
+        endpoint = ollama.base_url
+        model = ollama.model
+        url = f"{endpoint}/api/chat"
+        # Ollama needs the system instruction as the first message.
+        msgs = list(conversation_messages)
+        if not msgs or msgs[0].get("role") != "system":
+            msgs = [{"role": "system", "content": system_instruction}] + msgs
+        payload = {
+            "model": model,
+            "messages": msgs,
+            "format": "json",
+            "stream": False,
+            "options": {"temperature": 0.2},
+        }
+        try:
+            with httpx.Client(timeout=35.0) as client:
+                res = client.post(url, json=payload)
+                res.raise_for_status()
+                raw_text = res.json().get("message", {}).get("content", "{}")
+                clean_text = raw_text.strip()
+                if clean_text.startswith("```"):
+                    clean_text = re.sub(r"^```[a-zA-Z]*\n?", "", clean_text)
+                    clean_text = re.sub(r"\n?```$", "", clean_text)
+                logger.info("Gemini primary failed; served response from Ollama fallback (%s).", model)
+                return json.loads(clean_text)
+        except Exception as e:
+            logger.warning("Ollama fallback request failed: %s", e)
+            return None
+
     def _call_model_chat_reasoning(
         self,
         prompt: str,
@@ -3557,11 +3705,19 @@ class AIReasoningService:
                 "contents": gemini_contents,
                 "generationConfig": {"responseMimeType": "application/json", "temperature": 0.2}
             }
-            with httpx.Client(timeout=25.0) as client:
-                res = client.post(url, json=payload, headers={"Content-Type": "application/json"})
-                res.raise_for_status()
-                raw_text = res.json()["candidates"][0]["content"]["parts"][0]["text"]
-                data = json.loads(raw_text)
+            try:
+                with httpx.Client(timeout=25.0) as client:
+                    res = client.post(url, json=payload, headers={"Content-Type": "application/json"})
+                    res.raise_for_status()
+                    raw_text = res.json()["candidates"][0]["content"]["parts"][0]["text"]
+                    data = json.loads(raw_text)
+            except Exception as e:
+                # Gemini is primary; on any failure (quota/429, network, invalid key)
+                # transparently fall back to local Ollama before giving up.
+                logger.warning("Gemini primary reasoning failed (%s). Attempting Ollama fallback.", e)
+                data = self._ollama_chat_fallback(system_instruction, conversation_messages)
+                if data is None:
+                    return None
         elif openai_key:
             model = provider_info.get("model", "gpt-4o-mini")
             url = "https://api.openai.com/v1/chat/completions"
@@ -3766,7 +3922,12 @@ class AIReasoningService:
         acts: List[Tuple[str, Dict[str, Any]]] = []
 
         # 1. Clear scene / arena
-        if any(w in p for w in ['clear scene', 'clear all', 'clear arena', 'clear obstacles', 'remove all obstacles', 'empty arena', 'empty scene', 'reset arena']) and not any(w in p for w in ['course', 'slalom']):
+        if (any(w in p for w in [
+                'clear scene', 'clear the scene', 'clear all', 'clear arena', 'clear the arena',
+                'clear obstacles', 'clear the obstacles', 'clear everything', 'remove all obstacles',
+                'remove everything', 'empty arena', 'empty scene', 'empty the scene', 'reset arena',
+                'wipe scene', 'wipe the scene', 'wipe everything'])
+                and not any(w in p for w in ['course', 'slalom'])):
             acts.append(('clear_scene', {}))
             return acts
 
@@ -3803,6 +3964,24 @@ class AIReasoningService:
 
         # 3a. Live Interactive Visual Isaac Lab Training Curriculum (Fail, Retry, Converge, Save PPO)
         # Supports Robotic Arms (Pick & Place), Mobile Rovers (Nav & Obstacle Avoidance), and Aerial Drones (Hover & Attitude)
+
+        # --- Deploy / load a trained policy (checked BEFORE training intents so phrases like
+        # "deploy the trained flight policy" aren't mis-read as a training request). ---
+        # --- Deploy / load a trained POLICY (scoped to policy/flight context so it doesn't
+        # swallow other "deploy ..." commands like "deploy a swarm"). Checked before training
+        # intents so "deploy the trained flight policy" isn't mis-read as a training request. ---
+        mentions_policy = any(w in p for w in ['policy', 'policies', 'trained model', 'rl model', 'checkpoint', 'ppo'])
+        deploy_verb = any(w in p for w in ['deploy', 'load', 'apply', 'activate', 'run', 'use', 'put'])
+        is_deploy_intent = mentions_policy and deploy_verb
+        wants_training = any(w in p for w in ['train ', 'training', 'retrain', 'keep training', 'teach', 'learn to'])
+        if is_deploy_intent and not wants_training:
+            if any(w in p for w in ['drone', 'quadcopter', 'uav', 'aerial', 'copter', 'flight', 'fly']):
+                acts.append(('deploy_drone_policy', {'drone_name': 'Drone-Alpha', 'policy_id': None}))
+                return acts
+            # Generic / rover / arm policy deployment.
+            acts.append(('deploy_rl_policy', {}))
+            return acts
+
         is_live_rl_query = any(w in p for w in [
             'happen live', 'live in the scene', 'see it happen', 'learning then fail', 'failing again',
             'trying again', 'isac sim', 'isaac sim', 'isaac lab', 'live training', 'live rl', 'make it train'
@@ -4635,7 +4814,15 @@ class AIReasoningService:
             model_thought=model_reasoning.get("thought") if model_reasoning else None,
             provider_info=provider_info
         )
-        thought_steps = deep_steps
+        # Preserve semantically-meaningful conceptual steps (ideation, inspection, diagnosis)
+        # produced by the Q&A/collaborative branches instead of discarding them when the generic
+        # deep-thinking steps are synthesized.
+        preserved_markers = ("ideation", "collaborative", "inspection", "diagnosis", "hardware")
+        preserved_steps = [
+            s for s in thought_steps
+            if any(m in (s.title or "").lower() for m in preserved_markers)
+        ]
+        thought_steps = deep_steps + preserved_steps
 
         return AIChatResponse(
             reply=reply,

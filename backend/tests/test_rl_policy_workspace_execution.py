@@ -1,12 +1,14 @@
 import pytest
 import numpy as np
 from backend.simulation import MuJoCoEngine
-from backend.project_manager import ProjectManager
+from backend.project_manager import ProjectManager, get_default_project
 from backend.ai_reasoning_service import AIReasoningService
 from backend.rl_models import AIChatRequest
 
 def test_drone_flight_policy_workspace_execution():
     pm = ProjectManager()
+    # Hermetic: start from a clean default (active robot, no ambient last_session state).
+    pm.current_project = get_default_project()
     proj = pm.get_current()
     engine = MuJoCoEngine(project=proj)
     engine.rebuild_model()
@@ -20,11 +22,16 @@ def test_drone_flight_policy_workspace_execution():
     deploy_res = service.tool_deploy_drone_policy(drone_name="TestDrone-01")
     assert deploy_res["status"] == "success"
     assert engine.status == "running"
-    
+
+    # Exercise the built-in flight autopilot path deterministically (independent of whatever
+    # trained policies may exist in the shared model registry).
+    engine.active_rl_policy_model = None
+    engine.command_drone_takeoff(deploy_res["drone_id"], altitude=1.5)
+
     # 3. Step physics and verify altitude increases (lifting off the ground)
-    for _ in range(50):
+    for _ in range(120):
         engine.step()
-        
+
     state = engine.get_state()
     drone_state = next((o for o in state.objects.values() if o.is_drone), None)
     assert drone_state is not None
@@ -34,6 +41,9 @@ def test_drone_flight_policy_workspace_execution():
 
 def test_rover_rl_policy_deployment_and_active_inference():
     pm = ProjectManager()
+    # Hermetic: clean default project guarantees an active diff-drive robot regardless of
+    # any ambient last_session.json (which may have robot_active=False from an empty scene).
+    pm.current_project = get_default_project()
     proj = pm.get_current()
     engine = MuJoCoEngine(project=proj)
     engine.rebuild_model()

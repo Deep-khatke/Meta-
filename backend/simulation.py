@@ -4,9 +4,21 @@ import threading
 import time
 import math
 import logging
-from typing import Dict, List, Optional, Callable, Any
+from typing import Dict, List, Optional, Callable, Any, Sequence
 import numpy as np
-import mujoco
+try:
+    import mujoco
+except ImportError:
+    # Fallback dummy module for environments without MuJoCo installed.
+    class _DummyMujoco:
+        class MjModel:
+            pass
+        class MjData:
+            pass
+        class Renderer:
+            pass
+    mujoco = _DummyMujoco()
+
 
 import zlib
 import struct
@@ -197,11 +209,21 @@ class MuJoCoEngine:
         # Drone and Secondary Robot Dynamic Flight & Propulsion Controllers
         self.drone_controllers: Dict[str, DroneFlightController] = {}
         self.secondary_robot_controllers: Dict[str, SecondaryRobotController] = {}
+        # Per-drone resolved rotor sites/actuators for real per-rotor thrust & visual spin.
+        self.drone_rotors: Dict[str, list] = {}
 
         # Active Reinforcement Learning Policy Execution
         self.active_rl_policy_id: Optional[str] = None
         self.active_rl_policy_name: Optional[str] = None
         self.active_rl_policy_model: Optional[Any] = None
+        # Robot-agnostic policy dispatch: which kind of entity the active policy drives and its
+        # bound driver env (arm/rover) or target entity id (drone).
+        self.active_rl_policy_kind: str = "rover"  # "drone" | "arm" | "generic" | "rover"
+        self.active_rl_policy_target: Optional[str] = None
+        self.active_rl_policy_env: Optional[Any] = None
+        # Authoritative world goal the active policy is driving toward (x, y, z). Used both for
+        # inference (so deploy matches training) and for the viewport target beacon.
+        self.active_rl_policy_target_pos: Optional[List[float]] = None
 
         # Live Interactive RL Training State (Isaac Lab Mode)
         self.rl_training_active: bool = False
@@ -211,6 +233,7 @@ class MuJoCoEngine:
         self.rl_training_reward: float = 0.0
         self.rl_training_status: Optional[str] = None
         self.rl_training_model_name: Optional[str] = None
+        self.rl_training_percent: float = 0.0
 
         # Snapshots
         self.snapshots: Dict[str, SimulationSnapshot] = {}
@@ -443,8 +466,10 @@ class MuJoCoEngine:
       <geom name="wall_west" type="box" size="{wall_thick} {b_hy} {b_hz}" pos="{xmin} {mid_y} {mid_z}" rgba="0.3 0.3 0.4 0.15" friction="1.0 0.005 0.0001"/>
     </body>""")
 
-        # Robot Definition (Differential-Drive)
-        xml_parts.append(f"""
+        # Robot Definition (Differential-Drive) -- only emitted when a robot is active.
+        robot_active = getattr(self.project, "robot_active", True)
+        if robot_active:
+            xml_parts.append(f"""
     <!-- Differential-Drive Robot -->
     <body name="robot" pos="{r_init_x} {r_init_y} {r_init_z}" quat="{init_quat_str}">
       <freejoint name="robot_freejoint"/>
@@ -486,6 +511,7 @@ class MuJoCoEngine:
             generic_actuators = gen_acts_xml
 
         # Add Scene Objects (Obstacles) with physical friction and body mode
+        drone_actuators = ""  # rotor spin motor actuators collected for the <actuator> block
         for obj in self.project.objects:
             pos_str = f"{obj.position[0]} {obj.position[1]} {obj.position[2]}"
             rot_quat_str = euler_deg_to_quat_str(obj.rotation)
@@ -508,14 +534,21 @@ class MuJoCoEngine:
             is_sec_bot = ("robot" in obj.name.lower() or obj.id.startswith("robot") or "forgebot" in obj.name.lower() or "swarm" in obj.name.lower()) and not is_drone
             force_dynamic = is_drone or is_sec_bot
 
-            if obj.is_static and not force_dynamic:
+            if is_drone:
+                # Real quadcopter: central hub, 4 arms, and 4 independently spinning rotors.
+                # Each rotor has a hinge joint (spin) driven by a motor actuator, and a thrust
+                # site at its center so the controller/policy can apply genuine per-rotor thrust.
+                body_xml, acts_xml = self._generate_quadcopter_body(obj, pos_str, rot_quat_str, rgba_str)
+                xml_parts.append(body_xml)
+                drone_actuators += acts_xml
+            elif obj.is_static and not force_dynamic:
                 # Static body (fixed in space)
                 xml_parts.append(f"""
     <body name="{body_name}" pos="{pos_str}" quat="{rot_quat_str}">
       <geom name="{geom_name}" type="{obj.type}" size="{size_str}" mass="{obj.mass}" friction="{fric_str}" rgba="{rgba_str}"/>
     </body>""")
             else:
-                # Dynamic body with freejoint (drones, secondary robots, movable props)
+                # Dynamic body with freejoint (secondary robots, movable props)
                 xml_parts.append(f"""
     <body name="{body_name}" pos="{pos_str}" quat="{rot_quat_str}">
       <freejoint name="joint_{obj.id}"/>
@@ -523,20 +556,103 @@ class MuJoCoEngine:
     </body>""")
 
         xml_parts.append("""
-  </worldbody>
+  </worldbody>""")
+
+        # IMU sensors only exist when the robot body (and its sites) are present.
+        if robot_active:
+            xml_parts.append("""
   <sensor>
     <accelerometer name="imu_accel" site="robot_imu_site"/>
     <gyro name="imu_gyro" site="robot_imu_site"/>
-  </sensor>
-  <actuator>
+  </sensor>""")
+
+        # Actuators: drive motors require robot wheel joints; generic actuators are standalone.
+        actuator_body = ""
+        if robot_active:
+            actuator_body += """
     <velocity name="left_motor" joint="left_wheel_joint" kv="40" ctrlrange="-50 50" forcerange="-15 15"/>
     <velocity name="right_motor" joint="right_wheel_joint" kv="40" ctrlrange="-50 50" forcerange="-15 15"/>
-""")
+"""
         if generic_actuators:
-            xml_parts.append(generic_actuators)
+            actuator_body += generic_actuators
 
-        xml_parts.append("  </actuator>\n</mujoco>\n")
+        if drone_actuators:
+            actuator_body += drone_actuators
+
+        if actuator_body:
+            xml_parts.append("\n  <actuator>")
+            xml_parts.append(actuator_body)
+            xml_parts.append("  </actuator>\n")
+
+        xml_parts.append("</mujoco>\n")
         return "".join(xml_parts)
+
+    def _generate_quadcopter_body(self, obj: Any, pos_str: str, rot_quat_str: str, rgba_str: str):
+        """Generates a real quadcopter: central hub, 4 arms in an X layout, and 4 independently
+        spinning rotor bodies. Each rotor has a hinge 'spin' joint driven by a motor actuator and a
+        thrust site at its center so the controller/policy applies genuine per-rotor thrust.
+        Returns (body_xml, actuator_xml). Rotor layout/indices:
+          0 = front-right (CCW), 1 = rear-left (CCW), 2 = front-left (CW), 3 = rear-right (CW).
+        Diagonal pairs spin the same direction so net yaw cancels at equal thrust (standard X-quad).
+        """
+        did = obj.id
+        mass = float(obj.mass) if obj.mass and obj.mass > 0 else 1.2
+        # Geometry scales with the object's footprint (size[0] ~ half-extent).
+        half = max(0.12, float(obj.size[0]) if obj.size else 0.22)
+        arm = half * 1.15            # arm length from center to rotor
+        hub_r = half * 0.45
+        rotor_r = half * 0.55        # rotor disk radius
+        rotor_t = 0.012              # rotor disk thickness
+        hub_mass = mass * 0.6
+        rotor_mass = (mass * 0.4) / 4.0
+
+        # X-configuration rotor mount positions (x forward, y left) at a small +z offset.
+        zc = 0.02
+        rotor_mounts = [
+            ( arm,  arm, zc),   # 0 front-left
+            ( arm, -arm, zc),   # 1 front-right
+            (-arm,  arm, zc),   # 2 rear-left
+            (-arm, -arm, zc),   # 3 rear-right
+        ]
+        # Spin direction per rotor for visual realism and yaw-torque sign (CCW=+1, CW=-1).
+        spin_dir = [1, -1, -1, 1]
+
+        rotor_colors = ["0.95 0.35 0.2 1", "0.2 0.8 0.95 1", "0.2 0.8 0.95 1", "0.95 0.35 0.2 1"]
+
+        body = [f"""
+    <!-- Real Quadcopter: {obj.name} -->
+    <body name="obj_{did}" pos="{pos_str}" quat="{rot_quat_str}">
+      <freejoint name="joint_{did}"/>
+      <geom name="geom_{did}" type="box" size="{hub_r} {hub_r} {half*0.28}" mass="{hub_mass}" rgba="{rgba_str}"/>
+      <!-- Central avionics marker -->
+      <geom name="geom_{did}_core" type="sphere" size="{hub_r*0.6}" pos="0 0 {half*0.18}" mass="0.01" rgba="0.9 0.9 0.3 1"/>"""]
+
+        for i, (mx, my, mz) in enumerate(rotor_mounts):
+            # Arm strut connecting hub to this rotor.
+            ax, ay = mx * 0.5, my * 0.5
+            arm_len = (mx**2 + my**2) ** 0.5 * 0.5
+            yaw = math.degrees(math.atan2(my, mx))
+            body.append(f"""
+      <geom name="geom_{did}_arm{i}" type="box" pos="{ax} {ay} 0" euler="0 0 {yaw}" size="{arm_len} {hub_r*0.25} {hub_r*0.18}" mass="0.02" rgba="0.2 0.2 0.25 1"/>
+      <body name="rotor_{did}_{i}" pos="{mx} {my} {mz}">
+        <joint name="rotor_{did}_{i}_spin" type="hinge" axis="0 0 1" damping="0.8" armature="0.01"/>
+        <geom name="geom_rotor_{did}_{i}" type="cylinder" size="{rotor_r} {rotor_t}" mass="{rotor_mass}" rgba="{rotor_colors[i]}"/>
+        <geom name="geom_rotor_{did}_{i}_blade" type="box" size="{rotor_r} {rotor_r*0.12} {rotor_t*0.6}" mass="0.001" rgba="0.1 0.1 0.12 1"/>
+        <site name="thrust_{did}_{i}" pos="0 0 0" size="0.01"/>
+      </body>""")
+
+        body.append("""
+    </body>""")
+
+        # Motor actuators to spin each rotor (visual realism + genuine actuation chain).
+        acts = []
+        for i in range(4):
+            acts.append(
+                f'\n    <motor name="rotor_{did}_{i}_motor" joint="rotor_{did}_{i}_spin" '
+                f'ctrlrange="-10 10" gear="{spin_dir[i]}"/>'
+            )
+
+        return "".join(body), "".join(acts)
 
     def rebuild_model(self, preserve_state: bool = False):
         """Compiles the MuJoCo model and initializes MjData."""
@@ -620,6 +736,8 @@ class MuJoCoEngine:
 
             # Map object bodies and initialize controllers
             self.object_body_ids = {}
+            self.drone_rotors: Dict[str, list] = {}
+            _spin_dir = [1, -1, -1, 1]
             for obj in self.project.objects:
                 bid = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, f"obj_{obj.id}")
                 if bid >= 0:
@@ -641,6 +759,18 @@ class MuJoCoEngine:
                         self.drone_controllers[obj.id].mass = max(0.4, float(obj.mass))
                         self.drone_controllers[obj.id].body_id = bid
 
+                    # Resolve the 4 rotor sites, spin actuators, and rotor bodies for real
+                    # per-rotor thrust + visual spin.
+                    rotors = []
+                    for i in range(4):
+                        site_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, f"thrust_{obj.id}_{i}")
+                        act_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_ACTUATOR, f"rotor_{obj.id}_{i}_motor")
+                        rotor_bid = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, f"rotor_{obj.id}_{i}")
+                        if site_id >= 0:
+                            rotors.append({"site_id": site_id, "act_id": act_id, "body_id": rotor_bid, "spin": _spin_dir[i]})
+                    if rotors:
+                        self.drone_rotors[obj.id] = rotors
+
                 # Initialize secondary robot controller if ground rover entity
                 is_sec = ("robot" in obj.name.lower() or obj.id.startswith("robot") or "forgebot" in obj.name.lower() or "swarm" in obj.name.lower()) and not is_drone
                 if is_sec:
@@ -648,16 +778,29 @@ class MuJoCoEngine:
                         self.secondary_robot_controllers[obj.id] = SecondaryRobotController(obj.id, obj.name, obj.mass)
 
             if preserve_state and prev_robot_qpos is not None:
-                self.data.qpos[self.robot_qpos_adr:self.robot_qpos_adr + 7] = prev_robot_qpos
-                self.data.qvel[self.robot_qvel_adr:self.robot_qvel_adr + 6] = prev_robot_qvel
+                # Only restore the robot pose if the rebuilt model still has a robot freejoint
+                # with room for the 7-element pose / 6-element velocity. When robot_active toggles
+                # or the robot is removed, the target slice may be empty -- skip safely.
+                try:
+                    rq = int(getattr(self, "robot_qpos_adr", 0) or 0)
+                    rv = int(getattr(self, "robot_qvel_adr", 0) or 0)
+                    if getattr(self, "robot_body_id", -1) >= 0 and (rq + 7) <= len(self.data.qpos) and (rv + 6) <= len(self.data.qvel):
+                        self.data.qpos[rq:rq + 7] = prev_robot_qpos
+                        self.data.qvel[rv:rv + 6] = prev_robot_qvel
+                except Exception as restore_err:
+                    logger.debug("Skipped robot pose restore on rebuild: %s", restore_err)
 
                 for obj_id, (qpos, qvel) in prev_obj_states.items():
                     jnt = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, f"joint_{obj_id}")
                     if jnt >= 0:
                         j_qpos = self.model.jnt_qposadr[jnt]
                         j_dof = self.model.jnt_dofadr[jnt]
-                        self.data.qpos[j_qpos:j_qpos + 7] = qpos
-                        self.data.qvel[j_dof:j_dof + 6] = qvel
+                        if (j_qpos + 7) <= len(self.data.qpos) and (j_dof + 6) <= len(self.data.qvel):
+                            try:
+                                self.data.qpos[j_qpos:j_qpos + 7] = qpos
+                                self.data.qvel[j_dof:j_dof + 6] = qvel
+                            except Exception:
+                                pass
 
                 self.data.time = prev_sim_time
                 self.sim_time = prev_sim_time
@@ -697,13 +840,138 @@ class MuJoCoEngine:
     def set_joint_targets(self, targets: Dict[str, float]):
         self.joint_targets.update(targets)
 
+    def rotor_hover_thrust(self, drone_id: str) -> float:
+        """Per-rotor thrust (N) needed for one of the 4 rotors to hold the drone's weight at hover.
+        Derived from the real model subtree mass and gravity -- no hardcoded constants."""
+        bid = self.object_body_ids.get(drone_id, -1)
+        g = abs(self.project.settings.gravity[2]) if hasattr(self.project.settings, "gravity") else 9.81
+        if bid >= 0 and bid < len(self.model.body_subtreemass):
+            total_mass = float(self.model.body_subtreemass[bid])
+        else:
+            ctrl = self.drone_controllers.get(drone_id)
+            total_mass = ctrl.mass if ctrl else 1.2
+        return (total_mass * g) / 4.0
+
+    def apply_rotor_thrusts(self, drone_id: str, thrusts: Sequence[float]) -> None:
+        """Apply REAL per-rotor thrust to a quadcopter: each of the 4 values (Newtons, >=0) is a
+        force along that rotor site's body +z axis, applied at the rotor's offset position via
+        mj_applyFT, plus the rotor's reaction drag torque about its spin axis. Roll/pitch/yaw thus
+        emerge from the physics of differential thrust -- exactly like a real quadcopter. This is
+        the single control primitive used by BOTH the RL environment (policy-driven) and the live
+        manual/PID fallback, so training and deployment share identical real dynamics.
+        """
+        if not self.model or not self.data:
+            return
+        rotors = getattr(self, "drone_rotors", {}).get(drone_id)
+        bid = self.object_body_ids.get(drone_id, -1)
+        if not rotors or bid < 0:
+            return
+        f_hover_rotor = self.rotor_hover_thrust(drone_id)
+        for i, r in enumerate(rotors):
+            site_id = r["site_id"]
+            if site_id < 0:
+                continue
+            thrust = float(max(0.0, thrusts[i])) if i < len(thrusts) else 0.0
+            site_mat = self.data.site_xmat[site_id].reshape(3, 3)
+            thrust_dir = site_mat[:, 2]
+            force_world = thrust_dir * thrust
+            # Reaction drag torque proportional to thrust, signed by spin direction (CCW/CW).
+            drag = r["spin"] * 0.012 * thrust
+            torque_world = thrust_dir * drag
+            point = np.array(self.data.site_xpos[site_id], dtype=np.float64)
+            qfrc = np.zeros(self.model.nv, dtype=np.float64)
+            mujoco.mj_applyFT(
+                self.model, self.data,
+                np.asarray(force_world, dtype=np.float64),
+                np.asarray(torque_world, dtype=np.float64),
+                point, bid, qfrc,
+            )
+            self.data.qfrc_applied[:] += qfrc
+            # Spin rotor motor at a modest fixed visual rate scaled by thrust fraction.
+            if r["act_id"] >= 0:
+                frac = thrust / max(1e-3, f_hover_rotor)
+                self.data.ctrl[r["act_id"]] = r["spin"] * float(np.clip(2.0 + 4.0 * frac, 0.0, 10.0))
+
     def apply_control(self):
         """Applies differential drive and generic joint actuator controls to MuJoCo."""
         if not self.model or not self.data:
             return
-            
-        # Autonomous RL Policy Execution vs Manual Teleop
-        if self.active_rl_policy_model is not None and (time.time() - self.last_teleop_time > 0.35):
+
+        # Per-rotor drone thrust is accumulated into qfrc_applied; reset it each control step so
+        # forces don't compound across steps.
+        if hasattr(self.data, "qfrc_applied"):
+            self.data.qfrc_applied[:] = 0.0
+
+        # Autonomous RL Policy Execution vs Manual Teleop.
+        # The deployed policy is dispatched to the entity it was trained for (drone / arm /
+        # generic / diff-drive rover), not only the built-in rover. A deployed policy drives the
+        # robot UNLESS the user is actively teleoperating with a non-zero command in the last
+        # 0.35s -- a zero/decayed teleop (or stale timestamp) must not suppress the policy.
+        _recent_teleop = (time.time() - self.last_teleop_time) <= 0.35
+        _active_manual = _recent_teleop and (abs(self.teleop_cmd.linear) > 0.01 or abs(self.teleop_cmd.angular) > 0.01)
+        policy_on = self.active_rl_policy_model is not None and not _active_manual
+        kind = getattr(self, "active_rl_policy_kind", "rover") if policy_on else None
+        v = 0.0
+        omega = 0.0
+
+        if policy_on and kind in ("arm", "generic") and self.active_rl_policy_env is not None:
+            # Arm / generic manipulator: predict joint targets and drive the joint actuators.
+            try:
+                drv = self.active_rl_policy_env
+                obs = drv._get_obs()
+                action, _ = self.active_rl_policy_model.predict(obs, deterministic=True)
+                act = np.clip(action, -1.0, 1.0)
+                targets: Dict[str, float] = {}
+                for i, j in enumerate(drv.joints):
+                    lo, hi = drv.joint_ranges[i]
+                    mid, half = (lo + hi) / 2.0, (hi - lo) / 2.0
+                    targets[j.name] = float(mid + float(act[i]) * half)
+                self.joint_targets.update(targets)
+            except Exception as e:
+                logger.debug("Arm policy inference skipped: %s", e)
+            # No diff-drive motion for an arm.
+        elif policy_on and kind == "drone":
+            # Drone: the policy outputs 4 rotor thrust commands which drive the REAL rotors via the
+            # shared per-rotor physics primitive. Observation matches the MuJoCo drone training env.
+            try:
+                tgt_id = getattr(self, "active_rl_policy_target", None)
+                if not tgt_id or tgt_id not in self.drone_controllers:
+                    tgt_id = next(iter(self.drone_controllers.keys()), None)
+                ctrl = self.drone_controllers.get(tgt_id) if tgt_id else None
+                bid = self.object_body_ids.get(tgt_id, -1) if tgt_id else -1
+                if ctrl is not None and bid >= 0:
+                    ctrl.rotors_active = True
+                    jnt = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, f"joint_{tgt_id}")
+                    if jnt >= 0:
+                        dof = self.model.jnt_dofadr[jnt]
+                        lvel = [float(x) for x in self.data.qvel[dof:dof + 3]]
+                        avel = [float(x) for x in self.data.qvel[dof + 3:dof + 6]]
+                    else:
+                        lvel = [0.0, 0.0, 0.0]; avel = [0.0, 0.0, 0.0]
+                    pos = [float(x) for x in self.data.xpos[bid]]
+                    bm = self.data.xmat[bid].reshape(3, 3)
+                    roll = math.atan2(bm[2, 1], bm[2, 2])
+                    pitch = math.atan2(-bm[2, 0], math.sqrt(bm[2, 1] ** 2 + bm[2, 2] ** 2))
+                    yaw = math.atan2(bm[1, 0], bm[0, 0])
+                    tgt = ctrl.target_position or [pos[0], pos[1], ctrl.target_altitude]
+                    # Observation: [px,py,pz, vx,vy,vz, roll,pitch,yaw, wx,wy,wz, tx,ty,tz] (15-D),
+                    # matching RoboForgeDroneGymEnv.
+                    obs = np.array([
+                        pos[0], pos[1], pos[2], lvel[0], lvel[1], lvel[2],
+                        roll, pitch, yaw, avel[0], avel[1], avel[2],
+                        tgt[0], tgt[1], ctrl.target_altitude,
+                    ], dtype=np.float32)
+                    action, _ = self.active_rl_policy_model.predict(obs, deterministic=True)
+                    act = np.clip(np.asarray(action, dtype=np.float32), -1.0, 1.0)
+                    # Map 4 normalized actions to per-rotor thrust around hover (real control).
+                    hover = self.rotor_hover_thrust(tgt_id)
+                    thrusts = [float((a + 1.0) * hover) for a in act[:4]]  # [0, 2*hover] per rotor
+                    self.apply_rotor_thrusts(tgt_id, thrusts)
+            except Exception as e:
+                logger.debug("Drone policy inference skipped this step: %s", e)
+            # No diff-drive motion for a drone.
+        elif policy_on:
+            # Differential-drive rover policy (default / legacy path).
             try:
                 from backend.rl_env import RoboForgeGymEnv
                 qadr = getattr(self, "robot_qpos_adr", 0)
@@ -713,10 +981,13 @@ class MuJoCoEngine:
                 lin_speed = float(np.linalg.norm(self.data.qvel[vadr:vadr + 2]))
                 ang_speed = float(self.data.qvel[vadr + 5]) if vadr + 5 < len(self.data.qvel) else 0.0
 
-                target = [2.5, 0.5, 0.25]
-                tgt_objs = [o for o in self.project.objects if "target" in o.name.lower() or "target" in o.id.lower() or "goal" in o.name.lower()]
-                if tgt_objs:
-                    target = tgt_objs[0].position
+                # Authoritative target: use the goal bound at deploy time (matches training), then
+                # fall back to a named target/goal object, then a sane default.
+                target = getattr(self, "active_rl_policy_target_pos", None)
+                if not target:
+                    tgt_objs = [o for o in self.project.objects
+                                if "target" in o.name.lower() or "target" in o.id.lower() or "goal" in o.name.lower()]
+                    target = tgt_objs[0].position if tgt_objs else [2.5, 0.5, 0.25]
 
                 obs = RoboForgeGymEnv.compute_observation(
                     robot_pos=[float(r_pos[0]), float(r_pos[1]), 0.07],
@@ -779,7 +1050,9 @@ class MuJoCoEngine:
                         clamped_target = max(-eff_max, min(eff_max, clamped_target))
                 self.data.ctrl[act_id] = clamped_target
 
-        # Apply 6-DOF aerodynamic thrust & flight stabilization to active aerial drones
+        # Apply REAL per-rotor thrust to active quadcopters. Each of the 4 rotors produces a
+        # thrust along its body +z at its offset site, so roll/pitch/yaw moments emerge from the
+        # physics (differential thrust) exactly like a real quadcopter. Rotor drag produces yaw.
         if self.model and self.data and hasattr(self.data, "xfrc_applied"):
             for drone_id, drone in list(self.drone_controllers.items()):
                 bid = self.object_body_ids.get(drone_id, -1)
@@ -790,66 +1063,94 @@ class MuJoCoEngine:
                 drone.current_position = [float(pos[0]), float(pos[1]), float(pos[2])]
                 drone.current_altitude = float(pos[2])
 
-                # Resolve freejoint velocity
                 jnt = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, f"joint_{drone_id}")
                 if jnt >= 0:
                     dof = self.model.jnt_dofadr[jnt]
-                    lvel = np.array(self.data.qvel[dof:dof+3], copy=True)
-                    avel = np.array(self.data.qvel[dof+3:dof+6], copy=True)
+                    lvel = np.array(self.data.qvel[dof:dof + 3], copy=True)
+                    avel = np.array(self.data.qvel[dof + 3:dof + 6], copy=True)
                 else:
                     lvel = np.zeros(3)
                     avel = np.zeros(3)
                 drone.current_velocity = [float(lvel[0]), float(lvel[1]), float(lvel[2])]
 
+                rotors = getattr(self, "drone_rotors", {}).get(drone_id)
+
+                # Clear any legacy body wrench; real thrust is applied per-rotor below.
+                self.data.xfrc_applied[bid, :] = 0.0
+
                 if self.rl_training_active:
-                    self.data.xfrc_applied[bid, :] = 0.0
                     continue
 
-                if drone.rotors_active or drone.flight_mode in ("takeoff", "hover", "flying", "landing", "waypoint"):
-                    g = abs(self.project.settings.gravity[2]) if hasattr(self.project.settings, "gravity") else 9.81
-                    f_hover = drone.mass * g
+                active = drone.rotors_active or drone.flight_mode in ("takeoff", "hover", "flying", "landing", "waypoint")
+                if not active:
+                    # Rotors idle.
+                    if rotors:
+                        for r in rotors:
+                            if r["act_id"] >= 0:
+                                self.data.ctrl[r["act_id"]] = 0.0
+                    continue
 
-                    # Vertical altitude PID thrust
-                    alt_err = drone.target_altitude - pos[2]
-                    fz = f_hover + drone.kp_z * alt_err - drone.kd_z * lvel[2]
-                    fz = max(0.0, min(f_hover * 3.2, fz))
+                # Current attitude from the body orientation matrix.
+                body_mat = self.data.xmat[bid].reshape(3, 3)
+                bz = body_mat[:, 2]            # body +z expressed in world
+                roll_now = math.atan2(body_mat[2, 1], body_mat[2, 2])
+                pitch_now = math.atan2(-body_mat[2, 0], math.sqrt(body_mat[2, 1] ** 2 + body_mat[2, 2] ** 2))
+                yaw_now = math.atan2(body_mat[1, 0], body_mat[0, 0])
 
-                    # Horizontal position hold or waypoint tracking
-                    if drone.target_position:
-                        ex = drone.target_position[0] - pos[0]
-                        ey = drone.target_position[1] - pos[1]
-                        fx = drone.kp_xy * ex - drone.kd_xy * lvel[0]
-                        fy = drone.kp_xy * ey - drone.kd_xy * lvel[1]
-                    else:
-                        fx = -4.0 * lvel[0]
-                        fy = -4.0 * lvel[1]
+                # If a trained drone policy is deployed on THIS drone, the policy's 4 rotor commands
+                # drive it directly (applied in the policy-dispatch branch earlier). Skip the PID
+                # fallback so we never mix a hardcoded controller with the learned one.
+                if (self.active_rl_policy_model is not None
+                        and getattr(self, "active_rl_policy_kind", "") == "drone"
+                        and getattr(self, "active_rl_policy_target", None) == drone_id):
+                    continue
 
-                    fx = float(np.clip(fx, -15.0, 15.0))
-                    fy = float(np.clip(fy, -15.0, 15.0))
+                # Flight-mode progression for the manual autopilot.
+                if drone.flight_mode == "takeoff" and pos[2] >= (drone.target_altitude - 0.1):
+                    drone.flight_mode = "hover"
+                    if not drone.target_position:
+                        drone.target_position = [float(pos[0]), float(pos[1]), float(drone.target_altitude)]
+                elif drone.flight_mode == "landing":
+                    drone.target_altitude = max(0.04, drone.target_altitude - 0.015)
+                    if pos[2] <= 0.08 and abs(lvel[2]) < 0.2:
+                        drone.flight_mode = "grounded"
+                        drone.rotors_active = False
 
-                    # Rotational angular damping
-                    tx = -0.6 * avel[0]
-                    ty = -0.6 * avel[1]
-                    tz = -0.8 * avel[2]
+                # --- Built-in PD *fallback* flight controller (manual takeoff/hover/waypoint when
+                # NO policy is deployed). It only computes 4 rotor thrusts and hands them to the
+                # shared real-physics primitive; it is not the "real" flight model, just a usable
+                # manual autopilot. ---
+                hover = self.rotor_hover_thrust(drone_id)
 
-                    # Flight mode progression
-                    if drone.flight_mode == "takeoff" and pos[2] >= (drone.target_altitude - 0.1):
-                        drone.flight_mode = "hover"
-                    elif drone.flight_mode == "landing":
-                        drone.target_altitude = max(0.04, drone.target_altitude - 0.015)
-                        if pos[2] <= 0.08 and abs(lvel[2]) < 0.2:
-                            drone.flight_mode = "grounded"
-                            drone.rotors_active = False
-                            fz = 0.0
+                alt_err = drone.target_altitude - pos[2]
+                tilt_cos = max(0.5, float(bz[2]))
+                collective = (4.0 * hover + 6.0 * alt_err - 5.0 * lvel[2]) / tilt_cos
+                base = float(np.clip(collective, 0.0, 8.0 * hover)) / 4.0
 
-                    self.data.xfrc_applied[bid, 0] = fx
-                    self.data.xfrc_applied[bid, 1] = fy
-                    self.data.xfrc_applied[bid, 2] = fz
-                    self.data.xfrc_applied[bid, 3] = tx
-                    self.data.xfrc_applied[bid, 4] = ty
-                    self.data.xfrc_applied[bid, 5] = tz
+                cy, sy = math.cos(yaw_now), math.sin(yaw_now)
+                if drone.target_position:
+                    ex_w = float(np.clip(drone.target_position[0] - pos[0], -2.5, 2.5))
+                    ey_w = float(np.clip(drone.target_position[1] - pos[1], -2.5, 2.5))
                 else:
-                    self.data.xfrc_applied[bid, :] = 0.0
+                    ex_w = ey_w = 0.0
+                ex_b = cy * ex_w + sy * ey_w
+                ey_b = -sy * ex_w + cy * ey_w
+                vx_b = cy * float(lvel[0]) + sy * float(lvel[1])
+                vy_b = -sy * float(lvel[0]) + cy * float(lvel[1])
+                des_pitch = float(np.clip(0.04 * ex_b - 0.20 * vx_b, -0.12, 0.12))
+                des_roll = float(np.clip(-0.04 * ey_b + 0.20 * vy_b, -0.12, 0.12))
+
+                mx = float(np.clip(0.8 * (des_roll - roll_now) - 0.5 * float(avel[0]), -0.4, 0.4))
+                my = float(np.clip(0.8 * (des_pitch - pitch_now) - 0.5 * float(avel[1]), -0.4, 0.4))
+
+                mdelta = hover  # moment-to-thrust conversion scale (per-rotor)
+                thrusts = [
+                    base + (my + mx) * mdelta,   # 0 FL
+                    base + (my - mx) * mdelta,   # 1 FR
+                    base + (-my + mx) * mdelta,  # 2 RL
+                    base + (-my - mx) * mdelta,  # 3 RR
+                ]
+                self.apply_rotor_thrusts(drone_id, thrusts)
 
             # Apply planar propulsion forces to secondary ground rovers
             for bot_id, bot in list(self.secondary_robot_controllers.items()):
@@ -884,7 +1185,8 @@ class MuJoCoEngine:
                 instant_rtf = (self.project.settings.timestep * self.project.settings.speed_multiplier) / dt_wall
                 self.real_time_factor = float(0.95 * self.real_time_factor + 0.05 * instant_rtf)
 
-            if np.isnan(self.data.qpos[0]) or np.isnan(self.data.qvel[0]):
+            if (len(self.data.qpos) > 0 and len(self.data.qvel) > 0
+                    and (np.isnan(self.data.qpos[0]) or np.isnan(self.data.qvel[0]))):
                 self.reset()
                 self.log("warning", "Physics numerical divergence detected; state restored to initial conditions.")
             else:
@@ -1126,10 +1428,19 @@ class MuJoCoEngine:
 
         qadr = getattr(self, "robot_qpos_adr", 0)
         vadr = getattr(self, "robot_qvel_adr", 0)
-        r_pos = [float(x) for x in self.data.qpos[qadr:qadr + 3]]
-        r_quat = [float(x) for x in self.data.qpos[qadr + 3:qadr + 7]]
-        r_lvel = [float(x) for x in self.data.qvel[vadr:vadr + 3]]
-        r_avel = [float(x) for x in self.data.qvel[vadr + 3:vadr + 6]]
+        robot_present = getattr(self.project, "robot_active", True) and getattr(self, "robot_body_id", -1) >= 0
+        if not robot_present:
+            # No active robot in the workspace: report a neutral, grounded robot state so the
+            # rest of the telemetry pipeline (objects, contacts) still works on an empty scene.
+            r_pos = [0.0, 0.0, 0.0]
+            r_quat = [1.0, 0.0, 0.0, 0.0]
+            r_lvel = [0.0, 0.0, 0.0]
+            r_avel = [0.0, 0.0, 0.0]
+        else:
+            r_pos = [float(x) for x in self.data.qpos[qadr:qadr + 3]]
+            r_quat = [float(x) for x in self.data.qpos[qadr + 3:qadr + 7]]
+            r_lvel = [float(x) for x in self.data.qvel[vadr:vadr + 3]]
+            r_avel = [float(x) for x in self.data.qvel[vadr + 3:vadr + 6]]
         
         l_speed = float(math.sqrt(r_lvel[0]**2 + r_lvel[1]**2 + r_lvel[2]**2))
         a_speed = float(math.sqrt(r_avel[0]**2 + r_avel[1]**2 + r_avel[2]**2))
@@ -1358,7 +1669,10 @@ class MuJoCoEngine:
             rl_training_step=self.rl_training_step,
             rl_training_reward=self.rl_training_reward,
             rl_training_status=self.rl_training_status,
-            rl_training_model_name=self.rl_training_model_name
+            rl_training_model_name=self.rl_training_model_name,
+            rl_training_percent=float(getattr(self, "rl_training_percent", 0.0) or 0.0),
+            rl_target_position=(list(self.active_rl_policy_target_pos)
+                                if getattr(self, "active_rl_policy_target_pos", None) else None),
         )
 
     # -------------------------------------------------------------
@@ -1432,10 +1746,65 @@ class MuJoCoEngine:
                 self.active_rl_policy_id = model_id
                 self.active_rl_policy_name = meta.name if meta else model_id
                 self.active_rl_policy_model = model
+
+                # Determine which kind of entity this policy drives so apply_control can
+                # dispatch to the correct controller (drone / arm / generic / diff-drive rover).
+                raw_kind = (getattr(meta, "robot_kind", None) or "").strip().lower() if meta else ""
+                if raw_kind == "mobile":
+                    raw_kind = "rover"
+                valid_kinds = {"drone", "arm", "generic", "rover"}
+                if raw_kind in valid_kinds:
+                    # Trust an explicitly-stored, valid kind -- do NOT let the name override it.
+                    kind = raw_kind
+                else:
+                    # Only infer from the policy name when the stored kind is missing/unknown.
+                    nm = ((meta.name if meta else "") or model_id).lower()
+                    if any(k in nm for k in ("drone", "hover", "flight", "quad", "takeoff", "fly")):
+                        kind = "drone"
+                    elif any(k in nm for k in ("arm", "reach", "pick", "manipulat", "gripper")):
+                        kind = "arm"
+                    else:
+                        kind = "rover"
+                target_id = getattr(meta, "target_entity_id", None) if meta else None
+                self.active_rl_policy_kind = kind
+                self.active_rl_policy_target = target_id
+                self.active_rl_policy_env = None
+                # Restore the training goal so deployment inference matches the training
+                # distribution (a rover trained toward goal G must be deployed toward G, not a
+                # fragile scene-name scan). Falls back to a sensible default for rovers.
+                meta_tp = getattr(meta, "target_position", None) if meta else None
+                if kind in ("rover", "mobile", "generic", "arm"):
+                    self.active_rl_policy_target_pos = list(meta_tp) if meta_tp else [2.5, 0.5, 0.25]
+                else:
+                    self.active_rl_policy_target_pos = None
+
+                # Bind a live driver env for arm/rover kinds (reused each step for observations).
+                try:
+                    if kind in ("arm", "generic"):
+                        from backend.rl_generic_env import RoboForgeReachEnv
+                        drv = RoboForgeReachEnv(self.project, randomize_target=False, max_episode_steps=100000)
+                        drv.engine = self
+                        self.active_rl_policy_env = drv
+                    elif kind == "drone":
+                        # Resolve/engage the drone body and arm its rotors for policy control.
+                        if not target_id or target_id not in self.drone_controllers:
+                            target_id = next(iter(self.drone_controllers.keys()), None)
+                            self.active_rl_policy_target = target_id
+                        if target_id and target_id in self.drone_controllers:
+                            self.drone_controllers[target_id].rotors_active = True
+                            self.drone_controllers[target_id].flight_mode = "flying"
+                    else:
+                        from backend.rl_env import RoboForgeGymEnv
+                        drv = RoboForgeGymEnv(self.project, max_episode_steps=100000)
+                        drv.engine = self
+                        self.active_rl_policy_env = drv
+                except Exception as drv_err:
+                    logger.warning("Could not bind policy driver env for kind '%s': %s", kind, drv_err)
+
                 if self.status != "running":
                     self.play()
-                self.log("info", f"RL Policy '{self.active_rl_policy_name}' deployed to live robot controller.")
-                return {"status": "success", "model_id": model_id, "name": self.active_rl_policy_name}
+                self.log("info", f"RL Policy '{self.active_rl_policy_name}' ({kind}) deployed to live simulation.")
+                return {"status": "success", "model_id": model_id, "name": self.active_rl_policy_name, "robot_kind": kind}
             except Exception as e:
                 self.log("error", f"Failed to load RL model {model_id}: {e}")
                 return {"status": "error", "error": str(e)}
@@ -1443,6 +1812,8 @@ class MuJoCoEngine:
             self.active_rl_policy_id = None
             self.active_rl_policy_name = None
             self.active_rl_policy_model = None
+            self.active_rl_policy_env = None
+            self.active_rl_policy_target = None
             return {"status": "disengaged"}
 
     def set_drone_pose(self, drone_id: str, position: Sequence[float], quaternion: Optional[Sequence[float]] = None, velocity: Optional[Sequence[float]] = None):

@@ -9,7 +9,7 @@ import mujoco
 
 from backend.models import Project, SceneObject, RobotConfig, SimulationSettings
 from backend.simulation import MuJoCoEngine
-from backend.project_manager import ProjectManager, get_default_project
+from backend.project_manager import ProjectManager, get_default_project, get_default_project_demo
 from backend.app import app
 
 client = TestClient(app)
@@ -134,7 +134,8 @@ def test_dynamic_object_addition():
 
 def test_dynamic_object_deletion_no_stale_state():
     """Verify deleting an obstacle removes body and geom with no stale IDs."""
-    project = get_default_project()
+    # The demo project ships with primitive obstacles (incl. obs_box_1) to exercise deletion.
+    project = get_default_project_demo()
     engine = MuJoCoEngine(project)
     
     assert "obs_box_1" in engine.object_body_ids
@@ -258,6 +259,14 @@ def test_reset_to_saved_state():
     """Verify reset_to_saved restores last saved snapshot and discards unsaved changes."""
     with tempfile.TemporaryDirectory() as tmpdir:
         pm = ProjectManager(storage_dir=Path(tmpdir))
+        # Seed a scene object so the saved snapshot has content to restore.
+        pm.get_current().objects.append(SceneObject(
+            id="snapshot_box",
+            name="Snapshot Box",
+            type="box",
+            position=[1.0, 0.0, 0.3],
+            size=[0.2, 0.2, 0.2],
+        ))
         pm.save_project_to_disk("snapshot.rfproj.json")
         
         # Modify in memory

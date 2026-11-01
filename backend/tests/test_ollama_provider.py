@@ -118,7 +118,13 @@ def test_api_ai_status_and_models_endpoints():
     data_models = res_models.json()
     assert "available_models" in data_models
     assert "model" in data_models
-    if is_local_ollama_running():
+    # Provider priority is Gemini (cloud LLM) primary, Ollama fallback. When a cloud key is
+    # configured the active provider is "llm" even if Ollama is also running locally; Ollama is
+    # only the active provider when no cloud credentials are present.
+    cloud_key_present = bool(os.getenv("GEMINI_API_KEY") or os.getenv("OPENAI_API_KEY"))
+    if cloud_key_present:
+        assert data_models["provider_type"] == "llm"
+    elif is_local_ollama_running():
         assert data_models["provider_type"] == "ollama"
         assert "qwen2.5:7b" in data_models["model"]
 
@@ -154,7 +160,19 @@ def test_live_ollama_inference_reasoning():
 
 @pytest.mark.skipif(not is_local_ollama_running(), reason="Local Ollama not reachable")
 def test_live_chat_endpoint_real_model_inference():
-    """Tests POST /api/ai/chat with live inference against qwen2.5:7b."""
+    """Tests POST /api/ai/chat with live Ollama inference.
+
+    This exercises the Ollama-primary path, so it only applies when no cloud (Gemini/OpenAI)
+    credentials are configured and a local Ollama model is actually serving. With Gemini set as
+    the primary provider, Ollama is the fallback rather than the active inference provider.
+    """
+    if os.getenv("GEMINI_API_KEY") or os.getenv("OPENAI_API_KEY"):
+        import pytest
+        pytest.skip("Cloud provider (Gemini/OpenAI) is primary; Ollama is fallback, not active provider.")
+    if not is_local_ollama_running():
+        import pytest
+        pytest.skip("Local Ollama is not running; skipping live Ollama inference test.")
+
     req_payload = {
         "prompt": "What sensors and capabilities does this robot have for obstacle avoidance?",
         "mode": "supervised",

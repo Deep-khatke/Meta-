@@ -5,6 +5,14 @@ import logging
 from typing import Set, Optional, List, Dict, Any
 from contextlib import asynccontextmanager
 
+# Load environment variables from a local .env (API keys, model names) before anything reads
+# them. The .env is gitignored; keys are never hardcoded or sent to the frontend.
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except Exception:
+    pass
+
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -114,9 +122,20 @@ async def simulation_loop():
                 # If an autonomous live experiment is running, steer robot & track objective
                 if active_live_experiment:
                     try:
-                        r_pos = np.array(engine.data.qpos[engine.robot_qpos_adr:engine.robot_qpos_adr + 2])
-                        r_quat = [float(x) for x in engine.data.qpos[engine.robot_qpos_adr + 3:engine.robot_qpos_adr + 7]]
-                        target = active_live_experiment["target"]
+                        # Guard: the diff-drive live-experiment loop requires an active robot with
+                        # a valid freejoint. If the scene has no robot (robot_active=False) or the
+                        # qpos layout can't supply a 2D pose, skip this branch instead of crashing.
+                        _qpos = engine.data.qpos
+                        _adr = int(getattr(engine, "robot_qpos_adr", 0) or 0)
+                        _has_robot = (getattr(engine, "robot_body_id", -1) >= 0
+                                      and getattr(engine, "active_rl_policy_kind", "rover") in ("rover", "mobile")
+                                      and (_adr + 7) <= len(_qpos))
+                        if not _has_robot:
+                            active_live_experiment = None
+                            raise RuntimeError("skip-live-experiment-no-robot")
+                        r_pos = np.array(_qpos[_adr:_adr + 2], dtype=float)
+                        r_quat = [float(x) for x in _qpos[_adr + 3:_adr + 7]]
+                        target = np.asarray(active_live_experiment["target"], dtype=float)[:2]
                         dist = float(np.linalg.norm(r_pos - target))
                         v_max = active_live_experiment["config"].robot.max_linear_velocity
                         w_max = active_live_experiment["config"].robot.max_angular_velocity
@@ -220,6 +239,9 @@ async def simulation_loop():
                             active_live_experiment = None
                             await broadcast_json({"type": "live_experiment_completed", "data": res.model_dump()})
                             engine.log("info", f"Live experiment '{cfg.name}' completed: {reason_str}")
+                    except RuntimeError as ex:
+                        if str(ex) != "skip-live-experiment-no-robot":
+                            logger.exception("Error in active live experiment step: %s", ex)
                     except Exception as ex:
                         logger.exception("Error in active live experiment step: %s", ex)
                 elif agent_interface.active_trajectory_controller and (time.time() - engine.last_teleop_time > 0.35):
@@ -468,8 +490,23 @@ async def update_project(project: Project):
 
 
 @app.post("/api/project/new")
-async def new_project(name: str = "New Scene"):
+async def new_project(name: str = "New Scene", template: str = "diff_drive"):
+    """Creates a fresh project.
+
+    template:
+      - "diff_drive" (default): starter differential-drive rover in an empty arena.
+      - "empty": empty arena with a minimal base, ready for the user to import their own
+        robot (URDF/MJCF). No obstacles, no imported model.
+    """
     proj = project_manager.new_project(name=name)
+    proj.objects = []
+    proj.generic_robot = None
+    if template == "empty":
+        proj.description = "Empty workspace -- import a URDF/MJCF robot to begin."
+        proj.robot_active = False
+    else:
+        proj.robot_active = True
+    project_manager.update_project(proj)
     engine.project = proj
     engine.rebuild_model(preserve_state=False)
     await broadcast_json({"type": "project_updated", "data": engine.project.model_dump()})
@@ -1085,6 +1122,38 @@ async def clear_generic_robot():
     await broadcast_json({"type": "project_updated", "data": engine.project.model_dump()})
     engine.log("info", "Removed imported generic robot model from simulation.")
     return {"status": "cleared"}
+
+
+class RobotActiveRequest(BaseModel):
+    active: bool
+
+
+@app.post("/api/robot/active")
+async def set_robot_active(req: RobotActiveRequest):
+    """Enables or removes the built-in differential-drive robot from the workspace.
+
+    Setting active=False removes the default robot entirely so the user can keep an empty
+    workspace with nothing active. Setting active=True restores it.
+    """
+    engine.project.robot_active = req.active
+    project_manager.current_project.robot_active = req.active
+    engine.rebuild_model(preserve_state=False)
+    project_manager.update_project(engine.project)
+    await broadcast_json({"type": "project_updated", "data": engine.project.model_dump()})
+    engine.log("info", f"Built-in robot {'activated' if req.active else 'removed from workspace'}.")
+    return {"status": "ok", "robot_active": engine.project.robot_active}
+
+
+@app.delete("/api/robot")
+async def remove_active_robot():
+    """Convenience endpoint: removes the built-in differential-drive robot (robot_active=False)."""
+    engine.project.robot_active = False
+    project_manager.current_project.robot_active = False
+    engine.rebuild_model(preserve_state=False)
+    project_manager.update_project(engine.project)
+    await broadcast_json({"type": "project_updated", "data": engine.project.model_dump()})
+    engine.log("info", "Built-in robot removed from workspace.")
+    return {"status": "removed", "robot_active": False}
 
 
 @app.post("/api/robot/validate", response_model=RobotValidationResult)
@@ -1809,6 +1878,85 @@ async def execute_rl_policy_live(req: ExecuteRLPolicyRequest):
     if not model:
         raise HTTPException(status_code=404, detail=f"RL Model '{req.model_id}' checkpoint not found")
 
+    meta = training_manager.get_model_metadata(req.model_id)
+    raw_kind = (getattr(meta, "robot_kind", None) or "").strip().lower() if meta else ""
+    if raw_kind == "mobile":
+        raw_kind = "rover"
+    if raw_kind in ("drone", "arm", "generic", "rover"):
+        # Trust an explicitly-stored, valid kind -- the name must not override it.
+        robot_kind = raw_kind
+    else:
+        # Infer only when the stored kind is missing/unknown (legacy checkpoints).
+        _nm = ((meta.name if meta else "") or req.model_id).lower()
+        if any(k in _nm for k in ("drone", "hover", "flight", "quad", "takeoff", "fly")):
+            robot_kind = "drone"
+        elif any(k in _nm for k in ("arm", "reach", "pick", "manipulat", "gripper")):
+            robot_kind = "arm"
+        else:
+            robot_kind = "rover"
+
+    # -------------------------------------------------------------------
+    # DRONE / ARM / GENERIC policies: drive the entity through the live
+    # physics controller (engine.apply_control dispatches by robot_kind).
+    # These do NOT use the diff-drive active_live_experiment loop.
+    # -------------------------------------------------------------------
+    if robot_kind in ("drone", "arm", "generic"):
+        # Make sure the live experiment rover loop is not also running.
+        active_live_experiment = None
+        proj = project_manager.current_project
+
+        if robot_kind == "drone":
+            # Ensure a drone entity exists in the scene; spawn one if missing so the policy has a
+            # body to fly. (A trained drone policy references a drone, not the rover.)
+            drone_obj = next((o for o in proj.objects
+                              if "drone" in o.name.lower() or o.id.startswith("drone") or "quad" in o.name.lower()), None)
+            if not drone_obj:
+                import uuid as _uuid
+                drone_obj = SceneObject(
+                    id=f"drone_{_uuid.uuid4().hex[:6]}", name="RL-Quadcopter", type="box",
+                    position=[0.0, 0.0, 0.12], size=[0.22, 0.22, 0.08],
+                    color="#38bdf8", is_static=False, mass=1.2,
+                )
+                proj.objects.append(drone_obj)
+            engine.project = proj
+            engine.rebuild_model(preserve_state=False)
+            res = engine.set_active_rl_policy(req.model_id)
+            # Bind explicitly to the drone currently in the scene.
+            engine.active_rl_policy_kind = "drone"
+            engine.active_rl_policy_target = drone_obj.id
+            if drone_obj.id in engine.drone_controllers:
+                ctrl = engine.drone_controllers[drone_obj.id]
+                ctrl.rotors_active = True
+                ctrl.flight_mode = "flying"
+                if req.target_position and len(req.target_position) >= 3:
+                    ctrl.target_position = list(req.target_position)
+                    ctrl.target_altitude = float(req.target_position[2])
+                else:
+                    ctrl.target_altitude = 1.5
+                    ctrl.target_position = [0.0, 0.0, 1.5]
+        else:
+            # Arm / generic: policy drives the existing articulated robot in the scene.
+            engine.rebuild_model(preserve_state=False)
+            res = engine.set_active_rl_policy(req.model_id)
+
+        engine.last_teleop_time = 0.0  # allow apply_control's policy branch to run immediately
+        engine.play()
+        await broadcast_json({"type": "project_updated", "data": engine.project.model_dump()})
+        await broadcast_json({
+            "type": "live_experiment_started",
+            "data": {
+                "experiment_id": f"rl_{robot_kind}",
+                "name": f"{(meta.name if meta else req.model_id)} [{robot_kind} policy]",
+                "policy_mode": "PPO",
+                "robot_kind": robot_kind,
+            }
+        })
+        return {"status": "started", "model_id": req.model_id, "robot_kind": robot_kind,
+                "engaged": res.get("status") == "success"}
+
+    # -------------------------------------------------------------------
+    # ROVER / diff-drive policies: existing live-experiment loop.
+    # -------------------------------------------------------------------
     config = None
     if req.scenario_id:
         config = experiment_manager.get_scenario(req.scenario_id)
@@ -1820,13 +1968,18 @@ async def execute_rl_policy_live(req: ExecuteRLPolicyRequest):
             raise HTTPException(status_code=404, detail="No baseline scenario available to execute")
 
     config = config.model_copy(deep=True)
+    # Prefer an explicit request target; else the policy's own trained target (so deploy matches
+    # the training distribution and the robot actually moves); else the scenario default.
     if req.target_position:
         config.task.target_position = req.target_position
+    elif meta is not None and getattr(meta, "target_position", None):
+        config.task.target_position = list(meta.target_position)
 
     seed = req.seed
     duration = req.duration
 
     project_manager.current_project.robot = config.robot.model_copy(deep=True)
+    project_manager.current_project.robot_active = True  # a rover policy needs the diff-drive robot
     project_manager.current_project.objects = [o.model_copy(deep=True) for o in config.environment]
     project_manager.current_project.settings = config.settings.model_copy(deep=True)
     project_manager.current_project.name = f"{config.name} (PPO Policy)"
@@ -1834,6 +1987,12 @@ async def execute_rl_policy_live(req: ExecuteRLPolicyRequest):
     np.random.seed(seed)
     engine.project = project_manager.current_project
     engine.rebuild_model(preserve_state=False)
+    # Engage the policy on the engine too (so apply_control's rover branch can drive it with the
+    # authoritative target) AND keep the live-experiment loop as the metrics/termination tracker.
+    engine.set_active_rl_policy(req.model_id)
+    engine.active_rl_policy_kind = "rover"
+    engine.active_rl_policy_target_pos = list(config.task.target_position)
+    engine.last_teleop_time = 0.0
 
     run_until_goal = getattr(req, "run_until_goal", True)
     timeout_val = None if (run_until_goal or not duration or duration <= 0) else duration

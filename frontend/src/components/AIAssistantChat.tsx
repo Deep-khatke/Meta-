@@ -24,6 +24,7 @@ import {
   fetchAIChatHistory,
   clearAIChatHistory
 } from '../services/api';
+import { AIThinkingIndicator } from './AIThinkingIndicator';
 
 export interface PersistentChatMessage {
   id: string;
@@ -1342,36 +1343,8 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
           messages.map(renderMessage)
         )}
 
-        {/* Loading Indicator */}
-        {isLoading && (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              padding: '10px 0',
-              color: '#94a3b8',
-              fontSize: 12,
-            }}
-          >
-            <div
-              style={{
-                width: 24,
-                height: 24,
-                borderRadius: '50%',
-                background: 'linear-gradient(135deg, #6366f1, #38bdf8)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#ffffff',
-                animation: 'pulse 1.2s infinite',
-              }}
-            >
-              <Sparkles size={12} />
-            </div>
-            <span>Reasoning and executing simulation tools...</span>
-          </div>
-        )}
+        {/* Friendly animated "thinking / generating" presence */}
+        {isLoading && <AIThinkingIndicator />}
 
         <div ref={messagesEndRef} />
       </div>

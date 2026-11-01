@@ -35,8 +35,8 @@ export async function saveProjectToBackend(project?: Project): Promise<{ status:
   return res.json();
 }
 
-export async function createNewProject(name: string = 'New Scene'): Promise<Project> {
-  const res = await fetch(`${API_BASE}/project/new?name=${encodeURIComponent(name)}`, { method: 'POST' });
+export async function createNewProject(name: string = 'New Scene', template: 'diff_drive' | 'empty' = 'diff_drive'): Promise<Project> {
+  const res = await fetch(`${API_BASE}/project/new?name=${encodeURIComponent(name)}&template=${template}`, { method: 'POST' });
   if (!res.ok) throw new Error('Failed to create new project');
   return res.json();
 }
@@ -149,6 +149,33 @@ export async function importURDF(urdfXml: string, setAsActive: boolean = true): 
     body: JSON.stringify({ urdf_xml: urdfXml, set_as_active_robot: setAsActive }),
   });
   if (!res.ok) throw new Error('Failed to import URDF');
+  return res.json();
+}
+
+export async function trainDroneLive(totalEpisodes: number = 4): Promise<any> {
+  const res = await fetch(`${API_BASE}/rl/train-drone-live`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ drone_identifier: 'drone', target_altitude: 1.5, total_episodes: totalEpisodes }),
+  });
+  if (!res.ok) throw new Error('Failed to start live drone training');
+  return res.json();
+}
+
+export async function trainArmLive(totalEpisodes: number = 4): Promise<any> {
+  const res = await fetch(`${API_BASE}/rl/train-arm-live`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ arm_identifier: 'arm', total_episodes: totalEpisodes }),
+  });
+  if (!res.ok) throw new Error('Failed to start live arm training');
+  return res.json();
+}
+
+export async function trainRoverLive(totalEpisodes: number = 4): Promise<any> {
+  const res = await fetch(`${API_BASE}/rl/train-rover-live`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ robot_identifier: 'robot', total_episodes: totalEpisodes }),
+  });
+  if (!res.ok) throw new Error('Failed to start live rover training');
   return res.json();
 }
 
@@ -599,6 +626,28 @@ export async function clearGenericRobot(): Promise<Project> {
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: 'Failed to clear generic robot' }));
     throw new Error(err.detail || 'Failed to clear generic robot');
+  }
+  return res.json();
+}
+
+export async function setRobotActive(active: boolean): Promise<{ status: string; robot_active: boolean }> {
+  const res = await fetch(`${API_BASE}/robot/active`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ active }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Failed to update robot active state' }));
+    throw new Error(err.detail || 'Failed to update robot active state');
+  }
+  return res.json();
+}
+
+export async function removeActiveRobot(): Promise<{ status: string; robot_active: boolean }> {
+  const res = await fetch(`${API_BASE}/robot`, { method: 'DELETE' });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Failed to remove robot' }));
+    throw new Error(err.detail || 'Failed to remove robot');
   }
   return res.json();
 }

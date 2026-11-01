@@ -1,6 +1,7 @@
 """Gymnasium-compliant reinforcement learning environment for RoboForge differential-drive MuJoCo robot."""
 
 import math
+import logging
 from typing import Any, Dict, List, Optional, Tuple, Sequence
 import gymnasium as gym
 from gymnasium import spaces
@@ -8,6 +9,8 @@ import numpy as np
 
 from backend.models import Project, RobotConfig, SceneObject, SimulationSettings
 from backend.simulation import SimulationEngine, quat_to_yaw
+
+logger = logging.getLogger("roboforge.rl_env")
 
 
 class RoboForgeGymEnv(gym.Env):
@@ -389,133 +392,233 @@ class RoboForgeGymEnv(gym.Env):
 
 
 class RoboForgeDroneGymEnv(gym.Env):
-    """Reinforcement learning environment for 6-DOF aerial drone takeoff, hovering, and landing."""
+    """Real MuJoCo-physics RL environment for a quadcopter. The 4 actions are the 4 rotor thrust
+    commands applied to the genuine rotor sites of the real drone body; observations are read from
+    the real MuJoCo state; reward rewards reaching/holding a target position with stability. No
+    scripted phases or kinematic shortcuts -- the agent must learn to fly real differential-thrust
+    dynamics."""
 
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 20}
 
     def __init__(
         self,
-        task: str = "takeoff_and_land",
+        task: str = "hover",
         target_altitude: float = 1.5,
         max_episode_steps: int = 300,
         custom_reward_code: Optional[str] = None,
+        substeps: int = 5,
+        randomize_target: bool = True,
+        project: Optional[Project] = None,
+        drone_id: str = "drone_rl",
         seed: Optional[int] = None,
     ):
         super().__init__()
         self.task = task
-        self.target_altitude = target_altitude
+        self.target_altitude = float(target_altitude)
         self.max_episode_steps = max_episode_steps
+        self.substeps = max(1, int(substeps))
+        self.randomize_target = randomize_target
         self.current_step = 0
         self.custom_reward_code = custom_reward_code
+        self.drone_id = drone_id
 
-        # 4 continuous flight actions: [vertical_thrust, roll_cmd, pitch_cmd, yaw_cmd]
-        self.action_space = spaces.Box(
-            low=-1.0, high=1.0, shape=(4,), dtype=np.float32
-        )
+        # 4 continuous actions = normalized thrust command per rotor [FL, FR, RL, RR].
+        self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(4,), dtype=np.float32)
+        # 15 observations: pos(3), lin vel(3), roll/pitch/yaw(3), ang vel(3), target(3).
+        self.observation_space = spaces.Box(low=-30.0, high=30.0, shape=(15,), dtype=np.float32)
 
-        # 14 observation dimensions:
-        # [0..2]: [x, y, z]
-        # [3..5]: [vx, vy, vz]
-        # [6..8]: [roll, pitch, yaw]
-        # [9..11]: [target_x, target_y, target_z]
-        # [12]: altitude_error
-        # [13]: planar_distance_to_target
-        self.observation_space = spaces.Box(
-            low=-25.0, high=25.0, shape=(14,), dtype=np.float32
-        )
+        # Build a dedicated real MuJoCo scene containing just this drone.
+        from backend.simulation import MuJoCoEngine
+        if project is None:
+            project = Project(
+                name="DroneRL",
+                robot_active=False,
+                objects=[SceneObject(
+                    id=drone_id, name="RL-Quad", type="box",
+                    position=[0.0, 0.0, 0.08], size=[0.22, 0.22, 0.08],
+                    color="#38bdf8", is_static=False, mass=1.2,
+                )],
+            )
+        else:
+            # Ensure a drone entity with our id exists in the provided project.
+            if not any(o.id == drone_id for o in project.objects):
+                project.objects.append(SceneObject(
+                    id=drone_id, name="RL-Quad", type="box",
+                    position=[0.0, 0.0, 0.08], size=[0.22, 0.22, 0.08],
+                    color="#38bdf8", is_static=False, mass=1.2,
+                ))
+        self.engine = MuJoCoEngine(project)
+        self.engine.rebuild_model(preserve_state=False)
+        # Arm the drone's rotors and disable the built-in PID so only the policy drives thrust.
+        ctrl = self.engine.drone_controllers.get(drone_id)
+        if ctrl is not None:
+            ctrl.rotors_active = True
+            ctrl.flight_mode = "flying"
+        self.target_pos = np.array([0.0, 0.0, self.target_altitude], dtype=np.float32)
 
-        self.pos = np.array([2.0, 0.0, 0.05], dtype=np.float32)
-        self.vel = np.array([0.0, 0.0, 0.0], dtype=np.float32)
-        self.rot = np.array([0.0, 0.0, 0.0], dtype=np.float32)
-        self.target_pos = np.array([2.0, 0.0, target_altitude], dtype=np.float32)
-        self.phase = "takeoff"  # "takeoff", "hover", "landing", "grounded"
+        self._rng = np.random.RandomState(seed)
+        self._compiled_reward = None
+        if custom_reward_code:
+            self._compiled_reward = self._compile_custom_reward(custom_reward_code)
 
-        if seed is not None:
-            np.random.seed(seed)
+    def _drone_state(self):
+        """Reads real pose/velocity of the drone body from MuJoCo."""
+        import mujoco
+        e = self.engine
+        bid = e.object_body_ids.get(self.drone_id, -1)
+        if bid < 0:
+            return (np.zeros(3), np.zeros(3), np.zeros(3), np.zeros(3))
+        pos = np.array(e.data.xpos[bid], dtype=np.float32)
+        bm = np.array(e.data.xmat[bid], dtype=np.float64).reshape(3, 3)
+        roll = math.atan2(bm[2, 1], bm[2, 2])
+        pitch = math.atan2(-bm[2, 0], math.sqrt(bm[2, 1] ** 2 + bm[2, 2] ** 2))
+        yaw = math.atan2(bm[1, 0], bm[0, 0])
+        rpy = np.array([roll, pitch, yaw], dtype=np.float32)
+        jnt = mujoco.mj_name2id(e.model, mujoco.mjtObj.mjOBJ_JOINT, f"joint_{self.drone_id}")
+        if jnt >= 0:
+            dof = e.model.jnt_dofadr[jnt]
+            lvel = np.array(e.data.qvel[dof:dof + 3], dtype=np.float32)
+            avel = np.array(e.data.qvel[dof + 3:dof + 6], dtype=np.float32)
+        else:
+            lvel = np.zeros(3, dtype=np.float32); avel = np.zeros(3, dtype=np.float32)
+        return pos, lvel, rpy, avel
+
+    def _get_obs(self) -> np.ndarray:
+        pos, lvel, rpy, avel = self._drone_state()
+        obs = np.concatenate([pos, lvel, rpy, avel, self.target_pos]).astype(np.float32)
+        return np.clip(obs, -30.0, 30.0)
 
     def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):
         super().reset(seed=seed)
         if seed is not None:
-            np.random.seed(seed)
-
+            self._rng = np.random.RandomState(seed)
         self.current_step = 0
-        self.pos = np.array([2.0, 0.0, 0.05], dtype=np.float32)
-        self.vel = np.array([0.0, 0.0, 0.0], dtype=np.float32)
-        self.rot = np.array([0.0, 0.0, 0.0], dtype=np.float32)
-        self.target_pos = np.array([2.0, 0.0, self.target_altitude], dtype=np.float32)
-        self.phase = "takeoff"
-
-        obs = self._get_obs()
-        return obs, {"phase": self.phase, "altitude": float(self.pos[2])}
-
-    def _get_obs(self) -> np.ndarray:
-        alt_err = float(self.target_pos[2] - self.pos[2])
-        p_dist = float(math.hypot(self.target_pos[0] - self.pos[0], self.target_pos[1] - self.pos[1]))
-        return np.array([
-            self.pos[0], self.pos[1], self.pos[2],
-            self.vel[0], self.vel[1], self.vel[2],
-            self.rot[0], self.rot[1], self.rot[2],
-            self.target_pos[0], self.target_pos[1], self.target_pos[2],
-            alt_err, p_dist
-        ], dtype=np.float32)
+        self.engine.reset()
+        ctrl = self.engine.drone_controllers.get(self.drone_id)
+        if ctrl is not None:
+            ctrl.rotors_active = True
+            ctrl.flight_mode = "flying"
+        # Randomize the target hover point within a sensible envelope.
+        if self.randomize_target:
+            tx = float(self._rng.uniform(-1.5, 1.5))
+            ty = float(self._rng.uniform(-1.5, 1.5))
+            tz = float(self._rng.uniform(0.8, 2.2))
+            self.target_pos = np.array([tx, ty, tz], dtype=np.float32)
+        else:
+            self.target_pos = np.array([0.0, 0.0, self.target_altitude], dtype=np.float32)
+        if ctrl is not None:
+            ctrl.target_position = [float(self.target_pos[0]), float(self.target_pos[1]), float(self.target_pos[2])]
+            ctrl.target_altitude = float(self.target_pos[2])
+        pos, lvel, rpy, avel = self._drone_state()
+        self.prev_dist = float(np.linalg.norm(self.target_pos - pos))
+        return self._get_obs(), {"altitude": float(pos[2])}
 
     def step(self, action: np.ndarray):
+        import mujoco
         self.current_step += 1
-        dt = 0.02
-        act = np.clip(action, -1.0, 1.0)
+        act = np.clip(np.asarray(action, dtype=np.float32), -1.0, 1.0)
 
-        # Simplified 6-DOF quadcopter kinematic update for RL training
-        thrust_z = (act[0] + 1.0) * 0.5 * 19.62  # [0, 2G]
-        gravity = -9.81
-        acc_z = (thrust_z / 1.2) + gravity
+        # Map 4 normalized actions to per-rotor thrust around hover: [0, 2*hover] each.
+        hover = self.engine.rotor_hover_thrust(self.drone_id)
+        thrusts = [float((a + 1.0) * hover) for a in act[:4]]
 
-        # Update velocities and positions
-        self.vel[2] = float(np.clip(self.vel[2] + acc_z * dt, -4.0, 4.0))
-        self.vel[0] = float(np.clip(self.vel[0] + act[1] * 3.0 * dt, -3.0, 3.0))
-        self.vel[1] = float(np.clip(self.vel[1] + act[2] * 3.0 * dt, -3.0, 3.0))
+        # Apply REAL per-rotor thrust and step REAL MuJoCo physics.
+        for _ in range(self.substeps):
+            if self.engine.data is not None and hasattr(self.engine.data, "qfrc_applied"):
+                self.engine.data.qfrc_applied[:] = 0.0
+            self.engine.apply_rotor_thrusts(self.drone_id, thrusts)
+            mujoco.mj_step(self.engine.model, self.engine.data)
 
-        self.pos[2] = float(max(0.04, self.pos[2] + self.vel[2] * dt))
-        self.pos[0] = float(self.pos[0] + self.vel[0] * dt)
-        self.pos[1] = float(self.pos[1] + self.vel[1] * dt)
+        pos, lvel, rpy, avel = self._drone_state()
+        dist = float(np.linalg.norm(self.target_pos - pos))
+        speed = float(np.linalg.norm(lvel))
+        tilt = float(abs(rpy[0]) + abs(rpy[1]))
+        is_crash = (tilt > 1.4 or pos[2] < 0.03 or abs(pos[0]) > 8.0 or abs(pos[1]) > 8.0)
+        is_success = (dist < 0.25 and speed < 0.4 and tilt < 0.25)
 
-        # Multi-stage task progression (Takeoff -> Hover -> Land)
         terminated = False
-        reward = 0.0
-
-        alt_err = abs(self.target_pos[2] - self.pos[2])
-        reward -= 2.0 * alt_err
-        reward -= 0.5 * abs(self.vel[2])
-        reward -= 0.2 * (abs(self.vel[0]) + abs(self.vel[1]))
-
-        if self.phase == "takeoff":
-            if alt_err < 0.15:
-                reward += 20.0
-                if self.task == "takeoff_and_land" and self.current_step > 50:
-                    self.phase = "landing"
-                    self.target_pos[2] = 0.05
-                else:
-                    self.phase = "hover"
-        elif self.phase == "hover":
-            if alt_err < 0.1:
-                reward += 5.0
-            if self.task == "takeoff_and_land" and self.current_step > 120:
-                self.phase = "landing"
-                self.target_pos[2] = 0.05
-        elif self.phase == "landing":
-            if self.pos[2] <= 0.08:
-                if abs(self.vel[2]) < 0.5:
-                    reward += 100.0  # Safe touchdown bonus
-                    terminated = True
-                else:
-                    reward -= 30.0  # Hard touchdown penalty
-                    terminated = True
-
-        truncated = self.current_step >= self.max_episode_steps
-        obs = self._get_obs()
+        truncated = False
+        # Rich, cross-compatible info dict. Drone-native keys AND ground-robot aliases are both
+        # provided so a reward function written for EITHER robot type works unchanged.
         info = {
-            "phase": self.phase,
-            "altitude": float(self.pos[2]),
-            "vertical_speed": float(self.vel[2]),
-            "success": terminated and reward > 50.0
+            # Drone-native
+            "altitude": float(pos[2]),
+            "distance_to_target": dist,
+            "tilt": tilt,
+            "vertical_speed": float(lvel[2]),
+            # Universal aliases (match the ground/arm envs so pasted rewards "just work")
+            "distance_to_goal": dist,
+            "prev_distance": float(self.prev_dist),
+            "speed": speed,
+            "velocity": [float(lvel[0]), float(lvel[1]), float(lvel[2])],
+            "position": [float(pos[0]), float(pos[1]), float(pos[2])],
+            "target_position": [float(self.target_pos[0]), float(self.target_pos[1]), float(self.target_pos[2])],
+            "roll": float(rpy[0]), "pitch": float(rpy[1]), "yaw": float(rpy[2]),
+            "angle_diff": 0.0,                 # not meaningful for a drone, provided for compatibility
+            "is_collision": bool(is_crash),
+            "is_success": bool(is_success),
+            "step": int(self.current_step),
         }
-        return obs, float(reward), terminated, truncated, info
+
+        if self._compiled_reward is not None:
+            try:
+                res = self._compiled_reward(self.engine.get_state(), act, info)
+                # Support both `return reward` and `return (reward, done)` forms.
+                if isinstance(res, (tuple, list)):
+                    reward = float(res[0])
+                    if len(res) > 1 and bool(res[1]):
+                        terminated = True
+                else:
+                    reward = float(res)
+            except Exception as e:
+                logger.warning("Custom drone reward error (%s); using default.", e)
+                reward = self._default_reward(pos, lvel, rpy, avel, dist)
+        else:
+            reward = self._default_reward(pos, lvel, rpy, avel, dist)
+
+        self.prev_dist = dist
+
+        # Termination: crashed/flipped (excessive tilt) or left the arena.
+        if is_crash:
+            reward -= 20.0
+            terminated = True
+            info["termination_reason"] = "crash" if (pos[2] < 0.03 or tilt > 1.4) else "out_of_bounds"
+        elif is_success:
+            reward += 5.0
+            info["success"] = True
+
+        if self.current_step >= self.max_episode_steps and not terminated:
+            truncated = True
+            info.setdefault("termination_reason", "timeout")
+
+        return self._get_obs(), float(reward), terminated, truncated, info
+
+    def _default_reward(self, pos, lvel, rpy, avel, dist) -> float:
+        """Dense reward: progress to target, proximity, and stability (upright, low spin)."""
+        r = 0.0
+        r += 4.0 * (self.prev_dist - dist)          # progress toward target
+        r -= 0.6 * dist                              # proximity shaping
+        r -= 0.08 * float(np.linalg.norm(lvel))      # discourage high speed
+        r -= 0.25 * (abs(float(rpy[0])) + abs(float(rpy[1])))  # stay upright
+        r -= 0.05 * float(np.linalg.norm(avel))      # discourage spinning
+        r -= 0.01                                    # mild time penalty
+        return r
+
+    def _compile_custom_reward(self, code: str):
+        try:
+            scope: Dict[str, Any] = {}
+            exec(code, {"np": np, "math": math}, scope)
+            fn = scope.get("compute_reward")
+            return fn if callable(fn) else None
+        except Exception as e:
+            logger.warning("Failed to compile custom drone reward: %s", e)
+            return None
+
+    def close(self):
+        try:
+            if self.engine is not None:
+                self.engine.data = None
+                self.engine.model = None
+        except Exception:
+            pass
+

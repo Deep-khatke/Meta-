@@ -16,6 +16,8 @@ interface ScenePanelProps {
   onDuplicateObject?: (id: string) => void;
   onOpenURDFModal?: () => void;
   onClearGenericRobot?: () => void;
+  onRemoveRobot?: () => void;
+  onRestoreRobot?: () => void;
 }
 
 export const ScenePanel: React.FC<ScenePanelProps> = ({
@@ -29,6 +31,8 @@ export const ScenePanel: React.FC<ScenePanelProps> = ({
   onDuplicateObject,
   onOpenURDFModal,
   onClearGenericRobot,
+  onRemoveRobot,
+  onRestoreRobot,
 }) => {
   const handleDroneFlightCommand = async (droneId: string, cmd: 'takeoff' | 'land') => {
     try {
@@ -129,42 +133,97 @@ export const ScenePanel: React.FC<ScenePanelProps> = ({
       {/* Hierarchy Tree */}
       <div className="rf-panel-body" style={{ padding: '6px 8px' }}>
         {/* Robot Root Item */}
-        <div
-          onClick={() => onSelectObject('robot')}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '6px 8px',
-            borderRadius: 4,
-            cursor: 'pointer',
-            backgroundColor: selectedObjectId === 'robot' ? 'var(--bg-panel-hover)' : 'transparent',
-            border: selectedObjectId === 'robot' ? '1px solid var(--accent-blue)' : '1px solid transparent',
-            marginBottom: 4,
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Bot size={15} color="var(--accent-blue)" />
-            <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{project.robot.name}</span>
-          </div>
-          <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Diff-Drive</span>
-        </div>
+        {project.robot_active !== false ? (
+          <>
+            <div
+              onClick={() => onSelectObject('robot')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '6px 8px',
+                borderRadius: 4,
+                cursor: 'pointer',
+                backgroundColor: selectedObjectId === 'robot' ? 'var(--bg-panel-hover)' : 'transparent',
+                border: selectedObjectId === 'robot' ? '1px solid var(--accent-blue)' : '1px solid transparent',
+                marginBottom: 4,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Bot size={15} color="var(--accent-blue)" />
+                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{project.robot.name}</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Diff-Drive</span>
+                {onRemoveRobot && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (window.confirm('Remove the active robot from the workspace? The scene will have nothing active.')) {
+                        onRemoveRobot();
+                      }
+                    }}
+                    title="Remove robot from workspace"
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, display: 'flex' }}
+                  >
+                    <Trash2 size={13} color="var(--accent-red, #e06c75)" />
+                  </button>
+                )}
+              </div>
+            </div>
 
-        {/* Robot Parts Sub-items */}
-        <div style={{ paddingLeft: 22, marginBottom: 12, borderLeft: '1px solid var(--border-subtle)', marginLeft: 14 }}>
-          <div style={{ fontSize: 11, color: 'var(--text-secondary)', padding: '2px 0' }}>• Chassis Box</div>
-          <div style={{ fontSize: 11, color: 'var(--text-secondary)', padding: '2px 0' }}>• Left & Right Drive Wheels</div>
-          <div style={{ fontSize: 11, color: 'var(--text-secondary)', padding: '2px 0' }}>• 4 Caster Stabilizers</div>
-          <div style={{ fontSize: 11, color: project.sensors?.lidar?.enabled !== false ? 'var(--accent-blue)' : 'var(--text-muted)', padding: '2px 0' }}>
-            • LiDAR ({project.sensors?.lidar?.enabled !== false ? 'ON' : 'OFF'})
+            {/* Robot Parts Sub-items */}
+            <div style={{ paddingLeft: 22, marginBottom: 12, borderLeft: '1px solid var(--border-subtle)', marginLeft: 14 }}>
+              <div style={{ fontSize: 11, color: 'var(--text-secondary)', padding: '2px 0' }}>• Chassis Box</div>
+              <div style={{ fontSize: 11, color: 'var(--text-secondary)', padding: '2px 0' }}>• Left & Right Drive Wheels</div>
+              <div style={{ fontSize: 11, color: 'var(--text-secondary)', padding: '2px 0' }}>• 4 Caster Stabilizers</div>
+              <div style={{ fontSize: 11, color: project.sensors?.lidar?.enabled !== false ? 'var(--accent-blue)' : 'var(--text-muted)', padding: '2px 0' }}>
+                • LiDAR ({project.sensors?.lidar?.enabled !== false ? 'ON' : 'OFF'})
+              </div>
+              <div style={{ fontSize: 11, color: project.sensors?.imu?.enabled !== false ? 'var(--accent-green)' : 'var(--text-muted)', padding: '2px 0' }}>
+                • 6-DOF IMU ({project.sensors?.imu?.enabled !== false ? 'ON' : 'OFF'})
+              </div>
+              <div style={{ fontSize: 11, color: project.sensors?.camera?.enabled !== false ? '#38bdf8' : 'var(--text-muted)', padding: '2px 0' }}>
+                • Vision Camera ({project.sensors?.camera?.enabled !== false ? 'ON' : 'OFF'})
+              </div>
+            </div>
+          </>
+        ) : (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '8px',
+              borderRadius: 4,
+              marginBottom: 12,
+              border: '1px dashed var(--border-subtle)',
+              color: 'var(--text-muted)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Bot size={15} color="var(--text-muted)" />
+              <span style={{ fontSize: 12 }}>No active robot</span>
+            </div>
+            {onRestoreRobot && (
+              <button
+                onClick={() => onRestoreRobot()}
+                title="Add the built-in differential-drive robot"
+                style={{
+                  background: 'var(--bg-panel-hover)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 4,
+                  cursor: 'pointer',
+                  fontSize: 11,
+                  color: 'var(--accent-blue)',
+                  padding: '3px 8px',
+                }}
+              >
+                + Add Robot
+              </button>
+            )}
           </div>
-          <div style={{ fontSize: 11, color: project.sensors?.imu?.enabled !== false ? 'var(--accent-green)' : 'var(--text-muted)', padding: '2px 0' }}>
-            • 6-DOF IMU ({project.sensors?.imu?.enabled !== false ? 'ON' : 'OFF'})
-          </div>
-          <div style={{ fontSize: 11, color: project.sensors?.camera?.enabled !== false ? '#38bdf8' : 'var(--text-muted)', padding: '2px 0' }}>
-            • Vision Camera ({project.sensors?.camera?.enabled !== false ? 'ON' : 'OFF'})
-          </div>
-        </div>
+        )}
 
         {/* Generic Kinematic Robot (if present) */}
         {project.generic_robot && (

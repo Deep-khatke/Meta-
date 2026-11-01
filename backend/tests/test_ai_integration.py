@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 from backend.app import app
 from backend.ai_reasoning_service import get_ai_reasoning_service, AIReasoningService
 from backend.ai_assistant import AIExperimentAssistant
-from backend.project_manager import ProjectManager
+from backend.project_manager import ProjectManager, get_default_project
 from backend.research.research_memory import research_memory
 from backend.research.models import ResearchMission, MissionBudget
 
@@ -14,7 +14,12 @@ from backend.research.models import ResearchMission, MissionBudget
 @pytest.fixture
 def reasoning_service(monkeypatch):
     monkeypatch.setenv("AI_PROVIDER", "deterministic")
-    return get_ai_reasoning_service()
+    service = get_ai_reasoning_service()
+    # Hermetic: reset the active project to a clean default so grounded-state assertions
+    # don't depend on ambient last_session.json (which may hold a teleported robot).
+    service.pm.current_project = get_default_project()
+    service.pm.saved_project_snapshot = service.pm.current_project.model_copy(deep=True)
+    return service
 
 
 @pytest.fixture

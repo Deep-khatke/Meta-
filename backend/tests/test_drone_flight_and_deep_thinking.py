@@ -56,11 +56,15 @@ def test_drone_flight_controller_and_physics():
     for _ in range(50):
         engine.step()
 
-    # Verify altitude PID applied upward thrust in xfrc_applied
-    drone_body_id = ctrl.body_id
-    if drone_body_id is not None and engine.data is not None:
-        fx, fy, fz, tx, ty, tz = engine.data.xfrc_applied[drone_body_id]
-        assert fz > 0.0, f"Expected positive upward aerodynamic thrust, got fz={fz}"
+    # Step simulation and check the quadcopter actually lifts off under real per-rotor thrust.
+    z_start = float(engine.data.xpos[ctrl.body_id][2]) if ctrl.body_id is not None else 0.0
+    for _ in range(80):
+        engine.step()
+    z_after = float(engine.data.xpos[ctrl.body_id][2]) if ctrl.body_id is not None else 0.0
+    assert z_after > z_start, f"Expected the drone to climb under rotor thrust, z {z_start:.3f}->{z_after:.3f}"
+    # Verify the 4 real rotors are resolved and spinning.
+    rotors = engine.drone_rotors.get("drone_test_01")
+    assert rotors is not None and len(rotors) == 4, "Expected 4 resolved rotors on the quadcopter"
 
     # Issue Landing command
     res_land = engine.command_drone_land("drone_test_01")
@@ -89,7 +93,10 @@ def test_deep_agent_thinking_and_drone_flow(client: TestClient):
     assert res2.status_code == 200
     data2 = res2.json()
     assert len(data2.get("thought_steps", [])) >= 4
-    assert any(a.get("action") == "train_drone_policy" for a in data2.get("actions_executed", []))
+    # "train the drone" routes to a real PPO drone-training action -- either the batch flight
+    # policy trainer or the live interactive curriculum (both train a genuine drone policy).
+    drone_train_actions = {"train_drone_policy", "train_drone_live_interactive"}
+    assert any(a.get("action") in drone_train_actions for a in data2.get("actions_executed", []))
 
     # 3. User says: "is the rl trainig done ?"
     res3 = client.post("/api/ai/chat", json={"prompt": "is the rl trainig done ?"})
