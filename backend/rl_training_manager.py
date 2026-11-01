@@ -202,13 +202,25 @@ class RLTrainingManager:
 
         env = None
         try:
-            # Create training environment (RoboForgeDroneGymEnv for aerial entities, RoboForgeGymEnv for rovers)
-            is_drone_job = any(w in str(config.model_name).lower() for w in ["drone", "takeoff", "flight", "uav", "quad"]) or any(w in str(config.notes or "").lower() for w in ["drone", "takeoff"])
+            # Create training environment (RoboForgeDroneGymEnv, RoboForgeArmGymEnv, or RoboForgeGymEnv)
+            notes_str = str(getattr(config, "notes", "") or "")
+            is_drone_job = any(w in str(config.model_name).lower() for w in ["drone", "takeoff", "flight", "uav", "quad"]) or any(w in notes_str.lower() for w in ["drone", "takeoff"])
+            is_arm_job = any(w in str(config.model_name).lower() for w in ["arm", "manipulator", "pick", "kr6", "scara", "delta", "joint"]) or any(w in notes_str.lower() for w in ["arm", "pick", "manipulator"]) or (getattr(project, "generic_robot", None) is not None and len(project.generic_robot.joints) > 0 and getattr(project, "robot", None) is None)
+            
             if is_drone_job:
                 from backend.rl_env import RoboForgeDroneGymEnv
                 env = RoboForgeDroneGymEnv(
                     task="takeoff_and_land",
                     target_altitude=1.5,
+                    max_episode_steps=min(config.total_timesteps, 300),
+                    custom_reward_code=config.custom_reward_code,
+                    seed=config.seed
+                )
+            elif is_arm_job:
+                from backend.rl_env import RoboForgeArmGymEnv
+                env = RoboForgeArmGymEnv(
+                    project=project,
+                    target_position=tuple(config.target_position),  # type: ignore
                     max_episode_steps=min(config.total_timesteps, 300),
                     custom_reward_code=config.custom_reward_code,
                     seed=config.seed
@@ -224,12 +236,18 @@ class RLTrainingManager:
                 )
 
             hp = config.hyperparameters
+            # Robustly clamp and align n_steps and batch_size for Stable-Baselines3
+            effective_n_steps = max(16, min(hp.n_steps, config.total_timesteps))
+            effective_batch_size = max(4, min(hp.batch_size, effective_n_steps))
+            while effective_n_steps % effective_batch_size != 0 and effective_batch_size > 4:
+                effective_batch_size -= 1
+
             model = PPO(
                 policy="MlpPolicy",
                 env=env,
                 learning_rate=hp.learning_rate,
-                n_steps=hp.n_steps,
-                batch_size=hp.batch_size,
+                n_steps=effective_n_steps,
+                batch_size=effective_batch_size,
                 n_epochs=hp.n_epochs,
                 gamma=hp.gamma,
                 gae_lambda=hp.gae_lambda,
@@ -870,7 +888,11 @@ class RLTrainingManager:
 
             # Save PPO Model
             engine.rl_training_status = "[SAVING] SAVING PPO NEURAL NETWORK WEIGHTS & SERIALIZING CHECKPOINT..."
-            env = RoboForgeGymEnv(engine.project, max_episode_steps=64)
+            if getattr(engine.project, "generic_robot", None) is not None and getattr(engine.project, "robot", None) is None:
+                from backend.rl_env import RoboForgeArmGymEnv
+                env = RoboForgeArmGymEnv(engine.project, max_episode_steps=64)
+            else:
+                env = RoboForgeGymEnv(engine.project, max_episode_steps=64)
             ppo_model = PPO("MlpPolicy", env, n_steps=64, batch_size=32, learning_rate=3e-4, verbose=0)
             ppo_model.learn(total_timesteps=128)
             checkpoint_path = str(MODELS_DIR / f"{job_id}.zip")
@@ -1090,7 +1112,11 @@ class RLTrainingManager:
 
             # Save PPO Model
             engine.rl_training_status = "[SAVING] SAVING PPO NEURAL NETWORK WEIGHTS & SERIALIZING CHECKPOINT..."
-            env = RoboForgeGymEnv(engine.project, max_episode_steps=64)
+            if getattr(engine.project, "generic_robot", None) is not None and getattr(engine.project, "robot", None) is None:
+                from backend.rl_env import RoboForgeArmGymEnv
+                env = RoboForgeArmGymEnv(engine.project, max_episode_steps=64)
+            else:
+                env = RoboForgeGymEnv(engine.project, max_episode_steps=64)
             ppo_model = PPO("MlpPolicy", env, n_steps=64, batch_size=32, learning_rate=3e-4, verbose=0)
             ppo_model.learn(total_timesteps=128)
             checkpoint_path = str(MODELS_DIR / f"{job_id}.zip")

@@ -226,7 +226,7 @@ class Project(BaseModel):
     schema_version: str = Field(default=SCHEMA_VERSION)
     name: str = Field(default="Default Scene", min_length=1, max_length=100)
     description: Optional[str] = "RoboForge Simulation Project"
-    robot: RobotConfig = Field(default_factory=RobotConfig)
+    robot: Optional[RobotConfig] = None
     generic_robot: Optional[GenericRobotModel] = None
     sensors: SensorSettings = Field(default_factory=SensorSettings)
     objects: List[SceneObject] = Field(default_factory=list)

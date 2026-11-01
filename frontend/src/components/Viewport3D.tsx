@@ -8,6 +8,7 @@ import {
   GitFork, Layers, Route, FileUp, Trash2, Cpu, Sparkles
 } from 'lucide-react';
 import { importURDF, importMJCF } from '../services/api';
+import { MotorControlHUD } from './MotorControlHUD';
 
 interface Viewport3DProps {
   project: Project;
@@ -192,10 +193,11 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     }
 
     // 3. Create Robot Visual Model
-    const rConfig = proj.robot;
-    const robotGroup = new THREE.Group();
-    robotGroup.name = 'robot';
-    (robotGroup as any).userData = { id: 'robot', isRobot: true };
+    if (proj.robot) {
+      const rConfig = proj.robot;
+      const robotGroup = new THREE.Group();
+      robotGroup.name = 'robot';
+      (robotGroup as any).userData = { id: 'robot', isRobot: true };
 
     const [hx, hy, hz] = rConfig.chassis_size;
     const wr = rConfig.wheel_radius;
@@ -346,11 +348,12 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     robotGroup.add(robotEye);
     robotEyeCameraRef.current = robotEye;
 
-    // Initial position from robot config
-    const [initX, initY, initZ] = rConfig.initial_position;
-    robotGroup.position.set(initX, initY, initZ);
-    scene.add(robotGroup);
-    robotGroupRef.current = robotGroup;
+      // Initial position from robot config
+      const [initX, initY, initZ] = rConfig.initial_position;
+      robotGroup.position.set(initX, initY, initZ);
+      scene.add(robotGroup);
+      robotGroupRef.current = robotGroup;
+    }
 
     // 4. Generic Articulated Robot Kinematic Tree
     const oldGeneric = scene.getObjectByName('generic_robot_group');
@@ -921,8 +924,8 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
   };
 
   const focusOnRobot = () => {
-    if (!cameraRef.current || !controlsRef.current || !robotGroupRef.current) return;
-    const rp = robotGroupRef.current.position;
+    if (!cameraRef.current || !controlsRef.current) return;
+    const rp = robotGroupRef.current?.position || genericRobotGroupRef.current?.position || new THREE.Vector3(0, 0, 0);
     controlsRef.current.target.set(rp.x, rp.y, rp.z);
     cameraRef.current.position.set(rp.x + 2.5, rp.y - 2.5, rp.z + 2.0);
     controlsRef.current.update();
@@ -2387,13 +2390,13 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
           <span style={{ fontWeight: 600 }}>ROBOT TELEMETRY</span>
         </div>
         <div style={{ display: 'flex', gap: 14, color: 'var(--text-primary)' }}>
-          <span>X: {rPose.position[0].toFixed(3)}m</span>
-          <span>Y: {rPose.position[1].toFixed(3)}m</span>
-          <span>Z: {rPose.position[2].toFixed(3)}m</span>
+          <span>X: {rPose?.position ? rPose.position[0].toFixed(3) : '0.000'}m</span>
+          <span>Y: {rPose?.position ? rPose.position[1].toFixed(3) : '0.000'}m</span>
+          <span>Z: {rPose?.position ? rPose.position[2].toFixed(3) : '0.000'}m</span>
         </div>
         <div style={{ display: 'flex', gap: 14, color: 'var(--text-secondary)' }}>
-          <span>Speed: {rPose.linear_speed.toFixed(2)} m/s</span>
-          <span>Turn: {rPose.angular_speed.toFixed(2)} rad/s</span>
+          <span>Speed: {rPose?.linear_speed !== undefined ? rPose.linear_speed.toFixed(2) : '0.00'} m/s</span>
+          <span>Turn: {rPose?.angular_speed !== undefined ? rPose.angular_speed.toFixed(2) : '0.00'} rad/s</span>
         </div>
         {simState.contacts && simState.contacts.length > 0 && (
           <div style={{ color: '#ef4444', fontWeight: 600 }}>
@@ -2494,81 +2497,91 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
         </div>
       )}
 
-      {/* Interactive On-Screen D-Pad Controller (Bottom Left) */}
-      <div
-        style={{
-          position: 'absolute',
-          bottom: 14,
-          left: 14,
-          backgroundColor: 'rgba(20, 22, 28, 0.92)',
-          backdropFilter: 'blur(6px)',
-          border: '1px solid var(--border-subtle)',
-          borderRadius: 8,
-          padding: '8px 12px',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: 4,
-          zIndex: 5,
-          boxShadow: '0 4px 16px rgba(0,0,0,0.5)'
-        }}
-      >
-        <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: 2 }}>
-          Manual Drive (WASD)
-        </div>
-
-        <button
-          className="rf-btn rf-btn-icon"
+      {/* Interactive On-Screen D-Pad Controller (Bottom Left) - Only for Mobile Robots */}
+      {project.robot && (
+        <div
           style={{
-            backgroundColor: isW ? 'var(--accent-blue)' : 'var(--bg-panel)',
-            borderColor: isW ? 'var(--accent-blue)' : 'var(--border-subtle)',
-            color: isW ? '#fff' : 'var(--text-primary)',
+            position: 'absolute',
+            bottom: 14,
+            left: 14,
+            backgroundColor: 'rgba(20, 22, 28, 0.92)',
+            backdropFilter: 'blur(6px)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 8,
+            padding: '8px 12px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 4,
+            zIndex: 5,
+            boxShadow: '0 4px 16px rgba(0,0,0,0.5)'
           }}
-          title="Forward (W or Up Arrow)"
-          onPointerDown={() => onManualTeleop?.(1.0, 0.0)}
         >
-          <ArrowUp size={16} />
-        </button>
+          <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: 2 }}>
+            Manual Drive (WASD)
+          </div>
 
-        <div style={{ display: 'flex', gap: 6 }}>
           <button
             className="rf-btn rf-btn-icon"
             style={{
-              backgroundColor: isA ? 'var(--accent-blue)' : 'var(--bg-panel)',
-              borderColor: isA ? 'var(--accent-blue)' : 'var(--border-subtle)',
-              color: isA ? '#fff' : 'var(--text-primary)',
+              backgroundColor: isW ? 'var(--accent-blue)' : 'var(--bg-panel)',
+              borderColor: isW ? 'var(--accent-blue)' : 'var(--border-subtle)',
+              color: isW ? '#fff' : 'var(--text-primary)',
             }}
-            title="Turn Left (A or Left Arrow)"
-            onPointerDown={() => onManualTeleop?.(0.0, 1.5)}
+            title="Forward (W or Up Arrow)"
+            onPointerDown={() => onManualTeleop?.(1.0, 0.0)}
           >
-            <ArrowLeft size={16} />
+            <ArrowUp size={16} />
           </button>
-          <button
-            className="rf-btn rf-btn-icon"
-            style={{
-              backgroundColor: isS ? 'var(--accent-blue)' : 'var(--bg-panel)',
-              borderColor: isS ? 'var(--accent-blue)' : 'var(--border-subtle)',
-              color: isS ? '#fff' : 'var(--text-primary)',
-            }}
-            title="Reverse (S or Down Arrow)"
-            onPointerDown={() => onManualTeleop?.(-1.0, 0.0)}
-          >
-            <ArrowDown size={16} />
-          </button>
-          <button
-            className="rf-btn rf-btn-icon"
-            style={{
-              backgroundColor: isD ? 'var(--accent-blue)' : 'var(--bg-panel)',
-              borderColor: isD ? 'var(--accent-blue)' : 'var(--border-subtle)',
-              color: isD ? '#fff' : 'var(--text-primary)',
-            }}
-            title="Turn Right (D or Right Arrow)"
-            onPointerDown={() => onManualTeleop?.(0.0, -1.5)}
-          >
-            <ArrowRight size={16} />
-          </button>
+
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button
+              className="rf-btn rf-btn-icon"
+              style={{
+                backgroundColor: isA ? 'var(--accent-blue)' : 'var(--bg-panel)',
+                borderColor: isA ? 'var(--accent-blue)' : 'var(--border-subtle)',
+                color: isA ? '#fff' : 'var(--text-primary)',
+              }}
+              title="Turn Left (A or Left Arrow)"
+              onPointerDown={() => onManualTeleop?.(0.0, 1.5)}
+            >
+              <ArrowLeft size={16} />
+            </button>
+            <button
+              className="rf-btn rf-btn-icon"
+              style={{
+                backgroundColor: isS ? 'var(--accent-blue)' : 'var(--bg-panel)',
+                borderColor: isS ? 'var(--accent-blue)' : 'var(--border-subtle)',
+                color: isS ? '#fff' : 'var(--text-primary)',
+              }}
+              title="Reverse (S or Down Arrow)"
+              onPointerDown={() => onManualTeleop?.(-1.0, 0.0)}
+            >
+              <ArrowDown size={16} />
+            </button>
+            <button
+              className="rf-btn rf-btn-icon"
+              style={{
+                backgroundColor: isD ? 'var(--accent-blue)' : 'var(--bg-panel)',
+                borderColor: isD ? 'var(--accent-blue)' : 'var(--border-subtle)',
+                color: isD ? '#fff' : 'var(--text-primary)',
+              }}
+              title="Turn Right (D or Right Arrow)"
+              onPointerDown={() => onManualTeleop?.(0.0, -1.5)}
+            >
+              <ArrowRight size={16} />
+            </button>
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* Universal Per-Motor / Actuator Live Control HUD for Articulated Arms & Generic Kinematics */}
+      {project.generic_robot && (
+        <MotorControlHUD
+          genericRobot={project.generic_robot}
+          onShowToast={(msg) => console.log(msg)}
+        />
+      )}
 
       {/* Isaac Lab Live RL Training HUD (Center-Top Viewport Overlay) */}
       {(simState?.rl_training_active || (simState?.rl_training_status && simState.rl_training_status.includes('PPO') && !simState.rl_training_status.includes('RESET'))) && (

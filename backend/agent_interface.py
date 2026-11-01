@@ -193,7 +193,9 @@ class AgentSimulationInterface:
     ) -> TrajectoryExecutionState:
         """Plans a collision-free path with A* and executes it continuously in the MuJoCo engine."""
         st = self.engine.get_state()
-        start_2d = [st.robot.position[0], st.robot.position[1]]
+        rx = st.robot.position[0] if (st and st.robot) else 0.0
+        ry = st.robot.position[1] if (st and st.robot) else 0.0
+        start_2d = [rx, ry]
         goal_2d = [target_pos[0], target_pos[1]]
 
         req = PathPlanningRequest(
@@ -215,8 +217,10 @@ class AgentSimulationInterface:
             )
             return self.trajectory_state
 
-        v_max = self.pm.get_current().robot.max_linear_velocity
-        w_max = self.pm.get_current().robot.max_angular_velocity
+        cur_proj = self.pm.get_current()
+        p_robot = getattr(cur_proj, "robot", None)
+        v_max = getattr(p_robot, "max_linear_velocity", 1.0) if p_robot else 1.0
+        w_max = getattr(p_robot, "max_angular_velocity", 2.0) if p_robot else 2.0
 
         self.active_trajectory_controller = ContinuousTrajectoryController(
             waypoints=plan_res.path,

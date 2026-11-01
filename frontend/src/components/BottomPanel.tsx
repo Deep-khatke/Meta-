@@ -47,7 +47,7 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
   logs,
   onClearLogs,
   currentProject = null,
-  onShowToast = () => {},
+  onShowToast = () => { },
   onProjectLoaded,
   onSelectTarget,
   onSetTrail,
@@ -478,7 +478,7 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
             </div>
           ) : activeTab === 'ros2' ? (
             <div style={{ flex: 1, overflow: 'hidden' }}>
-              <ROS2StudioPanel onShowToast={onShowToast} simState={simState} />
+              <ROS2StudioPanel onShowToast={onShowToast} simState={simState} project={currentProject} />
             </div>
           ) : activeTab === 'telemetry' ? (
             <div style={{ flex: 1, display: 'flex', gap: 16, alignItems: 'center', overflow: 'hidden' }}>
@@ -521,14 +521,14 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
                 <div style={{ background: 'var(--bg-panel)', padding: '8px 12px', borderRadius: 4, border: '1px solid var(--border-subtle)' }}>
                   <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Current Speed</div>
                   <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--accent-blue)', fontFamily: 'var(--font-mono)' }}>
-                    {simState.robot.linear_speed.toFixed(2)} <span style={{ fontSize: 11, fontWeight: 400 }}>m/s</span>
+                    {(simState.robot?.linear_speed ?? 0).toFixed(2)} <span style={{ fontSize: 11, fontWeight: 400 }}>m/s</span>
                   </div>
                 </div>
 
                 <div style={{ background: 'var(--bg-panel)', padding: '8px 12px', borderRadius: 4, border: '1px solid var(--border-subtle)' }}>
                   <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Yaw Rate</div>
                   <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--accent-green)', fontFamily: 'var(--font-mono)' }}>
-                    {simState.robot.angular_speed.toFixed(2)} <span style={{ fontSize: 11, fontWeight: 400 }}>rad/s</span>
+                    {(simState.robot?.angular_speed ?? 0).toFixed(2)} <span style={{ fontSize: 11, fontWeight: 400 }}>rad/s</span>
                   </div>
                 </div>
 
@@ -712,8 +712,8 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
                       log.level === 'error'
                         ? 'var(--accent-red)'
                         : log.level === 'warning'
-                        ? 'var(--accent-yellow)'
-                        : 'var(--text-secondary)';
+                          ? 'var(--accent-yellow)'
+                          : 'var(--text-secondary)';
 
                     return (
                       <div key={idx} style={{ display: 'flex', gap: 8, color }}>

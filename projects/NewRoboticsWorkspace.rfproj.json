@@ -1,0 +1,84 @@
+{
+  "schema_version": "1.0.0",
+  "name": "New Robotics Workspace",
+  "description": "Fresh empty 3D robotics simulation workspace",
+  "robot": null,
+  "generic_robot": null,
+  "sensors": {
+    "lidar": {
+      "enabled": true,
+      "mount_pos": [
+        0.1,
+        0.0,
+        0.09
+      ],
+      "num_beams": 16,
+      "fov_deg": 360.0,
+      "max_range": 8.0,
+      "min_range": 0.05,
+      "noise_std": 0.0,
+      "dropout_prob": 0.0,
+      "channels": 1
+    },
+    "imu": {
+      "enabled": true,
+      "mount_pos": [
+        0.0,
+        0.0,
+        0.05
+      ],
+      "accel_noise_std": 0.0,
+      "gyro_noise_std": 0.0,
+      "accel_bias": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "gyro_bias": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "camera": {
+      "enabled": true,
+      "mount_pos": [
+        0.18,
+        0.0,
+        0.08
+      ],
+      "mount_rpy": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "width": 320,
+      "height": 240,
+      "fov_deg": 60.0
+    },
+    "encoders": {
+      "enabled": true,
+      "ticks_per_rev": 1024,
+      "noise_std": 0.0
+    }
+  },
+  "objects": [],
+  "settings": {
+    "timestep": 0.005,
+    "speed_multiplier": 1.0,
+    "gravity": [
+      0.0,
+      0.0,
+      -9.81
+    ],
+    "world_boundaries": [
+      -15.0,
+      15.0,
+      -15.0,
+      15.0,
+      0.0,
+      8.0
+    ],
+    "enable_boundaries": true
+  }
+}

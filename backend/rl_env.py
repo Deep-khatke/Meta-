@@ -519,3 +519,201 @@ class RoboForgeDroneGymEnv(gym.Env):
             "success": terminated and reward > 50.0
         }
         return obs, float(reward), terminated, truncated, info
+
+
+class RoboForgeArmGymEnv(gym.Env):
+    """Reinforcement learning environment for articulated robotic arms (reach, target tracking, pick-and-place)."""
+
+    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 20}
+
+    def __init__(
+        self,
+        project: Optional[Project] = None,
+        target_position: Tuple[float, float, float] = (0.35, 0.20, 0.25),
+        max_episode_steps: int = 200,
+        custom_reward_code: Optional[str] = None,
+        seed: Optional[int] = None,
+    ):
+        super().__init__()
+        if project is not None:
+            self.project = project.model_copy(deep=True)
+        else:
+            from backend.project_manager import get_default_project
+            self.project = get_default_project()
+
+        # If project has no generic_robot, construct default 2-link/3-link arm for environment
+        if self.project.generic_robot is None or not self.project.generic_robot.joints:
+            from backend.models import GenericRobotModel, LinkModel, JointModel, JointLimit, LinkGeom, LinkInertial
+            self.project.generic_robot = GenericRobotModel(
+                name="2-Link Planar Arm",
+                root_link="base_link",
+                base_position=[0.0, 0.0, 0.0],
+                links=[
+                    LinkModel(name="base_link", visual=LinkGeom(type="cylinder", size=[0.18, 0.05], origin_pos=[0, 0, 0.05], color="#334155")),
+                    LinkModel(name="arm_link_1", visual=LinkGeom(type="box", size=[0.20, 0.04, 0.04], origin_pos=[0.20, 0, 0.0], color="#2563eb")),
+                    LinkModel(name="arm_link_2", visual=LinkGeom(type="box", size=[0.15, 0.03, 0.03], origin_pos=[0.15, 0, 0.0], color="#f97316"))
+                ],
+                joints=[
+                    JointModel(name="shoulder_joint", type="revolute", parent_link="base_link", child_link="arm_link_1", origin_pos=[0, 0, 0.1], axis=[0, 0, 1], limit=JointLimit(lower=-3.14, upper=3.14)),
+                    JointModel(name="elbow_joint", type="revolute", parent_link="arm_link_1", child_link="arm_link_2", origin_pos=[0.4, 0, 0], axis=[0, 0, 1], limit=JointLimit(lower=-2.6, upper=2.6))
+                ]
+            )
+
+        self.target_position = np.array(target_position, dtype=np.float32)
+        self.default_target = np.array(target_position, dtype=np.float32)
+        self.max_episode_steps = max_episode_steps
+        self.current_step = 0
+        self.custom_reward_code = custom_reward_code
+        self._custom_reward_fn = None
+        if self.custom_reward_code and self.custom_reward_code.strip():
+            self._compile_custom_reward(self.custom_reward_code)
+
+        # Controllable joints
+        self.controllable_joints = [
+            j for j in self.project.generic_robot.joints if j.type in ("revolute", "continuous", "prismatic")
+        ]
+        num_actuators = max(1, len(self.controllable_joints))
+
+        # Joint angle bounds
+        self.joint_limits_lower = []
+        self.joint_limits_upper = []
+        for j in self.controllable_joints:
+            lower = j.limit.lower if j.limit else -3.14159
+            upper = j.limit.upper if j.limit else 3.14159
+            self.joint_limits_lower.append(lower)
+            self.joint_limits_upper.append(upper)
+
+        self.joint_limits_lower = np.array(self.joint_limits_lower, dtype=np.float32)
+        self.joint_limits_upper = np.array(self.joint_limits_upper, dtype=np.float32)
+
+        # Action: normalized delta joint command [-1.0, 1.0] for each joint
+        self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(num_actuators,), dtype=np.float32)
+
+        # Obs: [joint_angles_norm (N), joint_vels (N), target_pos (3), ee_pos (3), delta_to_target (3), distance (1)]
+        obs_dim = 2 * num_actuators + 10
+        self.observation_space = spaces.Box(low=-50.0, high=50.0, shape=(obs_dim,), dtype=np.float32)
+
+        self.current_qpos = np.zeros(num_actuators, dtype=np.float32)
+        self.current_qvel = np.zeros(num_actuators, dtype=np.float32)
+        self.prev_distance = 1.0
+
+        if seed is not None:
+            self.reset(seed=seed)
+
+    def _compile_custom_reward(self, code_str: str):
+        try:
+            scope: Dict[str, Any] = {"math": math, "np": np}
+            exec(code_str, scope)
+            if "compute_reward" in scope and callable(scope["compute_reward"]):
+                self._custom_reward_fn = scope["compute_reward"]
+            elif "calculate_reward" in scope and callable(scope["calculate_reward"]):
+                self._custom_reward_fn = scope["calculate_reward"]
+        except Exception as e:
+            pass
+
+    def _compute_ee_position(self) -> np.ndarray:
+        try:
+            from backend.kinematics import compute_forward_kinematics
+            joint_dict = {
+                j.name: float(self.current_qpos[i]) for i, j in enumerate(self.controllable_joints)
+            }
+            fk_res = compute_forward_kinematics(self.project.generic_robot, joint_dict)
+            return np.array(fk_res.end_effector_position, dtype=np.float32)
+        except Exception:
+            return np.array([0.35, 0.20, 0.25], dtype=np.float32)
+
+    def _get_obs(self) -> np.ndarray:
+        ee_pos = self._compute_ee_position()
+        delta = self.target_position - ee_pos
+        dist = float(np.linalg.norm(delta))
+
+        # Normalized joint angles in [-1, 1]
+        span = np.maximum(self.joint_limits_upper - self.joint_limits_lower, 1e-4)
+        mid = (self.joint_limits_upper + self.joint_limits_lower) * 0.5
+        norm_qpos = (self.current_qpos - mid) / (span * 0.5)
+
+        obs_parts = [
+            norm_qpos,
+            self.current_qvel,
+            self.target_position,
+            ee_pos,
+            delta,
+            np.array([dist], dtype=np.float32)
+        ]
+        return np.concatenate(obs_parts).astype(np.float32)
+
+    def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):
+        super().reset(seed=seed)
+        if seed is not None:
+            np.random.seed(seed)
+
+        self.current_step = 0
+        self.current_qpos = np.zeros(len(self.controllable_joints), dtype=np.float32)
+        self.current_qvel = np.zeros(len(self.controllable_joints), dtype=np.float32)
+
+        # Slightly randomize initial joint positions
+        for i, j in enumerate(self.controllable_joints):
+            low = self.joint_limits_lower[i] * 0.2
+            high = self.joint_limits_upper[i] * 0.2
+            self.current_qpos[i] = float(np.random.uniform(low, high))
+
+        ee_pos = self._compute_ee_position()
+        self.prev_distance = float(np.linalg.norm(self.target_position - ee_pos))
+
+        obs = self._get_obs()
+        return obs, {"ee_pos": list(ee_pos), "initial_distance": self.prev_distance}
+
+    def step(self, action: np.ndarray):
+        self.current_step += 1
+        dt = 0.05
+        act = np.clip(action, -1.0, 1.0)
+
+        # Update velocities and positions
+        delta_q = act * dt * 1.5
+        self.current_qvel = delta_q / dt
+        self.current_qpos = np.clip(
+            self.current_qpos + delta_q,
+            self.joint_limits_lower,
+            self.joint_limits_upper
+        )
+
+        ee_pos = self._compute_ee_position()
+        delta = self.target_position - ee_pos
+        dist = float(np.linalg.norm(delta))
+
+        # Dense shaping reward
+        reward_dist = -dist * 2.0
+        reward_progress = (self.prev_distance - dist) * 10.0
+        reward_effort = -0.01 * float(np.sum(act ** 2))
+        reward = reward_dist + reward_progress + reward_effort
+
+        is_success = dist < 0.06
+        if is_success:
+            reward += 100.0
+
+        terminated = is_success
+        truncated = self.current_step >= self.max_episode_steps
+
+        info = {
+            "distance_to_goal": dist,
+            "prev_distance": self.prev_distance,
+            "is_success": is_success,
+            "ee_pos": list(ee_pos),
+            "step": self.current_step
+        }
+
+        if self._custom_reward_fn is not None:
+            try:
+                res = self._custom_reward_fn(None, act, info)
+                if isinstance(res, (tuple, list)):
+                    reward = float(res[0])
+                    if len(res) > 1 and bool(res[1]):
+                        terminated = True
+                else:
+                    reward = float(res)
+            except Exception:
+                pass
+
+        self.prev_distance = dist
+        obs = self._get_obs()
+        return obs, float(reward), terminated, truncated, info

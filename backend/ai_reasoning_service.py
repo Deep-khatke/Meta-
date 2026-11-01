@@ -946,6 +946,21 @@ class AIReasoningService:
         """Tool: Removes an obstacle by name or ID and refreshes the physics scene."""
         proj = self.pm.get_current()
         ident_lower = str(identifier).lower().strip()
+
+        # Strict bullet-proof safeguard: preserve active robots
+        active_robot_names = ["robot", "primary_robot", "main_robot"]
+        if getattr(proj, "robot", None):
+            active_robot_names.extend([proj.robot.name.lower(), proj.robot.id.lower(), "forgebot"])
+        if getattr(proj, "generic_robot", None):
+            active_robot_names.extend([proj.generic_robot.name.lower(), "generic_robot", "arm", "manipulator"])
+
+        if ident_lower in active_robot_names:
+            return {
+                "action": "remove_obstacle",
+                "status": "protected",
+                "details": f"Safety constraint enforced: The active robot architecture '{identifier}' is protected and cannot be removed."
+            }
+
         matched = []
         remaining = []
         for o in proj.objects:
@@ -3093,6 +3108,7 @@ class AIReasoningService:
             return None
 
         # Build response and validate layout bounds
+        curr_proj = self.pm.get_current()
         default_proj = get_default_project()
         target_pos = data.get("layout", {}).get("target_position", [2.8, 0.4, 0.25])
         timeout = float(data.get("layout", {}).get("timeout", 12.0))
@@ -3127,9 +3143,10 @@ class AIReasoningService:
             "name": f"AI: {data.get('interpreted_goal', prompt[:30])}",
             "description": data.get("interpreted_goal", prompt),
             "seed": 42,
-            "robot": default_proj.robot.model_dump(),
+            "robot": curr_proj.robot.model_dump() if getattr(curr_proj, "robot", None) else None,
+            "generic_robot": curr_proj.generic_robot.model_dump() if getattr(curr_proj, "generic_robot", None) else None,
             "environment": [o.model_dump() for o in objects],
-            "settings": default_proj.settings.model_dump(),
+            "settings": curr_proj.settings.model_dump() if getattr(curr_proj, "settings", None) else default_proj.settings.model_dump(),
             "task": {
                 "target_position": target_pos,
                 "distance_threshold": 0.25,
@@ -3314,9 +3331,10 @@ class AIReasoningService:
             "name": f"AI Challenge: {prompt[:30].strip()}",
             "description": interpreted_goal,
             "seed": 42,
-            "robot": default_proj.robot.model_dump(),
+            "robot": curr_proj.robot.model_dump() if getattr(curr_proj, "robot", None) else None,
+            "generic_robot": curr_proj.generic_robot.model_dump() if getattr(curr_proj, "generic_robot", None) else None,
             "environment": [o.model_dump() for o in objects],
-            "settings": default_proj.settings.model_dump(),
+            "settings": curr_proj.settings.model_dump() if getattr(curr_proj, "settings", None) else default_proj.settings.model_dump(),
             "task": {
                 "target_position": target_pos,
                 "distance_threshold": 0.25,

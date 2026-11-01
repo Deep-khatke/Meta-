@@ -1,0 +1,22 @@
+{
+  "model_id": "rl_4218b742",
+  "name": "test_run",
+  "checkpoint_path": "models\\rl\\rl_4218b742.zip",
+  "timesteps_trained": 64,
+  "training_duration_seconds": 0.51,
+  "success_rate": 0.0,
+  "collision_rate": 0.0,
+  "mean_reward": 0.0,
+  "created_at": 1793512835.5584972,
+  "hyperparameters": {
+    "learning_rate": 0.0003,
+    "n_steps": 32,
+    "batch_size": 16,
+    "n_epochs": 10,
+    "gamma": 0.99,
+    "gae_lambda": 0.95,
+    "clip_range": 0.2,
+    "ent_coef": 0.01
+  },
+  "scenario_id": null
+}

@@ -46,7 +46,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   onOpenRobotStudio,
 }) => {
   const selectedObstacle = project.objects.find((o) => o.id === selectedObjectId);
-  const isRobotSelected = selectedObjectId === 'robot';
+  const isRobotSelected = selectedObjectId === 'robot' && !!project.robot;
   const isTargetSelected = selectedObjectId === 'target';
   const isGenericRobotSelected = selectedObjectId === 'generic_robot';
 
@@ -58,7 +58,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     const tx = targetPosition ? targetPosition[0] : 2.5;
     const ty = targetPosition ? targetPosition[1] : 0.5;
     const tz = targetPosition ? targetPosition[2] : 0.25;
-    const rPos = simState.robot.position;
+    const rPos = simState.robot?.position || [0, 0, 0];
     const distToTarget = Math.hypot(tx - rPos[0], ty - rPos[1]);
 
     return (
@@ -318,7 +318,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   }
 
   // 2. Robot Properties View
-  if (isRobotSelected) {
+  if (isRobotSelected && project.robot) {
     const rConfig = project.robot;
     const rState = simState.robot;
 

@@ -382,28 +382,7 @@ class MuJoCoEngine:
         settings = self.project.settings
         sensors = self.project.sensors
         
-        r_init_x, r_init_y, r_init_z = robot.initial_position
-        init_quat_str = euler_deg_to_quat_str([0.0, 0.0, robot.initial_yaw])
-        
-        hx, hy, hz = robot.chassis_size
-        wr = robot.wheel_radius
-        ww = robot.wheel_width
-        wb = robot.wheel_base
-        cr = robot.caster_radius
-        
-        wheel_z_offset = -0.01
-        wheel_y_offset = wb * 0.5
-        
-        caster_x = hx * 0.75
-        caster_y = wb * 0.35
-        caster_z_offset = wheel_z_offset - wr + cr
-        
         grav_x, grav_y, grav_z = settings.gravity
-        
-        lidar_mount = sensors.lidar.mount_pos
-        imu_mount = sensors.imu.mount_pos
-        cam_mount = sensors.camera.mount_pos if (hasattr(sensors, 'camera') and sensors.camera) else [0.18, 0.0, 0.08]
-        cam_fov = sensors.camera.fov_deg if (hasattr(sensors, 'camera') and sensors.camera) else 60.0
 
         xml_parts = [
             f"""<mujoco model="{self.project.name}">
@@ -443,8 +422,30 @@ class MuJoCoEngine:
       <geom name="wall_west" type="box" size="{wall_thick} {b_hy} {b_hz}" pos="{xmin} {mid_y} {mid_z}" rgba="0.3 0.3 0.4 0.15" friction="1.0 0.005 0.0001"/>
     </body>""")
 
-        # Robot Definition (Differential-Drive)
-        xml_parts.append(f"""
+        # Robot Definition (Differential-Drive) - Only if robot config is present
+        if robot is not None:
+            r_init_x, r_init_y, r_init_z = robot.initial_position
+            init_quat_str = euler_deg_to_quat_str([0.0, 0.0, robot.initial_yaw])
+            
+            hx, hy, hz = robot.chassis_size
+            wr = robot.wheel_radius
+            ww = robot.wheel_width
+            wb = robot.wheel_base
+            cr = robot.caster_radius
+            
+            wheel_z_offset = -0.01
+            wheel_y_offset = wb * 0.5
+            
+            caster_x = hx * 0.75
+            caster_y = wb * 0.35
+            caster_z_offset = wheel_z_offset - wr + cr
+            
+            lidar_mount = sensors.lidar.mount_pos
+            imu_mount = sensors.imu.mount_pos
+            cam_mount = sensors.camera.mount_pos if (hasattr(sensors, 'camera') and sensors.camera) else [0.18, 0.0, 0.08]
+            cam_fov = sensors.camera.fov_deg if (hasattr(sensors, 'camera') and sensors.camera) else 60.0
+
+            xml_parts.append(f"""
     <!-- Differential-Drive Robot -->
     <body name="robot" pos="{r_init_x} {r_init_y} {r_init_z}" quat="{init_quat_str}">
       <freejoint name="robot_freejoint"/>
@@ -522,15 +523,20 @@ class MuJoCoEngine:
       <geom name="{geom_name}" type="{obj.type}" size="{size_str}" mass="{obj.mass}" friction="{fric_str}" rgba="{rgba_str}"/>
     </body>""")
 
-        xml_parts.append("""
-  </worldbody>
-  <sensor>
+        xml_parts.append("\n  </worldbody>\n")
+        if robot is not None:
+            xml_parts.append("""  <sensor>
     <accelerometer name="imu_accel" site="robot_imu_site"/>
     <gyro name="imu_gyro" site="robot_imu_site"/>
   </sensor>
   <actuator>
     <velocity name="left_motor" joint="left_wheel_joint" kv="40" ctrlrange="-50 50" forcerange="-15 15"/>
     <velocity name="right_motor" joint="right_wheel_joint" kv="40" ctrlrange="-50 50" forcerange="-15 15"/>
+""")
+        else:
+            xml_parts.append("""  <sensor>
+  </sensor>
+  <actuator>
 """)
         if generic_actuators:
             xml_parts.append(generic_actuators)
@@ -572,8 +578,8 @@ class MuJoCoEngine:
                 logger.warning("Could not snapshot previous state for model rebuild: %s", e)
 
         try:
-            # Ensure generic robot is never placed right on top of mobile robot chassis
-            if self.project.generic_robot and hasattr(self.project.generic_robot, "base_position"):
+            # Ensure generic robot is never placed right on top of mobile robot chassis when a mobile robot exists
+            if self.project.robot is not None and self.project.generic_robot and hasattr(self.project.generic_robot, "base_position"):
                 bx, by, bz = self.project.generic_robot.base_position
                 if abs(bx) < 0.4 and abs(by) < 0.4:
                     self.project.generic_robot.base_position = [2.5, 2.5, 0.05]
@@ -1124,20 +1130,26 @@ class MuJoCoEngine:
         if not self.model or not self.data:
             return SimulationState(status=self.status, errors=self.errors)
 
-        qadr = getattr(self, "robot_qpos_adr", 0)
-        vadr = getattr(self, "robot_qvel_adr", 0)
-        r_pos = [float(x) for x in self.data.qpos[qadr:qadr + 3]]
-        r_quat = [float(x) for x in self.data.qpos[qadr + 3:qadr + 7]]
-        r_lvel = [float(x) for x in self.data.qvel[vadr:vadr + 3]]
-        r_avel = [float(x) for x in self.data.qvel[vadr + 3:vadr + 6]]
+        if getattr(self, "robot_body_id", -1) >= 0:
+            qadr = getattr(self, "robot_qpos_adr", 0)
+            vadr = getattr(self, "robot_qvel_adr", 0)
+            r_pos = [float(x) for x in self.data.qpos[qadr:qadr + 3]]
+            r_quat = [float(x) for x in self.data.qpos[qadr + 3:qadr + 7]]
+            r_lvel = [float(x) for x in self.data.qvel[vadr:vadr + 3]]
+            r_avel = [float(x) for x in self.data.qvel[vadr + 3:vadr + 6]]
+            left_w_vel = float(self.data.qvel[self.left_wheel_dofadr]) if getattr(self, "left_wheel_dofadr", -1) >= 0 else 0.0
+            right_w_vel = float(self.data.qvel[self.right_wheel_dofadr]) if getattr(self, "right_wheel_dofadr", -1) >= 0 else 0.0
+        else:
+            r_pos = [0.0, 0.0, 0.0]
+            r_quat = [1.0, 0.0, 0.0, 0.0]
+            r_lvel = [0.0, 0.0, 0.0]
+            r_avel = [0.0, 0.0, 0.0]
+            left_w_vel = 0.0
+            right_w_vel = 0.0
         
         l_speed = float(math.sqrt(r_lvel[0]**2 + r_lvel[1]**2 + r_lvel[2]**2))
         a_speed = float(math.sqrt(r_avel[0]**2 + r_avel[1]**2 + r_avel[2]**2))
-        
         fwd_vec = quat_to_forward(r_quat)
-        
-        left_w_vel = float(self.data.qvel[self.left_wheel_dofadr]) if getattr(self, "left_wheel_dofadr", -1) >= 0 else 0.0
-        right_w_vel = float(self.data.qvel[self.right_wheel_dofadr]) if getattr(self, "right_wheel_dofadr", -1) >= 0 else 0.0
 
         robot_state = RobotState(
             position=r_pos,

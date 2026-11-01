@@ -24,6 +24,7 @@ import {
   fetchAIChatHistory,
   clearAIChatHistory
 } from '../services/api';
+import { AgentAvatar } from './AgentAvatar';
 
 export interface PersistentChatMessage {
   id: string;
@@ -425,28 +426,28 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
   // Quick Action Starter Prompts
   const quickActions = [
     {
-      icon: <Box size={16} color="#38bdf8" />,
-      title: 'Spawn Obstacle Course',
-      desc: 'Build randomized navigation obstacles',
-      prompt: 'Spawn a 6-obstacle navigation course around the robot',
-    },
-    {
-      icon: <Gauge size={16} color="#4ade80" />,
-      title: 'Tune Velocity',
-      desc: 'Set max speed to 2.5 m/s',
-      prompt: 'Set robot max linear speed to 2.5 m/s and angular speed to 3.0 rad/s',
-    },
-    {
-      icon: <Compass size={16} color="#f472b6" />,
-      title: 'Reposition Goal',
-      desc: 'Move navigation target to [3.0, 1.0]',
-      prompt: 'Move the target position to [3.0, 1.0, 0.25]',
-    },
-    {
       icon: <BrainCircuit size={16} color="#a78bfa" />,
-      title: 'Compare APF vs MPC',
-      desc: 'Analyze control trade-offs',
-      prompt: 'Compare Artificial Potential Fields vs Model Predictive Control for local obstacle avoidance',
+      title: 'Train RL Policy (PPO)',
+      desc: 'Train reinforcement learning in scene',
+      prompt: 'Train a PPO reinforcement learning policy in the scene until it achieves the goal',
+    },
+    {
+      icon: <RotateCcw size={16} color="#38bdf8" />,
+      title: 'Clear Scene (Keep Robot)',
+      desc: 'Clear obstacles and keep robot safe',
+      prompt: 'Clear all obstacles from the scene but keep the active robot untouched',
+    },
+    {
+      icon: <Sliders size={16} color="#4ade80" />,
+      title: 'Actuate Motors to Zero',
+      desc: 'Reset all joints to home position',
+      prompt: 'Reset all robot motor actuators to zero home position',
+    },
+    {
+      icon: <Box size={16} color="#f59e0b" />,
+      title: 'Spawn Obstacle Course',
+      desc: 'Build randomized navigation course',
+      prompt: 'Spawn a 4-obstacle course around the active robot with guaranteed clearance',
     },
   ];
 
@@ -830,21 +831,8 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
             }}
           >
             {/* Bot Avatar */}
-            <div
-              style={{
-                width: 28,
-                height: 28,
-                borderRadius: '50%',
-                background: 'linear-gradient(135deg, #6366f1, #38bdf8)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-                marginTop: 2,
-                boxShadow: '0 2px 8px rgba(99, 102, 241, 0.3)',
-              }}
-            >
-              <Sparkles size={14} color="#ffffff" />
+            <div style={{ flexShrink: 0, marginTop: 1 }}>
+              <AgentAvatar mood={isThinking ? 'thinking' : 'idle'} size={28} showBadge={false} />
             </div>
 
             {/* Content Column */}
@@ -1113,20 +1101,7 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
       >
         {/* Assistant Identity & Model Badge */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div
-            style={{
-              width: 26,
-              height: 26,
-              borderRadius: 6,
-              background: 'linear-gradient(135deg, #6366f1, #38bdf8)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#ffffff',
-            }}
-          >
-            <Sparkles size={14} />
-          </div>
+          <AgentAvatar mood="speaking" size={26} />
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ fontWeight: 600, fontSize: 13, color: '#f8fafc' }}>
@@ -1269,28 +1244,34 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
               textAlign: 'center',
             }}
           >
+            <div style={{ marginBottom: 14 }}>
+              <AgentAvatar mood="idle" size={60} />
+            </div>
+
             <div
               style={{
-                width: 48,
-                height: 48,
-                borderRadius: '50%',
-                background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(56, 189, 248, 0.2))',
-                border: '1px solid rgba(99, 102, 241, 0.4)',
-                display: 'flex',
+                display: 'inline-flex',
                 alignItems: 'center',
-                justifyContent: 'center',
+                gap: 6,
+                padding: '3px 10px',
+                borderRadius: 12,
+                background: 'rgba(56, 189, 248, 0.1)',
+                border: '1px solid rgba(56, 189, 248, 0.25)',
                 color: '#38bdf8',
-                marginBottom: 14,
+                fontSize: 11,
+                fontWeight: 600,
+                marginBottom: 10,
               }}
             >
-              <Sparkles size={24} />
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 6px #22c55e' }} />
+              ROBOAGENT CO-PILOT ONLINE
             </div>
 
             <h3 style={{ fontSize: 17, fontWeight: 700, color: '#f8fafc', marginBottom: 6 }}>
-              How can I help with your simulation?
+              Hey! How can I assist your simulation?
             </h3>
-            <p style={{ fontSize: 13, color: '#94a3b8', maxWidth: 440, lineHeight: 1.5, marginBottom: 24 }}>
-              I can reason through physics kinematics, spawn obstacles, tune velocity, teleport the robot, or run comparative experiments.
+            <p style={{ fontSize: 13, color: '#94a3b8', maxWidth: 460, lineHeight: 1.5, marginBottom: 24 }}>
+              I can synthesize physical environments, spawn obstacles, write and train RL policies live in the viewport, tune motor kinematics, and optimize trajectories.
             </p>
 
             {/* Quick Starter Grid */}
@@ -1342,34 +1323,57 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
           messages.map(renderMessage)
         )}
 
-        {/* Loading Indicator */}
+        {/* Friendly Animated Agent Thought Card */}
         {isLoading && (
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 10,
-              padding: '10px 0',
-              color: '#94a3b8',
-              fontSize: 12,
+              gap: 14,
+              padding: '12px 16px',
+              margin: '10px 0',
+              borderRadius: 12,
+              background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.7), rgba(15, 23, 42, 0.8))',
+              border: '1px solid rgba(56, 189, 248, 0.3)',
+              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4), 0 0 16px rgba(56, 189, 248, 0.1)',
+              animation: 'fadeIn 0.3s ease-out',
             }}
           >
-            <div
-              style={{
-                width: 24,
-                height: 24,
-                borderRadius: '50%',
-                background: 'linear-gradient(135deg, #6366f1, #38bdf8)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#ffffff',
-                animation: 'pulse 1.2s infinite',
-              }}
-            >
-              <Sparkles size={12} />
+            <AgentAvatar mood="thinking" size={42} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#f8fafc' }}>
+                  RoboAgent is Reasoning
+                </span>
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    fontSize: 10,
+                    fontWeight: 600,
+                    padding: '2px 7px',
+                    borderRadius: 10,
+                    background: 'rgba(56, 189, 248, 0.15)',
+                    color: '#38bdf8',
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 5,
+                      height: 5,
+                      borderRadius: '50%',
+                      background: '#38bdf8',
+                      boxShadow: '0 0 6px #38bdf8',
+                    }}
+                  />
+                  SIMULATION ACTIVE
+                </span>
+              </div>
+              <span style={{ fontSize: 11, color: '#94a3b8' }}>
+                Synthesizing MuJoCo physical dynamics, verifying kinematic bounds & orchestrating scene...
+              </span>
             </div>
-            <span>Reasoning and executing simulation tools...</span>
           </div>
         )}
 

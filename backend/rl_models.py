@@ -27,6 +27,11 @@ class RLTrainingConfig(BaseModel):
     hyperparameters: RLHyperparameters = Field(default_factory=RLHyperparameters)
     custom_reward_code: Optional[str] = None
     max_episode_steps: int = 1000
+    notes: Optional[str] = None
+    robot_type: Optional[str] = None
+    policy_type: Optional[str] = "PPO"
+    algorithm: Optional[str] = "PPO"
+    extra_params: Dict[str, Any] = Field(default_factory=dict)
 
 
 class RLTrainingMetrics(BaseModel):
