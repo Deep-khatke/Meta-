@@ -1079,14 +1079,19 @@ async def import_urdf(req: URDFImportRequest):
 
 
 @app.post("/api/robot/joint-control")
-def control_robot_joints(req: JointControlRequest):
+async def control_robot_joints(req: JointControlRequest):
     if req.targets:
         engine.set_joint_targets(req.targets)
     elif req.joint_name and req.target is not None:
         engine.set_joint_target(req.joint_name, req.target)
     else:
         raise HTTPException(status_code=400, detail="Provide either joint_name and target or targets dictionary")
-    return {"status": "ok", "targets": engine.joint_targets}
+    # Joint targets are realized by the physics actuators during stepping. If the sim is stopped,
+    # start it so the user immediately sees the joint drive to the commanded angle.
+    if engine.status != "running":
+        engine.play()
+    engine.last_teleop_time = 0.0
+    return {"status": "ok", "targets": engine.joint_targets, "running": engine.status == "running"}
 
 
 @app.get("/api/robot/generic")

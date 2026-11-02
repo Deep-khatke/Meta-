@@ -106,11 +106,12 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
   const jointMotionNodesRef = useRef<Map<string, { group: THREE.Group; joint: JointModel; axis: THREE.Vector3; type: string }>>(new Map());
   const linkNodesRef = useRef<Map<string, THREE.Group>>(new Map());
 
-  // Kinematic Visualization Overlays Toggle State
-  const [showKinematicFrames, setShowKinematicFrames] = useState<boolean>(true);
-  const [showJointAxes, setShowJointAxes] = useState<boolean>(true);
-  const [showJointLimits, setShowJointLimits] = useState<boolean>(true);
-  const [showLinkHierarchy, setShowLinkHierarchy] = useState<boolean>(true);
+  // Kinematic Visualization Overlays Toggle State (off by default -- show a clean robot, not a
+  // debug diagram; the user can enable frames/axes/limits from the Kinematics panel).
+  const [showKinematicFrames, setShowKinematicFrames] = useState<boolean>(false);
+  const [showJointAxes, setShowJointAxes] = useState<boolean>(false);
+  const [showJointLimits, setShowJointLimits] = useState<boolean>(false);
+  const [showLinkHierarchy, setShowLinkHierarchy] = useState<boolean>(false);
   const [showEndEffectorMarker, setShowEndEffectorMarker] = useState<boolean>(true);
   const endEffectorMarkerRef = useRef<THREE.Group | null>(null);
   const [liveEePose, setLiveEePose] = useState<{
@@ -438,10 +439,12 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
                 20
               );
             }
+            const baseColor = new THREE.Color(geom.color || '#5b6b7f');
             const mat = new THREE.MeshStandardMaterial({
-              color: new THREE.Color(geom.color || '#3b82f6'),
-              metalness: 0.35,
-              roughness: 0.45,
+              color: baseColor,
+              metalness: 0.82,
+              roughness: 0.32,
+              envMapIntensity: 1.1,
             });
             const mesh = new THREE.Mesh(gGeo, mat);
             mesh.castShadow = true;
@@ -452,6 +455,16 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
             }
             (mesh as any).userData = { id: 'generic_robot', linkName, isRobot: true };
             linkGroup.add(mesh);
+
+            // Dark metallic joint hub at the link origin so segments read as a connected robot
+            // (not floating primitives).
+            const hubR = geom.type === 'cylinder' ? Math.max(0.02, (geom.size[0] || 0.05) * 1.35) : 0.045;
+            const hub = new THREE.Mesh(
+              new THREE.SphereGeometry(hubR, 20, 16),
+              new THREE.MeshStandardMaterial({ color: 0x23272e, metalness: 0.9, roughness: 0.35 })
+            );
+            hub.castShadow = true; hub.receiveShadow = true;
+            linkGroup.add(hub);
           }
         }
 
@@ -953,6 +966,9 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.1;
+    (renderer as any).outputColorSpace = THREE.SRGBColorSpace;
     container.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
@@ -1160,23 +1176,50 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
       }
     });
 
-    // Lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.85);
+    // Lighting — studio key/fill/rim rig for a realistic PBR look
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.35);
     scene.add(ambientLight);
 
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1.4);
-    dirLight.position.set(8, -10, 12);
+    // Sky/ground hemisphere fill for soft, natural shading
+    const hemiLight = new THREE.HemisphereLight(0x9bb8ff, 0x1a1c22, 0.55);
+    hemiLight.position.set(0, 0, 10);
+    scene.add(hemiLight);
+
+    // Key light (casts shadows)
+    const dirLight = new THREE.DirectionalLight(0xffffff, 2.0);
+    dirLight.position.set(8, -10, 14);
     dirLight.castShadow = true;
-    dirLight.shadow.mapSize.width = 1024;
-    dirLight.shadow.mapSize.height = 1024;
+    dirLight.shadow.mapSize.width = 2048;
+    dirLight.shadow.mapSize.height = 2048;
+    dirLight.shadow.camera.near = 0.5;
+    dirLight.shadow.camera.far = 40;
+    dirLight.shadow.camera.left = -8;
+    dirLight.shadow.camera.right = 8;
+    dirLight.shadow.camera.top = 8;
+    dirLight.shadow.camera.bottom = -8;
+    dirLight.shadow.bias = -0.0004;
+    dirLight.shadow.normalBias = 0.02;
     scene.add(dirLight);
+
+    // Cool fill light from the opposite side to lift shadows
+    const fillLight = new THREE.DirectionalLight(0xaecbff, 0.5);
+    fillLight.position.set(-9, 8, 6);
+    scene.add(fillLight);
+
+    // Warm rim/back light to separate the robot from the background
+    const rimLight = new THREE.DirectionalLight(0xffd9a0, 0.7);
+    rimLight.position.set(-4, -8, 5);
+    scene.add(rimLight);
+
+    // Subtle depth fog matching the background
+    scene.fog = new THREE.Fog(0x0e0f13, 22, 55);
 
     // Ground Plane
     const groundGeo = new THREE.PlaneGeometry(100, 100);
     const groundMat = new THREE.MeshStandardMaterial({
-      color: 0x16171b,
-      roughness: 0.85,
-      metalness: 0.1,
+      color: 0x15161a,
+      roughness: 0.92,
+      metalness: 0.0,
     });
     const groundMesh = new THREE.Mesh(groundGeo, groundMat);
     groundMesh.receiveShadow = true;
@@ -1186,6 +1229,8 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     const gridHelper = new THREE.GridHelper(50, 50, 0x3d4452, 0x242831);
     gridHelper.rotation.x = Math.PI / 2;
     gridHelper.position.z = 0.001;
+    (gridHelper.material as THREE.Material).transparent = true;
+    (gridHelper.material as any).opacity = 0.55;
     scene.add(gridHelper);
 
     // Coordinate Axes at World Origin

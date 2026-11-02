@@ -285,6 +285,18 @@ class MuJoCoEngine:
 
         actuators_xml: List[str] = []
 
+        # Collision classes for this robot's link geoms.
+        #  - Fixed-base manipulators (arms) sit on a pedestal; their links must NOT collide with
+        #    the ground plane (contype=1/conaffinity=1), otherwise penetrating links generate huge
+        #    contact forces that fight the joint actuators and the arm never reaches its target.
+        #    Using contype=2/conaffinity=0 means: ground(1)&link(0)=0 and link(2)&ground(1)=0 -> no
+        #    ground contact, and links don't self-collide either (clean servo behavior).
+        #  - Mobile bases must collide with the ground to drive, so they keep contype=1/conaffinity=0.
+        if getattr(robot_model, "is_fixed_base", True):
+            link_collision_attr = 'contype="2" conaffinity="0"'
+        else:
+            link_collision_attr = 'contype="1" conaffinity="0"'
+
         def build_link_body(link_name: str, joint: Optional[JointModel] = None) -> str:
             link = links_by_name.get(link_name)
             if not link:
@@ -332,8 +344,13 @@ class MuJoCoEngine:
                         ctrl_str = f' ctrlrange="{-joint.limit.velocity} {joint.limit.velocity}"'
                     elif mode == "torque" and joint.limit.effort > 0:
                         ctrl_str = f' ctrlrange="{-joint.limit.effort} {joint.limit.effort}"'
-                    if joint.limit.effort > 0 and mode != "torque":
-                        force_str = f' forcerange="{-joint.limit.effort} {joint.limit.effort}"'
+                    # Position/velocity actuators need enough force authority to actually drive the
+                    # joint to the commanded target. A small URDF <effort> would otherwise cap the
+                    # controller so it only creeps; give the position controller generous headroom.
+                    if mode != "torque":
+                        eff = joint.limit.effort if (joint.limit and joint.limit.effort > 0) else 50.0
+                        fr = max(150.0, min(eff * 8.0, 800.0))
+                        force_str = f' forcerange="{-fr} {fr}"'
 
                 if mode == "position":
                     actuators_xml.append(f'<position name="{act_name}" joint="{joint.name}" kp="{joint.kp}" kv="{joint.kv}"{ctrl_str}{force_str}/>')
@@ -358,7 +375,7 @@ class MuJoCoEngine:
                     c_size = f"{link.collision.size[0]}"
                 else:
                     c_size = f"{link.collision.size[0]} {link.collision.size[1]}"
-                body_lines.append(f'<geom name="col_{link.name}" type="{link.collision.type}" size="{c_size}" pos="{c_pos}" quat="{c_quat}"/>')
+                body_lines.append(f'<geom name="col_{link.name}" type="{link.collision.type}" size="{c_size}" pos="{c_pos}" quat="{c_quat}" {link_collision_attr}/>')
 
                 v_pos = f"{link.visual.origin_pos[0]} {link.visual.origin_pos[1]} {link.visual.origin_pos[2]}"
                 v_quat = euler_deg_to_quat_str(link.visual.origin_rpy)
@@ -385,7 +402,7 @@ class MuJoCoEngine:
                     else:
                         g_size = "0.1 0.1 0.1"
 
-                    body_lines.append(f'<geom name="geom_{link.name}" type="{geom_to_render.type}" size="{g_size}" pos="{g_pos}" quat="{g_quat}" rgba="{rgba_str}"/>')
+                    body_lines.append(f'<geom name="geom_{link.name}" type="{geom_to_render.type}" size="{g_size}" pos="{g_pos}" quat="{g_quat}" rgba="{rgba_str}" {link_collision_attr}/>')
 
             # Recursively append child links
             for child_jnt in joints_by_parent.get(link_name, []):
@@ -430,6 +447,7 @@ class MuJoCoEngine:
 
         xml_parts = [
             f"""<mujoco model="{self.project.name}">
+  <compiler angle="radian"/>
   <option timestep="{settings.timestep}" integrator="implicitfast" gravity="{grav_x} {grav_y} {grav_z}"/>
   <default>
     <geom friction="1.0 0.005 0.0001" condim="3" solref="0.02 1.0" solimp="0.9 0.95 0.001 0.5 2"/>

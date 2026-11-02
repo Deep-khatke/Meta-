@@ -58,6 +58,42 @@ def _parse_geom(geom_elem: Optional[ET.Element], origin_elem: Optional[ET.Elemen
     
     return None, warnings
 
+def _default_inertial_for_geom(geom: Optional[LinkGeom]) -> LinkInertial:
+    """Produce a sane default inertial when the URDF omits <inertial>.
+
+    Without this, MuJoCo auto-computes mass from geom volume x default
+    density (1000 kg/m^3), which yields absurd masses (e.g. 96000 kg for a
+    large base box) and makes actuators/physics behave wildly. We estimate a
+    reasonable mass from the geom size assuming a light-robot density, and
+    derive a diagonal inertia from the bounding extent.
+    """
+    if geom is None:
+        return LinkInertial(mass=0.5, origin_pos=[0.0, 0.0, 0.0], ixx=0.001, iyy=0.001, izz=0.001)
+
+    density = 700.0  # kg/m^3, light structural plastic/aluminium-ish
+    size = geom.size or []
+    gtype = geom.type
+
+    if gtype == "box" and len(size) >= 3:
+        hx, hy, hz = abs(size[0]), abs(size[1]), abs(size[2])
+        volume = (2 * hx) * (2 * hy) * (2 * hz)
+        ext2 = [(2*hy)**2 + (2*hz)**2, (2*hx)**2 + (2*hz)**2, (2*hx)**2 + (2*hy)**2]
+    elif gtype == "sphere" and len(size) >= 1:
+        r = abs(size[0])
+        volume = (4.0 / 3.0) * math.pi * r**3
+        ext2 = [(2*r)**2] * 3
+    elif gtype == "cylinder" and len(size) >= 2:
+        r, hl = abs(size[0]), abs(size[1])
+        volume = math.pi * r**2 * (2 * hl)
+        ext2 = [(2*hl)**2 + r**2, (2*hl)**2 + r**2, r**2]
+    else:
+        volume = 0.001
+        ext2 = [0.01, 0.01, 0.01]
+
+    mass = max(0.05, min(50.0, density * volume))
+    diag = [max(1e-4, (mass / 12.0) * e) for e in ext2]
+    return LinkInertial(mass=mass, origin_pos=[0.0, 0.0, 0.0], ixx=diag[0], iyy=diag[1], izz=diag[2])
+
 def parse_urdf_string(urdf_content: str) -> URDFImportResult:
     """Parses a URDF XML string into a GenericRobotModel, returning validation warnings."""
     warnings: List[str] = []
@@ -124,7 +160,7 @@ def parse_urdf_string(urdf_content: str) -> URDFImportResult:
 
             inertial_model = LinkInertial(mass=mass_val, origin_pos=ipos, ixx=ixx, iyy=iyy, izz=izz)
 
-        # Visual Material Color
+        # Visual Material Color (parse here so it is available before geom/inertial fallback)
         mat_color = "#4a90e2"
         vis_el = link_el.find("visual")
         if vis_el is not None:
@@ -158,7 +194,7 @@ def parse_urdf_string(urdf_content: str) -> URDFImportResult:
             name=lname,
             visual=visual_geom,
             collision=collision_geom,
-            inertial=inertial_model
+            inertial=inertial_model or _default_inertial_for_geom(visual_geom or collision_geom)
         ))
 
     # 2. Parse Joints
@@ -226,6 +262,19 @@ def parse_urdf_string(urdf_content: str) -> URDFImportResult:
         if dyn_el is not None:
             damping = float(dyn_el.get("damping", "0.1"))
 
+        # Position-actuator gains. With sane link masses and radian joint ranges, a proper servo
+        # can hold the commanded angle against gravity. Scale stiffness to the joint's effort
+        # budget (with a solid floor) and pick a near-critically-damped kv so the joint converges
+        # to its target without violent overshoot. Force authority is bounded by forcerange in the
+        # MJCF generator.
+        _effort = limit_model.effort if limit_model else 20.0
+        # Position servo gains tuned for STABLE convergence under MuJoCo's implicitfast integrator
+        # at our timestep. Empirically, kp>~120 on a low-inertia link drives a diverging limit
+        # cycle (the joint spins and never settles); a modest kp with strong relative damping
+        # (kv/kp ~= 0.4) converges cleanly to the commanded angle, even against gravity.
+        kp = float(max(40.0, min(_effort * 6.0, 120.0)))
+        kv = float(max(15.0, min(kp * 0.42, 60.0)))
+
         joints.append(JointModel(
             name=jname,
             type=mapped_type,  # type: ignore
@@ -235,11 +284,11 @@ def parse_urdf_string(urdf_content: str) -> URDFImportResult:
             origin_rpy=j_rpy,
             axis=axis,
             limit=limit_model,
-            damping=damping,
-            armature=0.01,
+            damping=max(damping, 0.5),  # some joint damping for stability
+            armature=max(0.01, 0.02),   # small armature smooths the servo
             actuator_mode="position" if mapped_type != "fixed" else None,
-            kp=100.0,
-            kv=10.0
+            kp=kp,
+            kv=kv,
         ))
 
     # Find root link (link that is never a child link)
