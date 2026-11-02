@@ -252,10 +252,10 @@ class AIReasoningService:
         return {
             "project_name": proj.name,
             "robot": {
-                "name": proj.robot.name,
-                "initial_position": proj.robot.initial_position,
-                "max_linear_velocity": proj.robot.max_linear_velocity,
-                "max_angular_velocity": proj.robot.max_angular_velocity,
+                "name": proj.robot.name if proj.robot is not None else None,
+                "initial_position": proj.robot.initial_position if proj.robot is not None else None,
+                "max_linear_velocity": proj.robot.max_linear_velocity if proj.robot is not None else None,
+                "max_angular_velocity": proj.robot.max_angular_velocity if proj.robot is not None else None,
                 "sensors": {
                     "lidar_enabled": proj.sensors.lidar.enabled,
                     "lidar_rays": proj.sensors.lidar.num_beams,
@@ -991,6 +991,21 @@ class AIReasoningService:
         """
         proj = self.pm.get_current()
         ident_lower = str(identifier).lower().strip()
+
+        # Strict bullet-proof safeguard: preserve active robots
+        active_robot_names = ["robot", "primary_robot", "main_robot"]
+        if getattr(proj, "robot", None):
+            active_robot_names.extend([proj.robot.name.lower(), proj.robot.id.lower(), "forgebot"])
+        if getattr(proj, "generic_robot", None):
+            active_robot_names.extend([proj.generic_robot.name.lower(), "generic_robot", "arm", "manipulator"])
+
+        if ident_lower in active_robot_names:
+            return {
+                "action": "remove_obstacle",
+                "status": "protected",
+                "details": f"Safety constraint enforced: The active robot architecture '{identifier}' is protected and cannot be removed."
+            }
+
         matched = []
         remaining = []
         blocked_protected = False
@@ -3191,6 +3206,7 @@ class AIReasoningService:
             return None
 
         # Build response and validate layout bounds
+        curr_proj = self.pm.get_current()
         default_proj = get_default_project()
         target_pos = data.get("layout", {}).get("target_position", [2.8, 0.4, 0.25])
         timeout = float(data.get("layout", {}).get("timeout", 12.0))
@@ -3225,9 +3241,10 @@ class AIReasoningService:
             "name": f"AI: {data.get('interpreted_goal', prompt[:30])}",
             "description": data.get("interpreted_goal", prompt),
             "seed": 42,
-            "robot": default_proj.robot.model_dump(),
+            "robot": curr_proj.robot.model_dump() if getattr(curr_proj, "robot", None) else None,
+            "generic_robot": curr_proj.generic_robot.model_dump() if getattr(curr_proj, "generic_robot", None) else None,
             "environment": [o.model_dump() for o in objects],
-            "settings": default_proj.settings.model_dump(),
+            "settings": curr_proj.settings.model_dump() if getattr(curr_proj, "settings", None) else default_proj.settings.model_dump(),
             "task": {
                 "target_position": target_pos,
                 "distance_threshold": 0.25,
@@ -3343,6 +3360,7 @@ class AIReasoningService:
                 assistant_reply += f"No prior experiment runs recorded in memory for this session."
 
         # 2. Environment Geometry Synthesis (if prompt requests a challenge layout)
+        curr_proj = self.pm.get_current()
         default_proj = get_default_project()
         objects: List[SceneObject] = []
         target_pos = [2.8, 0.4, 0.25]
@@ -3412,9 +3430,10 @@ class AIReasoningService:
             "name": f"AI Challenge: {prompt[:30].strip()}",
             "description": interpreted_goal,
             "seed": 42,
-            "robot": default_proj.robot.model_dump(),
+            "robot": curr_proj.robot.model_dump() if getattr(curr_proj, "robot", None) else None,
+            "generic_robot": curr_proj.generic_robot.model_dump() if getattr(curr_proj, "generic_robot", None) else None,
             "environment": [o.model_dump() for o in objects],
-            "settings": default_proj.settings.model_dump(),
+            "settings": curr_proj.settings.model_dump() if getattr(curr_proj, "settings", None) else default_proj.settings.model_dump(),
             "task": {
                 "target_position": target_pos,
                 "distance_threshold": 0.25,

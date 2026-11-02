@@ -243,8 +243,15 @@ class RLTrainingManager:
             # universal reach env; a diff-drive chassis trains on navigation; drones on flight.
             from backend.rl_generic_env import detect_robot_kind, RoboForgeReachEnv
 
-            hint = f"{config.model_name or ''} {config.notes or ''} {config.robot_kind or ''}".lower()
+            notes_str = str(getattr(config, "notes", "") or "")
+            hint = f"{config.model_name or ''} {notes_str} {config.robot_kind or ''}".lower()
             is_drone_hint = any(w in hint for w in ["drone", "takeoff", "flight", "uav", "quad"])
+            is_arm_job = (
+                any(w in hint for w in ["arm", "manipulator", "pick", "kr6", "scara", "delta", "joint"])
+                or (getattr(project, "generic_robot", None) is not None
+                    and len(project.generic_robot.joints) > 0
+                    and getattr(project, "robot", None) is None)
+            )
             detected_kind = config.robot_kind or detect_robot_kind(project)
 
             if is_drone_hint or detected_kind == "drone":
@@ -272,6 +279,15 @@ class RLTrainingManager:
                     "Training job %s: using UNIVERSAL reach environment for '%s' robot (%d joints).",
                     job_id, detected_kind, env.n_joints,
                 )
+            elif is_arm_job:
+                from backend.rl_env import RoboForgeArmGymEnv
+                env = RoboForgeArmGymEnv(
+                    project=project,
+                    target_position=tuple(config.target_position),  # type: ignore
+                    max_episode_steps=min(config.total_timesteps, 300),
+                    custom_reward_code=config.custom_reward_code,
+                    seed=config.seed
+                )
             else:
                 env = RoboForgeGymEnv(
                     project=project,
@@ -284,12 +300,18 @@ class RLTrainingManager:
                 logger.info("Training job %s: using differential-drive navigation environment.", job_id)
 
             hp = config.hyperparameters
+            # Robustly clamp and align n_steps and batch_size for Stable-Baselines3
+            effective_n_steps = max(16, min(hp.n_steps, config.total_timesteps))
+            effective_batch_size = max(4, min(hp.batch_size, effective_n_steps))
+            while effective_n_steps % effective_batch_size != 0 and effective_batch_size > 4:
+                effective_batch_size -= 1
+
             model = PPO(
                 policy="MlpPolicy",
                 env=env,
                 learning_rate=hp.learning_rate,
-                n_steps=hp.n_steps,
-                batch_size=hp.batch_size,
+                n_steps=effective_n_steps,
+                batch_size=effective_batch_size,
                 n_epochs=hp.n_epochs,
                 gamma=hp.gamma,
                 gae_lambda=hp.gae_lambda,
@@ -946,7 +968,11 @@ class RLTrainingManager:
 
             # Save PPO Model
             engine.rl_training_status = "[SAVING] SAVING PPO NEURAL NETWORK WEIGHTS & SERIALIZING CHECKPOINT..."
-            env = RoboForgeGymEnv(engine.project, max_episode_steps=64)
+            if getattr(engine.project, "generic_robot", None) is not None and getattr(engine.project, "robot", None) is None:
+                from backend.rl_env import RoboForgeArmGymEnv
+                env = RoboForgeArmGymEnv(engine.project, max_episode_steps=64)
+            else:
+                env = RoboForgeGymEnv(engine.project, max_episode_steps=64)
             ppo_model = PPO("MlpPolicy", env, n_steps=64, batch_size=32, learning_rate=3e-4, verbose=0)
             ppo_model.learn(total_timesteps=128)
             checkpoint_path = str(MODELS_DIR / f"{job_id}.zip")
@@ -1171,7 +1197,11 @@ class RLTrainingManager:
 
             # Save PPO Model
             engine.rl_training_status = "[SAVING] SAVING PPO NEURAL NETWORK WEIGHTS & SERIALIZING CHECKPOINT..."
-            env = RoboForgeGymEnv(engine.project, max_episode_steps=64)
+            if getattr(engine.project, "generic_robot", None) is not None and getattr(engine.project, "robot", None) is None:
+                from backend.rl_env import RoboForgeArmGymEnv
+                env = RoboForgeArmGymEnv(engine.project, max_episode_steps=64)
+            else:
+                env = RoboForgeGymEnv(engine.project, max_episode_steps=64)
             ppo_model = PPO("MlpPolicy", env, n_steps=64, batch_size=32, learning_rate=3e-4, verbose=0)
             ppo_model.learn(total_timesteps=128)
             checkpoint_path = str(MODELS_DIR / f"{job_id}.zip")

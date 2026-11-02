@@ -132,8 +132,8 @@ export const ScenePanel: React.FC<ScenePanelProps> = ({
 
       {/* Hierarchy Tree */}
       <div className="rf-panel-body" style={{ padding: '6px 8px' }}>
-        {/* Robot Root Item */}
-        {project.robot_active !== false ? (
+        {/* Mobile Robot Root Item (shown when a robot exists and is active in the workspace) */}
+        {project.robot && project.robot_active !== false && (
           <>
             <div
               onClick={() => onSelectObject('robot')}
@@ -188,7 +188,10 @@ export const ScenePanel: React.FC<ScenePanelProps> = ({
               </div>
             </div>
           </>
-        ) : (
+        )}
+
+        {/* Inactive Robot Notice: robot exists but was removed from the workspace */}
+        {project.robot && project.robot_active === false && (
           <div
             style={{
               display: 'flex',
@@ -222,6 +225,13 @@ export const ScenePanel: React.FC<ScenePanelProps> = ({
                 + Add Robot
               </button>
             )}
+          </div>
+        )}
+
+        {/* Empty Scene Robot Notice: no mobile robot and no generic/URDF robot at all */}
+        {!project.robot && !project.generic_robot && (
+          <div style={{ padding: '8px 10px', fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', background: 'rgba(255,255,255,0.02)', borderRadius: 6, margin: '6px 0 12px 0', border: '1px dashed var(--border-subtle)' }}>
+            Empty Scene: No active robot.
           </div>
         )}
 

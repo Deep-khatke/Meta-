@@ -226,7 +226,7 @@ class Project(BaseModel):
     schema_version: str = Field(default=SCHEMA_VERSION)
     name: str = Field(default="Default Scene", min_length=1, max_length=100)
     description: Optional[str] = "RoboForge Simulation Project"
-    robot: RobotConfig = Field(default_factory=RobotConfig)
+    robot: Optional[RobotConfig] = Field(default_factory=RobotConfig)
     robot_active: bool = Field(
         default=True,
         description="When False, the built-in differential-drive robot is omitted from the "

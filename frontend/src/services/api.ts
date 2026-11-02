@@ -1097,3 +1097,94 @@ export async function importMJCF(mjcfXml: string, setAsActiveRobot: boolean = tr
   return res.json();
 }
 
+// --- ROS 2 Extended Interoperability & CLI API ---
+
+export interface ROS2CLIResult {
+  command: string;
+  exit_code: number;
+  output: string;
+}
+
+export async function executeROS2CLI(command: string): Promise<ROS2CLIResult> {
+  const res = await fetch(`${API_BASE}/ros2/cli`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ command })
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Failed to execute ROS 2 CLI command' }));
+    throw new Error(err.detail || 'Failed to execute ROS 2 CLI command');
+  }
+  return res.json();
+}
+
+export async function sendROS2JointCommands(payload: {
+  targets?: Record<string, number>;
+  data?: number[];
+  joint_name?: string;
+  target?: number;
+}): Promise<{ status: string; applied_targets: Record<string, number> }> {
+  const res = await fetch(`${API_BASE}/ros2/joint_commands`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Failed to send joint commands' }));
+    throw new Error(err.detail || 'Failed to send joint commands');
+  }
+  return res.json();
+}
+
+export async function sendROS2GoalPose(payload: {
+  x?: number;
+  y?: number;
+  yaw?: number;
+  pose?: any;
+}): Promise<{ status: string; goal: { x: number; y: number; yaw: number }; trajectory_state: string; waypoint_count: number }> {
+  const res = await fetch(`${API_BASE}/ros2/goal_pose`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Failed to send goal pose' }));
+    throw new Error(err.detail || 'Failed to send goal pose');
+  }
+  return res.json();
+}
+
+export async function replayROS2Bag(bagId: string, speedMultiplier: number = 1.0): Promise<any> {
+  const res = await fetch(`${API_BASE}/ros2/bag/${encodeURIComponent(bagId)}/replay`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ speed_multiplier: speedMultiplier })
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Failed to replay bag' }));
+    throw new Error(err.detail || 'Failed to replay bag');
+  }
+  return res.json();
+}
+
+export async function stopROS2BagReplay(): Promise<any> {
+  const res = await fetch(`${API_BASE}/ros2/bag/replay-stop`, { method: 'POST' });
+  if (!res.ok) throw new Error('Failed to stop bag replay');
+  return res.json();
+}
+
+export async function fetchROS2BagReplayStatus(): Promise<{
+  is_playing: boolean;
+  current_bag_id: string | null;
+  playback_progress: number;
+}> {
+  const res = await fetch(`${API_BASE}/ros2/bag/replay-status`);
+  if (!res.ok) throw new Error('Failed to fetch bag replay status');
+  return res.json();
+}
+
+export function getROS2PackageExportUrl(): string {
+  return `${API_BASE}/ros2/export-package`;
+}
+
+

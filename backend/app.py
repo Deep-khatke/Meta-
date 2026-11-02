@@ -23,6 +23,8 @@ import numpy as np
 import mujoco
 
 import uuid
+import io
+from fastapi.responses import StreamingResponse
 from backend.models import (
     Project, SceneObject, SimulationState, LogMessage, TeleopCommand,
     SimulationSettings, RobotConfig, GenericRobotModel, URDFImportResult,
@@ -39,7 +41,10 @@ from backend.project_manager import ProjectManager
 from backend.scene_validator import validate_scene, SceneValidationReport
 from backend.motion_planning import plan_collision_free_path, PathPlanningRequest, PathPlanningResult, TrajectoryExecutionState
 from backend.synthetic_data import SyntheticDataGenerator, DomainRandomizationConfig, COCODataset
-from backend.ros2_bridge import ROS2Bridge, ros2_bag_recorder, swarm_orchestrator, SwarmOrchestrator
+from backend.ros2_bridge import (
+    ROS2Bridge, ros2_bag_recorder, swarm_orchestrator, SwarmOrchestrator,
+    ros2_bag_player, ROS2CLIExecutor, export_ros2_workspace_zip
+)
 from backend.agent_interface import (
     AgentSimulationInterface, EnvironmentInspectionResult, TelemetryObservation,
     PerceptionObservation, ReproducibleRecord
@@ -459,6 +464,26 @@ class ROS2BagStartRequest(BaseModel):
     name: Optional[str] = "rosbag2_recording"
     topics: Optional[List[str]] = None
 
+class ROS2CLIRequest(BaseModel):
+    command: str
+
+class ROS2JointCommandsRequest(BaseModel):
+    positions: Optional[List[float]] = None
+    names: Optional[List[str]] = None
+    joint_name: Optional[str] = None
+    target: Optional[float] = None
+    targets: Optional[dict[str, float]] = None
+    data: Optional[List[float]] = None
+
+class ROS2GoalPoseRequest(BaseModel):
+    x: Optional[float] = None
+    y: Optional[float] = None
+    yaw: Optional[float] = None
+    pose: Optional[dict] = None
+
+class ROS2BagReplayRequest(BaseModel):
+    speed_multiplier: float = 1.0
+
 class SwarmDeployRequest(BaseModel):
     formation: str = Field(default="v_shape", description="Formation: v_shape, line, column, circle, diamond")
     agent_count: int = Field(default=4, ge=2, le=10)
@@ -490,23 +515,19 @@ async def update_project(project: Project):
 
 
 @app.post("/api/project/new")
-async def new_project(name: str = "New Scene", template: str = "diff_drive"):
+@app.post("/api/project/new")
+async def new_project(name: str = "New Scene", template: str = "empty", robot_type: Optional[str] = None):
     """Creates a fresh project.
 
     template:
-      - "diff_drive" (default): starter differential-drive rover in an empty arena.
-      - "empty": empty arena with a minimal base, ready for the user to import their own
-        robot (URDF/MJCF). No obstacles, no imported model.
+      - "empty" (default): clean empty workspace, ready for the user to import a URDF/MJCF robot.
+      - "rover"/"diff_drive": starter differential-drive rover in an empty arena.
+      - "kr6"/"scara"/"arm": a preset articulated arm.
     """
-    proj = project_manager.new_project(name=name)
-    proj.objects = []
-    proj.generic_robot = None
-    if template == "empty":
-        proj.description = "Empty workspace -- import a URDF/MJCF robot to begin."
-        proj.robot_active = False
-    else:
-        proj.robot_active = True
-    project_manager.update_project(proj)
+    proj = project_manager.new_project(name=name, template=template, robot_type=robot_type)
+    # A clean/empty or arm workspace has no built-in diff-drive rover; mark it inactive so the
+    # viewport starts empty. A rover template keeps the robot active.
+    proj.robot_active = proj.robot is not None
     engine.project = proj
     engine.rebuild_model(preserve_state=False)
     await broadcast_json({"type": "project_updated", "data": engine.project.model_dump()})
@@ -741,6 +762,8 @@ def list_ros2_topics():
             {"topic": "/scan", "type": "sensor_msgs/msg/LaserScan", "mode": "publication", "rate_hz": 20},
             {"topic": "/imu/data", "type": "sensor_msgs/msg/Imu", "mode": "publication", "rate_hz": 100},
             {"topic": "/joint_states", "type": "sensor_msgs/msg/JointState", "mode": "publication", "rate_hz": 50},
+            {"topic": "/joint_commands", "type": "std_msgs/msg/Float64MultiArray", "mode": "subscription", "rate_hz": "Event-driven"},
+            {"topic": "/goal_pose", "type": "geometry_msgs/msg/PoseStamped", "mode": "subscription", "rate_hz": "Event-driven"},
             {"topic": "/clock", "type": "rosgraph_msgs/msg/Clock", "mode": "publication", "rate_hz": 50},
             {"topic": "/tf", "type": "tf2_msgs/msg/TFMessage", "mode": "publication", "rate_hz": 50}
         ]
@@ -827,6 +850,88 @@ def delete_ros2_bag(bag_id: str):
     if not success:
         raise HTTPException(status_code=404, detail=f"ROS 2 Bag '{bag_id}' not found.")
     return {"status": "ok", "deleted_bag_id": bag_id}
+
+@app.post("/api/ros2/cli")
+def execute_ros2_cli(req: ROS2CLIRequest):
+    return ROS2CLIExecutor.execute(req.command, engine, project_manager)
+
+@app.post("/api/ros2/joint_commands")
+def send_ros2_joint_commands(req: ROS2JointCommandsRequest):
+    applied: dict[str, float] = {}
+    if req.joint_name and req.target is not None:
+        applied[req.joint_name] = float(req.target)
+        engine.set_joint_target(req.joint_name, float(req.target))
+    elif req.targets:
+        for k, v in req.targets.items():
+            applied[k] = float(v)
+            engine.set_joint_target(k, float(v))
+    else:
+        targets = ROS2Bridge.parse_joint_commands(req.model_dump(exclude_unset=True))
+        for k, v in targets.items():
+            applied[k] = float(v)
+            engine.set_joint_target(k, float(v))
+    engine.log("info", f"ROS 2 /joint_commands: applied {len(applied)} joint targets.")
+    return {"status": "ok", "applied_targets": applied}
+
+@app.post("/api/ros2/goal_pose")
+def send_ros2_goal_pose(req: ROS2GoalPoseRequest):
+    try:
+        gx, gy, gyaw = ROS2Bridge.parse_goal_pose(req.model_dump(exclude_unset=True))
+        if req.x is not None:
+            gx = float(req.x)
+        if req.y is not None:
+            gy = float(req.y)
+        if req.yaw is not None:
+            gyaw = float(req.yaw)
+
+        traj_state = agent_interface.execute_motion_trajectory(target_pos=[gx, gy, 0.0])
+        engine.log("info", f"ROS 2 Nav2 /goal_pose received: Navigating to ({gx:.2f}, {gy:.2f}, yaw={gyaw:.2f} rad)")
+        return {
+            "status": "navigating",
+            "goal": {"x": gx, "y": gy, "yaw": gyaw},
+            "trajectory_state": getattr(traj_state, "status", "ready"),
+            "waypoint_count": len(getattr(traj_state, "waypoints", []))
+        }
+    except Exception as ex:
+        engine.log("warn", f"ROS 2 Nav2 /goal_pose notice: {str(ex)}")
+        return {
+            "status": "dispatched",
+            "goal": {"x": req.x or 0.0, "y": req.y or 0.0, "yaw": req.yaw or 0.0},
+            "trajectory_state": "ready",
+            "waypoint_count": 0,
+            "message": str(ex)
+        }
+
+@app.post("/api/ros2/bag/{bag_id}/replay")
+def replay_ros2_bag(bag_id: str, req: ROS2BagReplayRequest = ROS2BagReplayRequest()):
+    res = ros2_bag_player.play_bag(engine, bag_id, req.speed_multiplier)
+    if res.get("status") == "error":
+        raise HTTPException(status_code=400, detail=res.get("error"))
+    return res
+
+@app.post("/api/ros2/bag/replay-stop")
+def stop_ros2_bag_replay():
+    ros2_bag_player.stop()
+    return {"status": "stopped"}
+
+@app.get("/api/ros2/bag/replay-status")
+def get_ros2_bag_replay_status():
+    return {
+        "is_playing": ros2_bag_player.is_playing,
+        "current_bag_id": ros2_bag_player.current_bag_id,
+        "playback_progress": ros2_bag_player.playback_progress
+    }
+
+@app.get("/api/ros2/export-package")
+def export_ros2_package():
+    proj = project_manager.get_current()
+    zip_bytes = export_ros2_workspace_zip(proj)
+    return StreamingResponse(
+        io.BytesIO(zip_bytes),
+        media_type="application/zip",
+        headers={"Content-Disposition": "attachment; filename=roboforge_bridge_ros2_ws.zip"}
+    )
+
 
 
 # --- Multi-Robot Swarm & Formation Orchestration ---

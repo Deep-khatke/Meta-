@@ -21,6 +21,7 @@ import { RobotCreatorModal } from './components/RobotCreatorModal';
 import { EnvironmentCreatorModal } from './components/EnvironmentCreatorModal';
 import { RobotStudioModal } from './components/RobotStudioModal';
 import { LandingScreen, WorkspaceChoice } from './components/LandingScreen';
+import { WorkspaceSetupModal } from './components/WorkspaceSetupModal';
 import { useKeyboardTeleop } from './hooks/useKeyboardTeleop';
 import { BrainCircuit, Sparkles, CheckCircle2, XCircle, X, Play, ShieldAlert, Upload, FileCode, AlertTriangle, FileText } from 'lucide-react';
 
@@ -203,6 +204,9 @@ export const AppContent: React.FC = () => {
   const [showRobotCreator, setShowRobotCreator] = useState<boolean>(false);
   const [showEnvironmentCreator, setShowEnvironmentCreator] = useState<boolean>(false);
   const [showRobotStudio, setShowRobotStudio] = useState<boolean>(false);
+  const [showSetupModal, setShowSetupModal] = useState<boolean>(() => {
+    return !sessionStorage.getItem('roboforge_workspace_chosen');
+  });
   const [studioDockWidth, setStudioDockWidth] = useState<number>(540);
   const [studioInitialRobot, setStudioInitialRobot] = useState<GenericRobotModel | null>(null);
 
@@ -601,20 +605,9 @@ export const AppContent: React.FC = () => {
     }
   };
 
-  // Project Management Actions
-  const handleNewProject = async () => {
-    const name = window.prompt('Enter new simulation project name:', 'New Robotics Scene');
-    if (!name) return;
-    try {
-      // Start empty (no active robot) so the workspace is a blank slate; the user adds a robot,
-      // drone, or imports a URDF when they want one.
-      const newProj = await createNewProject(name, 'empty');
-      setProject(newProj);
-      setSelectedObjectId(null);
-      showToast(`Created new empty project '${newProj.name}'`);
-    } catch (e: any) {
-      showToast(e.message);
-    }
+  // Project Management Actions: Opens Initial Workspace Setup Flow
+  const handleNewProject = () => {
+    setShowSetupModal(true);
   };
 
   const handleSaveProject = async () => {
@@ -1616,6 +1609,17 @@ export const AppContent: React.FC = () => {
           onShowToast={(msg) => showToast(msg)}
         />
       )}
+
+      {/* Initial Workspace Setup & Robot Import Modal */}
+      <WorkspaceSetupModal
+        isOpen={showSetupModal}
+        onClose={() => setShowSetupModal(false)}
+        onProjectCreated={(newProj) => {
+          setProject(newProj);
+          setSelectedObjectId(null);
+        }}
+        onShowToast={(msg) => showToast(msg)}
+      />
     </div>
   );
 };

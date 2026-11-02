@@ -32,12 +32,13 @@ class SimulationTools:
         """Inspects current active project, robot configuration, obstacles, and boundary limits."""
         proj = self.pm.get_current()
         val = validate_scene(proj)
+        robot = proj.robot
         return {
             "project_name": proj.name,
-            "robot_name": proj.robot.name,
-            "initial_position": proj.robot.initial_position,
-            "max_linear_velocity": proj.robot.max_linear_velocity,
-            "max_angular_velocity": proj.robot.max_angular_velocity,
+            "robot_name": robot.name if robot is not None else None,
+            "initial_position": robot.initial_position if robot is not None else None,
+            "max_linear_velocity": robot.max_linear_velocity if robot is not None else None,
+            "max_angular_velocity": robot.max_angular_velocity if robot is not None else None,
             "total_obstacles": len(proj.objects),
             "obstacles": [o.model_dump() for o in proj.objects],
             "physics_settings": proj.settings.model_dump(),

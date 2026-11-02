@@ -135,21 +135,22 @@ def validate_scene(project: Project) -> SceneValidationReport:
                 ))
 
     # 4. Check Robot clearance against obstacles at spawn position
-    rx, ry, rz = project.robot.initial_position
-    r_radius = max(project.robot.chassis_size[0], project.robot.chassis_size[1]) * 1.2
-    for obj in objects:
-        ox, oy, _ = obj.position
-        dist_2d = math.sqrt((ox - rx)**2 + (oy - ry)**2)
-        obj_radius = max(obj.size[0], obj.size[1]) if len(obj.size) >= 2 else obj.size[0]
-        if dist_2d < (r_radius + obj_radius):
-            errors.append(SceneIssue(
-                id=f"robot_collision_{obj.id}",
-                severity="error",
-                category="robot_clearance",
-                target_ids=[obj.id, project.robot.id],
-                message=f"Robot spawn position ({rx:.2f}, {ry:.2f}) intersects with obstacle '{obj.name}' (distance {dist_2d:.2f}m < clearance {r_radius + obj_radius:.2f}m).",
-                suggestion=f"Relocate '{obj.name}' or adjust robot initial_position."
-            ))
+    if project.robot is not None:
+        rx, ry, rz = project.robot.initial_position
+        r_radius = max(project.robot.chassis_size[0], project.robot.chassis_size[1]) * 1.2
+        for obj in objects:
+            ox, oy, _ = obj.position
+            dist_2d = math.sqrt((ox - rx)**2 + (oy - ry)**2)
+            obj_radius = max(obj.size[0], obj.size[1]) if len(obj.size) >= 2 else obj.size[0]
+            if dist_2d < (r_radius + obj_radius):
+                errors.append(SceneIssue(
+                    id=f"robot_collision_{obj.id}",
+                    severity="error",
+                    category="robot_clearance",
+                    target_ids=[obj.id, project.robot.id],
+                    message=f"Robot spawn position ({rx:.2f}, {ry:.2f}) intersects with obstacle '{obj.name}' (distance {dist_2d:.2f}m < clearance {r_radius + obj_radius:.2f}m).",
+                    suggestion=f"Relocate '{obj.name}' or adjust robot initial_position."
+                ))
 
     is_valid = len(errors) == 0
 

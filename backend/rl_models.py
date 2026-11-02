@@ -31,6 +31,10 @@ class RLTrainingConfig(BaseModel):
     # select the correct Gym environment and by the AI to carry task context.
     notes: Optional[str] = None
     robot_kind: Optional[str] = None  # "mobile" | "arm" | "drone" | "generic" (auto-detected if None)
+    robot_type: Optional[str] = None
+    policy_type: Optional[str] = "PPO"
+    algorithm: Optional[str] = "PPO"
+    extra_params: Dict[str, Any] = Field(default_factory=dict)
 
 
 class RLTrainingMetrics(BaseModel):

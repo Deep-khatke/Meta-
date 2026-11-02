@@ -235,7 +235,7 @@ export const AssetLibraryPanel: React.FC<AssetLibraryPanelProps> = ({
               className="rf-btn"
               style={{ fontSize: 11, padding: '4px 10px', gap: 5 }}
               onClick={() => {
-                setSaveName(project.generic_robot ? project.generic_robot.name : project.robot.name);
+                setSaveName(project.generic_robot?.name || project.robot?.name || 'CustomRobot');
                 setSaveDesc('Exported from active simulation');
                 setShowSaveModal('robot');
               }}
