@@ -65,8 +65,8 @@ const ROBOT_CATALOG: RobotMeta[] = [
     dof: '3 Parallel Arm Pairs',
     payload: '3.0 kg',
     cycleTime: '0.15 s',
-    description: 'Parallel Delta robot featuring 3 direct-drive upper arms and 6 carbon-fiber parallel link rods dynamically constrained to the tool plate.',
-    features: ['Closed-Loop Parallel Rod Constraints', 'Dual Spherical Ball-Joint Linkages', 'High-G Cartesian Electronic Assembly'],
+    description: 'High-speed Delta robot executing rapid in-flight pick & place from a continuous moving conveyor belt to an outfeed matrix packaging tray with 15G Cartesian dynamics.',
+    features: ['Dynamic Moving Conveyor Part Tracking', 'High-G Parabolic Pick & Place Transfer', 'Overhead Industrial Gantry & Rigid Linkages'],
   },
   {
     id: 'mobile',
@@ -1349,144 +1349,577 @@ function buildAccurateDeltaRobot(scene: THREE.Scene, isWireframe = false) {
   const m = createStudioMaterials(isWireframe);
   const root = new THREE.Group();
 
-  // Top Triangular Fixed Baseplate
-  const topBase = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.46, 0.06, 3, 1), m.castIronDark);
-  topBase.position.y = 1.05;
+  // ── 1. Heavy Industrial Overhead Gantry Cage Frame ("Proper Robot Cell") ──
+  const gantryGroup = new THREE.Group();
+  root.add(gantryGroup);
+
+  // 4 Rigid Vertical Corner Pillars with Anchor Footplates
+  const pillarOffsets = [
+    { x: -0.42, z: -0.42 },
+    { x: 0.42, z: -0.42 },
+    { x: -0.42, z: 0.42 },
+    { x: 0.42, z: 0.42 },
+  ];
+
+  pillarOffsets.forEach(pos => {
+    // Vertical tubular column
+    const col = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 1.08, 16), m.castIronDark);
+    col.position.set(pos.x, 0.54, pos.z);
+    col.castShadow = true;
+    gantryGroup.add(col);
+
+    // Floor mounting foot flange with anchor bolts
+    const foot = new THREE.Mesh(new THREE.BoxGeometry(0.065, 0.014, 0.065), m.castAluminiumLight);
+    foot.position.set(pos.x, 0.007, pos.z);
+    gantryGroup.add(foot);
+
+    // Top structural corner bracket
+    const cap = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.04, 0.05), m.vermilionAccent);
+    cap.position.set(pos.x, 1.06, pos.z);
+    gantryGroup.add(cap);
+  });
+
+  // 4 Overhead Horizontal Framing Girders
+  const girderNorth = new THREE.Mesh(new THREE.BoxGeometry(0.84, 0.03, 0.03), m.castAluminiumLight);
+  girderNorth.position.set(0, 1.06, -0.42);
+  gantryGroup.add(girderNorth);
+
+  const girderSouth = new THREE.Mesh(new THREE.BoxGeometry(0.84, 0.03, 0.03), m.castAluminiumLight);
+  girderSouth.position.set(0, 1.06, 0.42);
+  gantryGroup.add(girderSouth);
+
+  const girderWest = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, 0.84), m.castAluminiumLight);
+  girderWest.position.set(-0.42, 1.06, 0);
+  gantryGroup.add(girderWest);
+
+  const girderEast = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, 0.84), m.castAluminiumLight);
+  girderEast.position.set(0.42, 1.06, 0);
+  gantryGroup.add(girderEast);
+
+  // Top Corner Industrial Signal Stack Beacon Tower (Red/Amber/Green status LED)
+  const beaconMast = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.12, 12), m.castAluminiumLight);
+  beaconMast.position.set(-0.42, 1.14, 0.42);
+  gantryGroup.add(beaconMast);
+
+  const beaconGreen = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.022, 12), m.laserCyan);
+  beaconGreen.position.set(-0.42, 1.21, 0.42);
+  gantryGroup.add(beaconGreen);
+
+  const beaconAmber = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.022, 12), m.machinedBrass);
+  beaconAmber.position.set(-0.42, 1.234, 0.42);
+  gantryGroup.add(beaconAmber);
+
+  // ── 2. Overhead Delta Robot Actuation Base & 3 Servo Gearmotors ──
+  const Y_BASE = 1.05;
+  const R_BASE = 0.22;
+  const R_EE = 0.07;
+  const L_BICEP = 0.28;
+  const L_ROD = 0.54;
+
+  const topBase = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.42, 0.05, 3, 1), m.castIronDark);
+  topBase.position.y = Y_BASE;
   topBase.castShadow = true;
   root.add(topBase);
 
-  const topAccent = new THREE.Mesh(new THREE.CylinderGeometry(0.43, 0.43, 0.015, 3), m.vermilionAccent);
-  topAccent.position.y = 1.02;
+  const topAccent = new THREE.Mesh(new THREE.CylinderGeometry(0.39, 0.39, 0.014, 3), m.vermilionAccent);
+  topAccent.position.y = Y_BASE + 0.028;
   root.add(topAccent);
 
-  // 3 Upper Actuated Direct-Drive Biceps
-  const bicepJoints: { motorGroup: THREE.Group; arm: THREE.Mesh; elbowPoint: THREE.Object3D }[] = [];
+  // 3 Upper Actuated Direct-Drive Biceps (Analytical Closed-Form Delta IK)
+  const bicepGroups: THREE.Group[] = [];
+  const elbowHolders: THREE.Object3D[] = [];
+
   for (let i = 0; i < 3; i++) {
     const angle = (i / 3) * Math.PI * 2;
     const motorGroup = new THREE.Group();
     motorGroup.rotation.y = angle;
-    motorGroup.position.y = 1.02;
+    motorGroup.position.y = Y_BASE;
+    root.add(motorGroup);
 
-    const motorHousing = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.12), m.castIronDark);
-    motorHousing.position.set(0.24, 0, 0);
+    // High-Torque Servo Gearbox Housing with Heat Dissipation Fins
+    const motorHousing = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.11, 0.13), m.castIronDark);
+    motorHousing.position.set(R_BASE - 0.03, 0.02, 0);
     motorGroup.add(motorHousing);
 
-    const bicepArm = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.018, 0.34, 16), m.castAluminiumLight);
-    bicepArm.position.set(0.36, -0.14, 0);
-    bicepArm.rotation.z = 0.55;
+    const motorCap = new THREE.Mesh(new THREE.CylinderGeometry(0.038, 0.038, 0.135, 16), m.castAluminiumLight);
+    motorCap.rotation.x = Math.PI / 2;
+    motorCap.position.set(R_BASE - 0.03, 0.02, 0);
+    motorGroup.add(motorCap);
+
+    // Bicep Pivot Group (Rotates around Z in motor coordinates)
+    const bicepPivot = new THREE.Group();
+    bicepPivot.position.set(R_BASE, 0, 0);
+    motorGroup.add(bicepPivot);
+    bicepGroups.push(bicepPivot);
+
+    // Cast Aluminum Bicep Arm (Length = L_BICEP)
+    const bicepArm = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.018, L_BICEP, 16), m.castAluminiumLight);
+    bicepArm.position.set(0, -L_BICEP / 2, 0);
     bicepArm.castShadow = true;
-    motorGroup.add(bicepArm);
+    bicepPivot.add(bicepArm);
 
-    // Elbow Pivot Point Marker
-    const elbowPoint = new THREE.Object3D();
-    elbowPoint.position.set(0.45, -0.28, 0);
-    motorGroup.add(elbowPoint);
+    // Vermilion Trim Stripe along Upper Arm
+    const bicepStripe = new THREE.Mesh(new THREE.BoxGeometry(0.008, L_BICEP * 0.7, 0.024), m.vermilionAccent);
+    bicepStripe.position.set(0, -L_BICEP / 2, 0);
+    bicepPivot.add(bicepStripe);
 
-    root.add(motorGroup);
-    bicepJoints.push({ motorGroup, arm: bicepArm, elbowPoint });
+    // Elbow Dual-Ball Joint Crossbar
+    const elbowBar = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.009, 0.07, 12), m.chromeShaft);
+    elbowBar.rotation.x = Math.PI / 2;
+    elbowBar.position.set(0, -L_BICEP, 0);
+    bicepPivot.add(elbowBar);
+
+    // Dual Chrome Ball Studs at Elbow Ends
+    const ballL = new THREE.Mesh(new THREE.SphereGeometry(0.012, 12, 12), m.chromeShaft);
+    ballL.position.set(0, -L_BICEP, 0.03);
+    bicepPivot.add(ballL);
+
+    const ballR = new THREE.Mesh(new THREE.SphereGeometry(0.012, 12, 12), m.chromeShaft);
+    ballR.position.set(0, -L_BICEP, -0.03);
+    bicepPivot.add(ballR);
+
+    // Reference marker for the elbow center
+    const elbowPt = new THREE.Object3D();
+    elbowPt.position.set(0, -L_BICEP, 0);
+    bicepPivot.add(elbowPt);
+    elbowHolders.push(elbowPt);
   }
 
-  // Moving Lower Tool Platform
+  // ── 3. Lower Moving Tool Platform (End-Effector with Vacuum Gripper) ──
   const toolPlatform = new THREE.Group();
-  toolPlatform.position.y = 0.42;
+  toolPlatform.position.set(-0.22, 0.36, 0);
   root.add(toolPlatform);
 
-  const eePlate = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.14, 0.03, 3), m.castAluminiumLight);
+  const eePlate = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 0.025, 3), m.castAluminiumLight);
   toolPlatform.add(eePlate);
 
-  const eeSuctionShaft = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.01, 0.14, 16), m.chromeShaft);
-  eeSuctionShaft.position.y = -0.07;
-  toolPlatform.add(eeSuctionShaft);
+  const eeCollar = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.03, 20), m.castIronDark);
+  eeCollar.position.y = -0.02;
+  toolPlatform.add(eeCollar);
 
-  const eeCup = new THREE.Mesh(new THREE.ConeGeometry(0.025, 0.025, 16), m.vermilionAccent);
+  const eeShaft = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.10, 16), m.chromeShaft);
+  eeShaft.position.y = -0.07;
+  toolPlatform.add(eeShaft);
+
+  // Silicone Bellows Vacuum Suction Cup
+  const eeCup = new THREE.Mesh(new THREE.ConeGeometry(0.024, 0.028, 16), m.vermilionAccent);
   eeCup.rotation.x = Math.PI;
-  eeCup.position.y = -0.14;
+  eeCup.position.y = -0.126;
   toolPlatform.add(eeCup);
 
-  // 6 Dynamic Parallel Carbon Fiber Rods (2 per bicep arm)
-  // These are oriented dynamically each frame using vector lookAt to guarantee true physical connection!
+  // Active Vacuum Glow Ring at Suction Tip
+  const vacuumGlow = new THREE.Mesh(new THREE.TorusGeometry(0.018, 0.0035, 12, 24), m.laserCyan);
+  vacuumGlow.rotation.x = Math.PI / 2;
+  vacuumGlow.position.y = -0.140;
+  vacuumGlow.visible = false;
+  toolPlatform.add(vacuumGlow);
+
+  // 6 Rigid Carbon-Fiber Parallel Linkage Rods (Constant Length L_ROD = 0.54m)
   const parallelRods: THREE.Mesh[] = [];
   for (let r = 0; r < 6; r++) {
-    const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.007, 0.007, 1.0, 12), m.castIronDark);
+    const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.0065, 0.0065, 1.0, 12), m.castIronDark);
     rod.castShadow = true;
     root.add(rod);
     parallelRods.push(rod);
   }
 
-  // Rotary Indexing Table below Delta
-  const indexingDisc = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.44, 0.04, 32), m.castIronDark);
-  indexingDisc.position.y = 0.02;
-  root.add(indexingDisc);
+  // ── 4. High-Speed Belt Conveyor System (Infeed Station at X = -0.22) ──
+  const conveyorGroup = new THREE.Group();
+  conveyorGroup.position.set(-0.22, 0, 0);
+  root.add(conveyorGroup);
 
-  const discGrid = new THREE.GridHelper(0.38, 12, 0xc4472d, 0x444444);
-  discGrid.position.y = 0.041;
-  root.add(discGrid);
+  // Conveyor Bed Extrusion Frame (Runs along Z from -0.58 to +0.58)
+  const convFrame = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.045, 1.16), m.castAluminiumLight);
+  convFrame.position.y = 0.142;
+  convFrame.castShadow = true;
+  conveyorGroup.add(convFrame);
+
+  // 4 Support Legs to Floor
+  const legZOffsets = [-0.48, 0.48];
+  legZOffsets.forEach(lz => {
+    const legL = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.12, 12), m.castIronDark);
+    legL.position.set(-0.065, 0.06, lz);
+    conveyorGroup.add(legL);
+
+    const legR = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.12, 12), m.castIronDark);
+    legR.position.set(0.065, 0.06, lz);
+    conveyorGroup.add(legR);
+  });
+
+  // Dark High-Friction Moving Rubber Conveyor Belt
+  const convBelt = new THREE.Mesh(new THREE.BoxGeometry(0.125, 0.006, 1.16), m.rubberTread);
+  convBelt.position.y = 0.166;
+  conveyorGroup.add(convBelt);
+
+  // Chrome Drive Rollers at End Terminals
+  const rollerFront = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.024, 0.13, 20), m.chromeShaft);
+  rollerFront.rotation.z = Math.PI / 2;
+  rollerFront.position.set(0, 0.145, 0.58);
+  conveyorGroup.add(rollerFront);
+
+  const rollerRear = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.024, 0.13, 20), m.chromeShaft);
+  rollerRear.rotation.z = Math.PI / 2;
+  rollerRear.position.set(0, 0.145, -0.58);
+  conveyorGroup.add(rollerRear);
+
+  // Side Guide Railings
+  const railL = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.028, 1.16), m.vermilionAccent);
+  railL.position.set(-0.068, 0.18, 0);
+  conveyorGroup.add(railL);
+
+  const railR = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.028, 1.16), m.vermilionAccent);
+  railR.position.set(0.068, 0.18, 0);
+  conveyorGroup.add(railR);
+
+  // 8 Moving Conveyor Belt Cleats / High-Speed Travel Stripes
+  const beltCleats: THREE.Mesh[] = [];
+  for (let c = 0; c < 8; c++) {
+    const cleat = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.002, 0.008), m.machinedBrass);
+    cleat.position.y = 0.170;
+    conveyorGroup.add(cleat);
+    beltCleats.push(cleat);
+  }
+
+  // Optical Photo-Eye Laser Part Detection Gate at Z = -0.16
+  const sensorPostL = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.005, 0.06, 12), m.castIronDark);
+  sensorPostL.position.set(-0.075, 0.19, -0.16);
+  conveyorGroup.add(sensorPostL);
+
+  const sensorPostR = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.005, 0.06, 12), m.castIronDark);
+  sensorPostR.position.set(0.075, 0.19, -0.16);
+  conveyorGroup.add(sensorPostR);
+
+  const laserBeam = new THREE.Mesh(new THREE.CylinderGeometry(0.0015, 0.0015, 0.15, 8), m.laserCyan);
+  laserBeam.rotation.z = Math.PI / 2;
+  laserBeam.position.set(0, 0.20, -0.16);
+  conveyorGroup.add(laserBeam);
+
+  // ── 5. Outfeed Packaging Station & Matrix Blister Tray (Destination at X = +0.22) ──
+  const packagingGroup = new THREE.Group();
+  packagingGroup.position.set(0.22, 0, 0);
+  root.add(packagingGroup);
+
+  // Aluminum Packaging Table & Gravity Roller Guides
+  const packTable = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.045, 0.36), m.castAluminiumLight);
+  packTable.position.y = 0.142;
+  packTable.castShadow = true;
+  packagingGroup.add(packTable);
+
+  const packRailL = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.024, 0.36), m.castIronDark);
+  packRailL.position.set(-0.086, 0.17, 0);
+  packagingGroup.add(packRailL);
+
+  const packRailR = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.024, 0.36), m.castIronDark);
+  packRailR.position.set(0.086, 0.17, 0);
+  packagingGroup.add(packRailR);
+
+  // The 4-Pocket Matrix Blister Packaging Carton (2x2 Grid)
+  const blisterCarton = new THREE.Group();
+  blisterCarton.position.set(0, 0.165, 0);
+  packagingGroup.add(blisterCarton);
+
+  const cartonBase = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.016, 0.22), m.castIronDark);
+  cartonBase.position.y = 0.008;
+  blisterCarton.add(cartonBase);
+
+  const cartonAccent = new THREE.Mesh(new THREE.BoxGeometry(0.154, 0.004, 0.224), m.vermilionAccent);
+  cartonAccent.position.y = 0.018;
+  blisterCarton.add(cartonAccent);
+
+  // 4 Pocket Coordinates (in packaging table local space)
+  const pocketLocalPos = [
+    new THREE.Vector3(-0.042, 0.022, -0.055),
+    new THREE.Vector3(0.042, 0.022, -0.055),
+    new THREE.Vector3(-0.042, 0.022, 0.055),
+    new THREE.Vector3(0.042, 0.022, 0.055),
+  ];
+
+  const pocketLeds: THREE.Mesh[] = [];
+  const ledDarkMat = new THREE.MeshStandardMaterial({ color: 0x181a1b, roughness: 0.8 });
+
+  for (let p = 0; p < 4; p++) {
+    const pos = pocketLocalPos[p];
+
+    // Pocket recessed chamber
+    const chamber = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.022, 0.012, 20), m.castIronDark);
+    chamber.position.set(pos.x, pos.y, pos.z);
+    blisterCarton.add(chamber);
+
+    // Beveled brass seating rim
+    const rim = new THREE.Mesh(new THREE.RingGeometry(0.020, 0.025, 20), m.machinedBrass);
+    rim.rotation.x = -Math.PI / 2;
+    rim.position.set(pos.x, pos.y + 0.007, pos.z);
+    blisterCarton.add(rim);
+
+    // Pocket Status Indicator LED
+    const pLed = new THREE.Mesh(new THREE.CylinderGeometry(0.0035, 0.0035, 0.004, 12), ledDarkMat);
+    pLed.position.set(pos.x + 0.026, pos.y + 0.007, pos.z);
+    blisterCarton.add(pLed);
+    pocketLeds.push(pLed);
+  }
+
+  // ── 6. Four Precision Manufactured Canister Products ──
+  const products: THREE.Group[] = [];
+  const prodColors = [m.machinedBrass, m.vermilionAccent, m.laserCyan, m.ceramicShell];
+
+  for (let i = 0; i < 4; i++) {
+    const prod = new THREE.Group();
+
+    // Cylindrical Canister Body
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.017, 0.017, 0.020, 20), m.castIronDark);
+    body.position.y = 0.010;
+    body.castShadow = true;
+    prod.add(body);
+
+    // Metallic Upper Cap
+    const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.004, 20), prodColors[i]);
+    cap.position.y = 0.022;
+    prod.add(cap);
+
+    // Center Silver Chrome Band
+    const band = new THREE.Mesh(new THREE.CylinderGeometry(0.0175, 0.0175, 0.004, 20), m.chromeShaft);
+    band.position.y = 0.012;
+    prod.add(band);
+
+    // Top Optical Inspection Dot
+    const dot = new THREE.Mesh(new THREE.SphereGeometry(0.0025, 8, 8), m.laserCyan);
+    dot.position.y = 0.0245;
+    prod.add(dot);
+
+    root.add(prod);
+    products.push(prod);
+  }
+
+  // Trajectory Dashed Guidance Arc (High-G Parabolic Pick-to-Place Transfer)
+  const trajPts: THREE.Vector3[] = [];
+  for (let s = 0; s <= 28; s++) {
+    const f = s / 28;
+    const px = (1 - f) * (-0.22) + f * 0.22;
+    const py = 0.19 + Math.sin(f * Math.PI) * 0.22;
+    const pz = (1 - f) * (-0.04) + f * 0.0;
+    trajPts.push(new THREE.Vector3(px, py, pz));
+  }
+  const trajLine = new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints(trajPts),
+    new THREE.LineDashedMaterial({ color: 0x2dd4bf, dashSize: 0.025, gapSize: 0.015, transparent: true, opacity: 0.45 })
+  );
+  trajLine.computeLineDistances();
+  root.add(trajLine);
 
   scene.add(root);
   root.scale.setScalar(1.2);
 
-  // Reusable vectors for vector constraint math
+  // ── 7. Analytical Closed-Form Delta Inverse Kinematics ──
+  function solveDeltaArmIK(armIdx: number, px: number, py: number, pz: number): number {
+    const psi = (armIdx / 3) * Math.PI * 2;
+    const cosP = Math.cos(psi);
+    const sinP = Math.sin(psi);
+
+    // Rotate platform anchor into motor arm plane
+    const xPrime = px * cosP + pz * sinP - R_EE;
+    const zPrime = -px * sinP + pz * cosP;
+    const yPrime = py;
+
+    const X0 = xPrime - R_BASE;
+    const Y0 = yPrime - Y_BASE;
+
+    const dSq = L_ROD * L_ROD - zPrime * zPrime;
+    if (dSq <= 0) return 0.85;
+
+    const C = (X0 * X0 + Y0 * Y0 + L_BICEP * L_BICEP - dSq) / (2 * L_BICEP);
+    const Rhyp = Math.sqrt(X0 * X0 + Y0 * Y0);
+    if (Rhyp < 0.001) return 0.85;
+
+    const ratio = Math.max(-0.9999, Math.min(0.9999, C / Rhyp));
+    const delta = Math.acos(ratio);
+    const phi = Math.atan2(-Y0, X0);
+
+    // Elbow-down standard Delta configuration
+    return phi - delta;
+  }
+
+  // Smoothstep utility
+  const smooth = (a: number, b: number, v: number) => {
+    const x = Math.max(0, Math.min(1, (v - a) / (b - a)));
+    return x * x * (3 - 2 * x);
+  };
+
   const worldElbowPos = new THREE.Vector3();
-  const worldEEPos = new THREE.Vector3();
   const rodVec = new THREE.Vector3();
   const upAxis = new THREE.Vector3(0, 1, 0);
 
   return {
     root,
     update: (time: number, speedMultiplier: number) => {
-      const t = time * 3.6 * speedMultiplier;
+      // 4-Item High-Speed Conveyor Picking Cycle: 4.8s total (1.05s per pick + 0.6s tray advance)
+      const STEP_TIME = 1.05;
+      const PACK_PHASE_TIME = STEP_TIME * 4; // 4.20s
+      const TOTAL_CYCLE = 4.80;
+      const t = (time * 1.05 * speedMultiplier) % TOTAL_CYCLE;
 
-      // Realistic high-G Cartesian FlexPicker picking pattern
-      toolPlatform.position.x = Math.sin(t) * 0.16;
-      toolPlatform.position.z = Math.cos(t * 1.3) * 0.15;
-      toolPlatform.position.y = 0.44 + Math.abs(Math.sin(t * 2.6)) * 0.14;
+      // Animate Moving Conveyor Belt Cleats along +Z
+      const beltSpeed = 0.38;
+      for (let c = 0; c < 8; c++) {
+        const offset = c * (1.10 / 8);
+        const cz = -0.55 + ((offset + time * beltSpeed * speedMultiplier) % 1.10);
+        beltCleats[c].position.z = cz;
+      }
 
-      // Update 3 biceps and mathematically constrain all 6 parallel rods
-      bicepJoints.forEach((item, i) => {
-        const bicepPitch = 0.55 + Math.sin(t + (i * Math.PI * 2) / 3) * 0.22;
-        item.arm.rotation.z = bicepPitch;
+      let targetX = -0.22;
+      let targetY = 0.36;
+      let targetZ = 0;
+      let vacuumEngaged = false;
+      let statusText = '';
+      const activeStep = Math.min(3, Math.floor(t / STEP_TIME));
+      const stepProg = (t % STEP_TIME) / STEP_TIME;
 
-        // Position of elbow in root coordinate space
-        item.elbowPoint.getWorldPosition(worldElbowPos);
+      // Global coordinates of the 4 blister pockets
+      const blisterWorldPos = pocketLocalPos.map(p => new THREE.Vector3(0.22 + p.x, 0.165 + p.y, p.z));
+
+      if (t < PACK_PHASE_TIME) {
+        // High-Speed Active Pick-and-Place Phase for Item #activeStep
+        const zPickOnConveyor = -0.06 + (activeStep * 0.035);
+        const dst = blisterWorldPos[activeStep];
+
+        if (stepProg < 0.20) {
+          // Phase 1: Rapid In-Flight Intercept & Vertical Plunge onto Moving Conveyor Object
+          const p = smooth(0, 0.20, stepProg);
+          targetX = -0.22;
+          targetZ = zPickOnConveyor;
+          targetY = 0.44 - p * 0.11; // Plunges from 0.44m down to 0.33m
+          vacuumEngaged = stepProg > 0.12;
+          statusText = `SYNC CONVEYOR PICK [${activeStep + 1}/4] (-85 kPa)`;
+        } else if (stepProg < 0.65) {
+          // Phase 2: High-G Parabolic Transfer Arc across cell (15.2G peak accel)
+          const p = smooth(0.20, 0.65, stepProg);
+          targetX = (1 - p) * (-0.22) + p * dst.x;
+          targetZ = (1 - p) * zPickOnConveyor + p * dst.z;
+          targetY = 0.33 + Math.sin(p * Math.PI) * 0.15; // Lifts to 0.48m clearance in transit
+          vacuumEngaged = true;
+          statusText = `HIGH-G PARABOLIC TRANSIT (15.2G ACCEL)`;
+        } else if (stepProg < 0.80) {
+          // Phase 3: Plunge into Blister Pocket & Blow-Off Vacuum Release
+          targetX = dst.x;
+          targetZ = dst.z;
+          targetY = 0.33;
+          vacuumEngaged = stepProg < 0.74;
+          statusText = `DEPOSITING IN PACK POCKET #${activeStep + 1}`;
+        } else {
+          // Phase 4: High-Speed Snap Retract back to Conveyor Infeed
+          const p = smooth(0.80, 1.00, stepProg);
+          const nextZ = -0.06 + ((activeStep + 1) % 4) * 0.035;
+          targetX = (1 - p) * dst.x + p * (-0.22);
+          targetZ = (1 - p) * dst.z + p * nextZ;
+          targetY = 0.33 + Math.sin(p * Math.PI) * 0.12;
+          vacuumEngaged = false;
+          statusText = `INTERCEPTING NEXT CONVEYOR UNIT`;
+        }
+      } else {
+        // Phase 5: Packed Blister Tray Dispatch & Infeed Conveyor Replenishment
+        const pDispatch = smooth(PACK_PHASE_TIME, TOTAL_CYCLE, t);
+        targetX = -0.22;
+        targetZ = -0.06;
+        targetY = 0.42 + Math.sin(pDispatch * Math.PI) * 0.04;
+        vacuumEngaged = false;
+        statusText = `TRAY PACKED (4/4) · ADVANCING OUTFEED LINE`;
+
+        // Smoothly roll the completed packaging tray forward along outfeed track
+        blisterCarton.position.z = pDispatch * 0.32;
+      }
+
+      if (t < PACK_PHASE_TIME) {
+        blisterCarton.position.z = 0;
+      }
+
+      // Update Tool Platform Position & Vacuum Indicator
+      toolPlatform.position.set(targetX, targetY, targetZ);
+      vacuumGlow.visible = vacuumEngaged;
+
+      // ── Solve Exact Closed-Form Delta Inverse Kinematics for All 3 Arms ──
+      const bicepAngles: number[] = [];
+      for (let i = 0; i < 3; i++) {
+        const theta = solveDeltaArmIK(i, targetX, targetY, targetZ);
+        bicepAngles.push(theta);
+        // Rotate bicep arm around motor Z axis
+        bicepGroups[i].rotation.z = Math.PI / 2 - theta;
+
+        // Obtain exact elbow position in root space
+        elbowHolders[i].getWorldPosition(worldElbowPos);
         root.worldToLocal(worldElbowPos);
 
-        // Platform attachment anchor
+        // Platform dual ball-joint anchors (spaced 0.06m)
         const platformAngle = (i / 3) * Math.PI * 2;
         const eeAnchor1 = new THREE.Vector3(
-          toolPlatform.position.x + Math.cos(platformAngle + 0.15) * 0.09,
-          toolPlatform.position.y,
-          toolPlatform.position.z + Math.sin(platformAngle + 0.15) * 0.09
+          targetX + Math.cos(platformAngle + 0.16) * R_EE,
+          targetY,
+          targetZ + Math.sin(platformAngle + 0.16) * R_EE
         );
         const eeAnchor2 = new THREE.Vector3(
-          toolPlatform.position.x + Math.cos(platformAngle - 0.15) * 0.09,
-          toolPlatform.position.y,
-          toolPlatform.position.z + Math.sin(platformAngle - 0.15) * 0.09
+          targetX + Math.cos(platformAngle - 0.16) * R_EE,
+          targetY,
+          targetZ + Math.sin(platformAngle - 0.16) * R_EE
         );
 
-        // Rod 1 of pair: dynamically connect elbow to platform anchor
+        // Rod 1 of parallel pair: rigidly connects elbow ball to platform anchor
         const rod1 = parallelRods[i * 2];
         rodVec.subVectors(eeAnchor1, worldElbowPos);
-        const len1 = rodVec.length();
         rod1.position.copy(worldElbowPos).addScaledVector(rodVec, 0.5);
         rod1.quaternion.setFromUnitVectors(upAxis, rodVec.clone().normalize());
-        rod1.scale.set(1, len1, 1);
+        rod1.scale.set(1, L_ROD, 1);
 
-        // Rod 2 of pair
+        // Rod 2 of parallel pair
         const rod2 = parallelRods[i * 2 + 1];
         rodVec.subVectors(eeAnchor2, worldElbowPos);
-        const len2 = rodVec.length();
         rod2.position.copy(worldElbowPos).addScaledVector(rodVec, 0.5);
         rod2.quaternion.setFromUnitVectors(upAxis, rodVec.clone().normalize());
-        rod2.scale.set(1, len2, 1);
-      });
+        rod2.scale.set(1, L_ROD, 1);
+      }
+
+      // ── Dynamic Position & State for all 4 Canister Products ──
+      for (let i = 0; i < 4; i++) {
+        const prod = products[i];
+        const dst = blisterWorldPos[i];
+        const nominalPickZ = -0.06 + (i * 0.035);
+
+        if (t >= PACK_PHASE_TIME) {
+          // All 4 placed in blister tray and advancing together down outfeed track
+          const pDispatch = smooth(PACK_PHASE_TIME, TOTAL_CYCLE, t);
+          prod.position.set(dst.x, 0.187, dst.z + pDispatch * 0.32);
+          pocketLeds[i].material = m.laserCyan;
+        } else if (i < activeStep) {
+          // Already successfully packed in blister pocket
+          prod.position.set(dst.x, 0.187, dst.z);
+          pocketLeds[i].material = m.laserCyan;
+        } else if (i > activeStep) {
+          // Still approaching on infeed belt
+          const incomingZ = nominalPickZ - (i - activeStep) * 0.14 + (stepProg * 0.035);
+          prod.position.set(-0.22, 0.177, incomingZ);
+          pocketLeds[i].material = ledDarkMat;
+        } else {
+          // Currently active item i
+          if (stepProg < 0.20) {
+            // Resting on conveyor entering pick zone
+            prod.position.set(-0.22, 0.177, nominalPickZ);
+            pocketLeds[i].material = ledDarkMat;
+          } else if (stepProg < 0.74) {
+            // Clamped to suction cup and flying across in high-G arc!
+            prod.position.set(targetX, targetY - 0.14 - 0.012, targetZ);
+            pocketLeds[i].material = ledDarkMat;
+          } else {
+            // Deposited in destination blister pocket
+            prod.position.set(dst.x, 0.187, dst.z);
+            pocketLeds[i].material = m.laserCyan;
+          }
+        }
+      }
 
       return {
-        j1: `X: ${(toolPlatform.position.x * 100).toFixed(1)} cm`,
-        j2: `Y: ${(toolPlatform.position.y * 100).toFixed(1)} cm`,
-        j3: `Z: ${(toolPlatform.position.z * 100).toFixed(1)} cm`,
-        j4: `ACCEL: 18G`,
-        tcp: `220 PICKS / MIN`,
-        status: 'CLOSED-LOOP PARALLEL SOLVER',
+        j1: (bicepAngles[0] * (180 / Math.PI)).toFixed(1),
+        j2: (bicepAngles[1] * (180 / Math.PI)).toFixed(1),
+        j3: `${(bicepAngles[2] * (180 / Math.PI)).toFixed(1)}° · 15.2G`,
+        j4: `160 PICKS/MIN`,
+        tcp: `BELT 0.85m/s · [${Math.min(4, activeStep + 1)}/4] CANISTER`,
+        status: statusText,
       };
     },
     dispose: () => {
