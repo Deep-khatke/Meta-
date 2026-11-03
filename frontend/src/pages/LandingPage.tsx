@@ -5,8 +5,8 @@ import { OrbitControls } from 'three-stdlib';
 import { AurixScrollShowcase } from '../components/AurixScrollShowcase';
 import {
   BrainCircuit, Sparkles, Shield, Cpu, Activity, ArrowRight,
-  BookOpen, Code2, Layers, CheckCircle2, ChevronRight, X, Copy,
-  Play, Pause, RotateCcw, Eye, Orbit, Zap, Box, Compass, RefreshCw
+  BookOpen, Layers, CheckCircle2, ChevronRight, X, Copy,
+  Play, Pause, RotateCcw, Eye, Orbit, Box, Compass, RefreshCw
 } from 'lucide-react';
 
 // ─── Design Tokens (Teenage Engineering & Industrial Studio) ─────────────────
@@ -3349,27 +3349,7 @@ export function LandingPage() {
                 </div>
               </Link>
 
-              <button
-                onClick={() => setIsDocsOpen(true)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  background: 'white',
-                  color: C.black,
-                  border: '1px solid rgba(32, 34, 34, 0.15)',
-                  padding: '15px 26px',
-                  borderRadius: '10px',
-                  fontFamily: 'Manrope, sans-serif',
-                  fontWeight: 600,
-                  fontSize: '14px',
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.04)',
-                }}
-              >
-                <Code2 size={16} />
-                <span>API & URDF Docs</span>
-              </button>
+
             </div>
 
             {/* Interactive Robot Picker Pills */}
@@ -3600,26 +3580,7 @@ export function LandingPage() {
                 <span>{isWireframe ? 'Solid' : 'Wireframe'}</span>
               </button>
 
-              <button
-                onClick={() => setSpeedMultiplier(prev => (prev === 1.0 ? 2.0 : prev === 2.0 ? 0.5 : 1.0))}
-                style={{
-                  background: 'rgba(255, 255, 255, 0.92)',
-                  color: C.black,
-                  border: '1px solid rgba(32,34,34,0.12)',
-                  borderRadius: '8px',
-                  padding: '8px 12px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  fontSize: '11px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
-                }}
-              >
-                <Zap size={13} color={C.red} />
-                <span>{speedMultiplier}x Speed</span>
-              </button>
+
             </div>
           </div>
         </div>
