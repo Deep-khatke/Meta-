@@ -1026,7 +1026,8 @@ class MuJoCoEngine:
                 action, _ = self.active_rl_policy_model.predict(obs, deterministic=True)
                 v = float(np.clip(action[0], -1.0, 1.0) * self.project.robot.max_linear_velocity)
                 omega = float(np.clip(action[1], -1.0, 1.0) * self.project.robot.max_angular_velocity)
-            except Exception:
+            except Exception as ex:
+                logger.warning("RL Policy inference error in rover control: %s", ex)
                 v = self.teleop_cmd.linear
                 omega = self.teleop_cmd.angular
         else:

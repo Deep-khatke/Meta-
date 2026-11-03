@@ -11,8 +11,13 @@ from typing import Any, Dict, List, Optional
 
 import math
 import numpy as np
-from stable_baselines3 import PPO
-from stable_baselines3.common.callbacks import BaseCallback
+try:
+    from stable_baselines3 import PPO
+    from stable_baselines3.common.callbacks import BaseCallback
+except ImportError:
+    PPO = None  # type: ignore
+    class BaseCallback:  # type: ignore
+        def __init__(self, *args, **kwargs): pass
 
 from backend.models import Project, SceneObject
 from backend.rl_env import RoboForgeGymEnv
@@ -430,7 +435,11 @@ class RLTrainingManager:
                 pass
         return None
 
-    def load_model(self, model_id: str) -> Optional[PPO]:
+    def load_model(self, model_id: str) -> Optional[Any]:
+        if PPO is None:
+            logger.warning("Cannot load RL model '%s': stable-baselines3 is not installed.", model_id)
+            return None
+
         if not model_id or model_id == "latest":
             models = self.list_models()
             if models:
@@ -442,31 +451,45 @@ class RLTrainingManager:
 
         meta = self.get_model_metadata(model_id)
         if not meta:
-            # Try finding by name in saved models
             for m in self.list_models():
                 if m.name.lower() == model_id.lower() or m.model_id == model_id:
                     meta = m
                     break
 
-        if not meta or not os.path.exists(meta.checkpoint_path):
-            # Check direct zip file
+        resolved_path = None
+        if meta and meta.checkpoint_path:
+            norm = meta.checkpoint_path.replace(chr(92), "/").strip()
+            if os.path.exists(norm):
+                resolved_path = norm
+            elif os.path.exists(meta.checkpoint_path):
+                resolved_path = meta.checkpoint_path
+            elif (MODELS_DIR / os.path.basename(norm)).exists():
+                resolved_path = str(MODELS_DIR / os.path.basename(norm))
+
+        if not resolved_path:
             direct_path = MODELS_DIR / f"{model_id}.zip"
             if direct_path.exists():
-                model = PPO.load(str(direct_path))
-                self._loaded_models[model_id] = model
-                return model
-            
-            # Fallback to most recent model if available
-            models = self.list_models()
-            if models and os.path.exists(models[0].checkpoint_path):
-                model = PPO.load(models[0].checkpoint_path)
-                self._loaded_models[model_id] = model
-                return model
-            return None
+                resolved_path = str(direct_path)
 
-        model = PPO.load(meta.checkpoint_path)
-        self._loaded_models[model_id] = model
-        return model
+        if not resolved_path:
+            models = self.list_models()
+            if models:
+                cand = models[0].checkpoint_path.replace(chr(92), "/").strip()
+                if os.path.exists(cand):
+                    resolved_path = cand
+                elif (MODELS_DIR / os.path.basename(cand)).exists():
+                    resolved_path = str(MODELS_DIR / os.path.basename(cand))
+
+        if resolved_path and os.path.exists(resolved_path):
+            try:
+                model = PPO.load(str(resolved_path))
+                self._loaded_models[model_id] = model
+                return model
+            except Exception as load_err:
+                logger.error("Failed to load PPO checkpoint '%s': %s", resolved_path, load_err)
+                return None
+
+        return None
 
     def start_live_interactive_drone_training(
         self,
