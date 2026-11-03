@@ -1523,12 +1523,12 @@ function buildAccurateDeltaRobot(scene: THREE.Scene, isWireframe = false) {
     parallelRods.push(rod);
   }
 
-  // ── 4. High-Speed Belt Conveyor System (Infeed Station at X = -0.22) ──
+  // ── 4. Continuous Infeed Belt Conveyor System (X = -0.22m, running along +Z) ──
   const conveyorGroup = new THREE.Group();
   conveyorGroup.position.set(-0.22, 0, 0);
   root.add(conveyorGroup);
 
-  // Conveyor Bed Extrusion Frame (Runs along Z from -0.58 to +0.58)
+  // Conveyor Bed Extrusion Frame
   const convFrame = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.045, 1.16), m.castAluminiumLight);
   convFrame.position.y = 0.142;
   convFrame.castShadow = true;
@@ -1571,7 +1571,25 @@ function buildAccurateDeltaRobot(scene: THREE.Scene, isWireframe = false) {
   railR.position.set(0.068, 0.18, 0);
   conveyorGroup.add(railR);
 
-  // 8 Moving Conveyor Belt Cleats / High-Speed Travel Stripes
+  // Enclosed Infeed Tunnel Shroud at Upstream End (Where products naturally enter!)
+  const infeedShroud = new THREE.Mesh(new THREE.BoxGeometry(0.146, 0.09, 0.14), m.castAluminiumLight);
+  infeedShroud.position.set(0, 0.205, -0.51);
+  conveyorGroup.add(infeedShroud);
+
+  const infeedShroudRim = new THREE.Mesh(new THREE.BoxGeometry(0.148, 0.092, 0.012), m.vermilionAccent);
+  infeedShroudRim.position.set(0, 0.205, -0.44);
+  conveyorGroup.add(infeedShroudRim);
+
+  const infeedTunnelMouth = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.06, 0.02), m.castIronDark);
+  infeedTunnelMouth.position.set(0, 0.195, -0.44);
+  conveyorGroup.add(infeedTunnelMouth);
+
+  // Enclosed Outfeed Catch Shroud at Downstream End
+  const outfeedCatch = new THREE.Mesh(new THREE.BoxGeometry(0.146, 0.07, 0.10), m.castAluminiumLight);
+  outfeedCatch.position.set(0, 0.195, 0.53);
+  conveyorGroup.add(outfeedCatch);
+
+  // Moving Conveyor Belt Cleats (Moving continuously at constant velocity)
   const beltCleats: THREE.Mesh[] = [];
   for (let c = 0; c < 8; c++) {
     const cleat = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.002, 0.008), m.machinedBrass);
@@ -1594,75 +1612,95 @@ function buildAccurateDeltaRobot(scene: THREE.Scene, isWireframe = false) {
   laserBeam.position.set(0, 0.20, -0.16);
   conveyorGroup.add(laserBeam);
 
-  // ── 5. Outfeed Packaging Station & Matrix Blister Tray (Destination at X = +0.22) ──
+  // ── 5. Outfeed Packaging Station with Dual Alternating Trays (Destination at X = +0.22) ──
   const packagingGroup = new THREE.Group();
   packagingGroup.position.set(0.22, 0, 0);
   root.add(packagingGroup);
 
-  // Aluminum Packaging Table & Gravity Roller Guides
-  const packTable = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.045, 0.36), m.castAluminiumLight);
-  packTable.position.y = 0.142;
+  // Aluminum Packaging Table & Gravity Roller Bed (Runs from Z = -0.40 to +0.55)
+  const packTable = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.045, 0.95), m.castAluminiumLight);
+  packTable.position.set(0, 0.142, 0.07);
   packTable.castShadow = true;
   packagingGroup.add(packTable);
 
-  const packRailL = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.024, 0.36), m.castIronDark);
-  packRailL.position.set(-0.086, 0.17, 0);
+  const packRailL = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.024, 0.95), m.castIronDark);
+  packRailL.position.set(-0.086, 0.17, 0.07);
   packagingGroup.add(packRailL);
 
-  const packRailR = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.024, 0.36), m.castIronDark);
-  packRailR.position.set(0.086, 0.17, 0);
+  const packRailR = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.024, 0.95), m.castIronDark);
+  packRailR.position.set(0.086, 0.17, 0.07);
   packagingGroup.add(packRailR);
 
-  // The 4-Pocket Matrix Blister Packaging Carton (2x2 Grid)
-  const blisterCarton = new THREE.Group();
-  blisterCarton.position.set(0, 0.165, 0);
-  packagingGroup.add(blisterCarton);
+  // Downstream Outfeed Tunnel Hood for Packed Trays
+  const trayTunnel = new THREE.Mesh(new THREE.BoxGeometry(0.186, 0.10, 0.14), m.castAluminiumLight);
+  trayTunnel.position.set(0, 0.21, 0.48);
+  packagingGroup.add(trayTunnel);
 
-  const cartonBase = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.016, 0.22), m.castIronDark);
-  cartonBase.position.y = 0.008;
-  blisterCarton.add(cartonBase);
+  const trayTunnelMouth = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.07, 0.02), m.castIronDark);
+  trayTunnelMouth.position.set(0, 0.20, 0.41);
+  packagingGroup.add(trayTunnelMouth);
 
-  const cartonAccent = new THREE.Mesh(new THREE.BoxGeometry(0.154, 0.004, 0.224), m.vermilionAccent);
-  cartonAccent.position.y = 0.018;
-  blisterCarton.add(cartonAccent);
-
-  // 4 Pocket Coordinates (in packaging table local space)
-  const pocketLocalPos = [
+  // 4 Pocket Offsets inside each 2x2 Blister Tray
+  const pocketLocalOffsets = [
     new THREE.Vector3(-0.042, 0.022, -0.055),
     new THREE.Vector3(0.042, 0.022, -0.055),
     new THREE.Vector3(-0.042, 0.022, 0.055),
     new THREE.Vector3(0.042, 0.022, 0.055),
   ];
 
-  const pocketLeds: THREE.Mesh[] = [];
   const ledDarkMat = new THREE.MeshStandardMaterial({ color: 0x181a1b, roughness: 0.8 });
 
-  for (let p = 0; p < 4; p++) {
-    const pos = pocketLocalPos[p];
+  // Helper to build a 4-pocket blister tray carton
+  function createBlisterTray() {
+    const carton = new THREE.Group();
+    carton.position.set(0, 0.165, 0);
 
-    // Pocket recessed chamber
-    const chamber = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.022, 0.012, 20), m.castIronDark);
-    chamber.position.set(pos.x, pos.y, pos.z);
-    blisterCarton.add(chamber);
+    const base = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.016, 0.22), m.castIronDark);
+    base.position.y = 0.008;
+    carton.add(base);
 
-    // Beveled brass seating rim
-    const rim = new THREE.Mesh(new THREE.RingGeometry(0.020, 0.025, 20), m.machinedBrass);
-    rim.rotation.x = -Math.PI / 2;
-    rim.position.set(pos.x, pos.y + 0.007, pos.z);
-    blisterCarton.add(rim);
+    const rim = new THREE.Mesh(new THREE.BoxGeometry(0.154, 0.004, 0.224), m.vermilionAccent);
+    rim.position.y = 0.018;
+    carton.add(rim);
 
-    // Pocket Status Indicator LED
-    const pLed = new THREE.Mesh(new THREE.CylinderGeometry(0.0035, 0.0035, 0.004, 12), ledDarkMat);
-    pLed.position.set(pos.x + 0.026, pos.y + 0.007, pos.z);
-    blisterCarton.add(pLed);
-    pocketLeds.push(pLed);
+    const leds: THREE.Mesh[] = [];
+    for (let p = 0; p < 4; p++) {
+      const pos = pocketLocalOffsets[p];
+
+      // Recessed seating chamber
+      const chamber = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.022, 0.012, 20), m.castIronDark);
+      chamber.position.set(pos.x, pos.y, pos.z);
+      carton.add(chamber);
+
+      // Gold beveled rim
+      const bRim = new THREE.Mesh(new THREE.RingGeometry(0.020, 0.025, 20), m.machinedBrass);
+      bRim.rotation.x = -Math.PI / 2;
+      bRim.position.set(pos.x, pos.y + 0.007, pos.z);
+      carton.add(bRim);
+
+      // Status indicator LED
+      const led = new THREE.Mesh(new THREE.CylinderGeometry(0.0035, 0.0035, 0.004, 12), ledDarkMat);
+      led.position.set(pos.x + 0.026, pos.y + 0.007, pos.z);
+      carton.add(led);
+      leds.push(led);
+    }
+
+    packagingGroup.add(carton);
+    return { carton, leds };
   }
 
-  // ── 6. Four Precision Manufactured Canister Products ──
-  const products: THREE.Group[] = [];
-  const prodColors = [m.machinedBrass, m.vermilionAccent, m.laserCyan, m.ceramicShell];
+  // Dual Alternating Trays (Tray A for Batch 1, Tray B for Batch 2)
+  const trayA = createBlisterTray();
+  const trayB = createBlisterTray();
 
-  for (let i = 0; i < 4; i++) {
+  // ── 6. Eight Precision Canister Products in Continuous Flow ──
+  const products: THREE.Group[] = [];
+  const prodCapColors = [
+    m.machinedBrass, m.vermilionAccent, m.laserCyan, m.ceramicShell,
+    m.machinedBrass, m.vermilionAccent, m.laserCyan, m.ceramicShell
+  ];
+
+  for (let i = 0; i < 8; i++) {
     const prod = new THREE.Group();
 
     // Cylindrical Canister Body
@@ -1671,17 +1709,17 @@ function buildAccurateDeltaRobot(scene: THREE.Scene, isWireframe = false) {
     body.castShadow = true;
     prod.add(body);
 
-    // Metallic Upper Cap
-    const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.004, 20), prodColors[i]);
+    // Colored Metallic Cap
+    const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.004, 20), prodCapColors[i]);
     cap.position.y = 0.022;
     prod.add(cap);
 
-    // Center Silver Chrome Band
+    // Chrome Seal Ring
     const band = new THREE.Mesh(new THREE.CylinderGeometry(0.0175, 0.0175, 0.004, 20), m.chromeShaft);
     band.position.y = 0.012;
     prod.add(band);
 
-    // Top Optical Inspection Dot
+    // Optical Inspection Center Dot
     const dot = new THREE.Mesh(new THREE.SphereGeometry(0.0025, 8, 8), m.laserCyan);
     dot.position.y = 0.0245;
     prod.add(dot);
@@ -1690,7 +1728,7 @@ function buildAccurateDeltaRobot(scene: THREE.Scene, isWireframe = false) {
     products.push(prod);
   }
 
-  // Trajectory Dashed Guidance Arc (High-G Parabolic Pick-to-Place Transfer)
+  // Trajectory Dashed Guidance Arc (High-G Parabolic Flight Path)
   const trajPts: THREE.Vector3[] = [];
   for (let s = 0; s <= 28; s++) {
     const f = s / 28;
@@ -1734,11 +1772,10 @@ function buildAccurateDeltaRobot(scene: THREE.Scene, isWireframe = false) {
     const delta = Math.acos(ratio);
     const phi = Math.atan2(-Y0, X0);
 
-    // Elbow-down standard Delta configuration
+    // Elbow-down configuration
     return phi - delta;
   }
 
-  // Smoothstep utility
   const smooth = (a: number, b: number, v: number) => {
     const x = Math.max(0, Math.min(1, (v - a) / (b - a)));
     return x * x * (3 - 2 * x);
@@ -1748,90 +1785,98 @@ function buildAccurateDeltaRobot(scene: THREE.Scene, isWireframe = false) {
   const rodVec = new THREE.Vector3();
   const upAxis = new THREE.Vector3(0, 1, 0);
 
+  // Belt constant parameters: continuous stream with zero jumps
+  const V_BELT = 0.20; // Constant belt speed: 0.20 m/s
+  const STEP_TIME = 1.05; // Time per pick cycle
+  const TOTAL_CYCLE = STEP_TIME * 8; // 8.40s full cycle for 8 items (2 full 4-pack cartons)
+  const Z_PICK_ZONE = -0.04; // Standard pick point on the moving belt
+
   return {
     root,
     update: (time: number, speedMultiplier: number) => {
-      // 4-Item High-Speed Conveyor Picking Cycle: 4.8s total (1.05s per pick + 0.6s tray advance)
-      const STEP_TIME = 1.05;
-      const PACK_PHASE_TIME = STEP_TIME * 4; // 4.20s
-      const TOTAL_CYCLE = 4.80;
-      const t = (time * 1.05 * speedMultiplier) % TOTAL_CYCLE;
+      // 100% Continuous Flow Time Loop: 8.40s cycle
+      const t = (time * 1.0 * speedMultiplier) % TOTAL_CYCLE;
 
-      // Animate Moving Conveyor Belt Cleats along +Z
-      const beltSpeed = 0.38;
+      // Animate Moving Conveyor Belt Cleats continuously at constant velocity
       for (let c = 0; c < 8; c++) {
         const offset = c * (1.10 / 8);
-        const cz = -0.55 + ((offset + time * beltSpeed * speedMultiplier) % 1.10);
+        const cz = -0.55 + ((offset + time * V_BELT * speedMultiplier) % 1.10);
         beltCleats[c].position.z = cz;
       }
 
-      let targetX = -0.22;
-      let targetY = 0.36;
-      let targetZ = 0;
-      let vacuumEngaged = false;
-      let statusText = '';
-      const activeStep = Math.min(3, Math.floor(t / STEP_TIME));
+      const activeStep = Math.min(7, Math.floor(t / STEP_TIME));
       const stepProg = (t % STEP_TIME) / STEP_TIME;
 
-      // Global coordinates of the 4 blister pockets
-      const blisterWorldPos = pocketLocalPos.map(p => new THREE.Vector3(0.22 + p.x, 0.165 + p.y, p.z));
+      // Which tray carton is currently active?
+      // Steps 0-3 fill Tray A (Batch 1), Steps 4-7 fill Tray B (Batch 2)
+      const isBatchA = activeStep < 4;
+      const activeTray = isBatchA ? trayA : trayB;
+      const otherTray = isBatchA ? trayB : trayA;
+      const activePocketIdx = activeStep % 4;
 
-      if (t < PACK_PHASE_TIME) {
-        // High-Speed Active Pick-and-Place Phase for Item #activeStep
-        const zPickOnConveyor = -0.06 + (activeStep * 0.035);
-        const dst = blisterWorldPos[activeStep];
-
-        if (stepProg < 0.20) {
-          // Phase 1: Rapid In-Flight Intercept & Vertical Plunge onto Moving Conveyor Object
-          const p = smooth(0, 0.20, stepProg);
-          targetX = -0.22;
-          targetZ = zPickOnConveyor;
-          targetY = 0.44 - p * 0.11; // Plunges from 0.44m down to 0.33m
-          vacuumEngaged = stepProg > 0.12;
-          statusText = `SYNC CONVEYOR PICK [${activeStep + 1}/4] (-85 kPa)`;
-        } else if (stepProg < 0.65) {
-          // Phase 2: High-G Parabolic Transfer Arc across cell (15.2G peak accel)
-          const p = smooth(0.20, 0.65, stepProg);
-          targetX = (1 - p) * (-0.22) + p * dst.x;
-          targetZ = (1 - p) * zPickOnConveyor + p * dst.z;
-          targetY = 0.33 + Math.sin(p * Math.PI) * 0.15; // Lifts to 0.48m clearance in transit
-          vacuumEngaged = true;
-          statusText = `HIGH-G PARABOLIC TRANSIT (15.2G ACCEL)`;
-        } else if (stepProg < 0.80) {
-          // Phase 3: Plunge into Blister Pocket & Blow-Off Vacuum Release
-          targetX = dst.x;
-          targetZ = dst.z;
-          targetY = 0.33;
-          vacuumEngaged = stepProg < 0.74;
-          statusText = `DEPOSITING IN PACK POCKET #${activeStep + 1}`;
-        } else {
-          // Phase 4: High-Speed Snap Retract back to Conveyor Infeed
-          const p = smooth(0.80, 1.00, stepProg);
-          const nextZ = -0.06 + ((activeStep + 1) % 4) * 0.035;
-          targetX = (1 - p) * dst.x + p * (-0.22);
-          targetZ = (1 - p) * dst.z + p * nextZ;
-          targetY = 0.33 + Math.sin(p * Math.PI) * 0.12;
-          vacuumEngaged = false;
-          statusText = `INTERCEPTING NEXT CONVEYOR UNIT`;
-        }
+      // Calculate smooth tray advance & dispatch transitions
+      // While Tray A is packing (t < 4.20s), Tray B is in queue / advancing
+      if (t < 4.20) {
+        // Tray A is stationed in packing bay
+        trayA.carton.position.z = 0;
+        // Tray B advances from upstream into position
+        const pPrep = smooth(2.8, 4.2, t);
+        trayB.carton.position.z = -0.38 * (1 - pPrep);
       } else {
-        // Phase 5: Packed Blister Tray Dispatch & Infeed Conveyor Replenishment
-        const pDispatch = smooth(PACK_PHASE_TIME, TOTAL_CYCLE, t);
+        // Tray A dispatches downstream into outfeed tunnel
+        const pDisp = smooth(4.2, 5.6, t);
+        trayA.carton.position.z = pDisp * 0.46;
+        // Tray B is stationed in packing bay
+        trayB.carton.position.z = 0;
+      }
+
+      // Calculate Target Position for the Active Item in Destination Tray
+      const activePocketOffset = pocketLocalOffsets[activePocketIdx];
+      const activeTrayWorldZ = activeTray.carton.position.z;
+      const targetPlaceX = 0.22 + activePocketOffset.x;
+      const targetPlaceZ = activeTrayWorldZ + activePocketOffset.z;
+
+      // Delta Robot Kinematic Trajectory
+      let targetX = -0.22;
+      let targetY = 0.36;
+      let targetZ = Z_PICK_ZONE;
+      let vacuumEngaged = false;
+      let statusText = '';
+
+      if (stepProg < 0.20) {
+        // Phase 1: Rapid In-Flight Synchronization & Plunge onto Moving Belt Canister
+        const p = smooth(0, 0.20, stepProg);
         targetX = -0.22;
-        targetZ = -0.06;
-        targetY = 0.42 + Math.sin(pDispatch * Math.PI) * 0.04;
+        targetZ = Z_PICK_ZONE + (stepProg - 0.20) * V_BELT;
+        targetY = 0.44 - p * 0.11; // Plunges down to 0.33m (contact with canister top)
+        vacuumEngaged = stepProg > 0.12;
+        statusText = `CONVEYOR IN-FLIGHT PICK [${activeStep + 1}/8] (-85 kPa)`;
+      } else if (stepProg < 0.68) {
+        // Phase 2: High-G Parabolic Transfer Arc across cell (15.2G peak accel)
+        const p = smooth(0.20, 0.68, stepProg);
+        targetX = (1 - p) * (-0.22) + p * targetPlaceX;
+        targetZ = (1 - p) * Z_PICK_ZONE + p * targetPlaceZ;
+        targetY = 0.33 + Math.sin(p * Math.PI) * 0.15; // High clearance arc up to 0.48m
+        vacuumEngaged = true;
+        statusText = `HIGH-G PARABOLIC TRANSIT (15.2G ACCEL)`;
+      } else if (stepProg < 0.82) {
+        // Phase 3: Plunge into Blister Pocket & Blow-Off Vacuum Release
+        targetX = targetPlaceX;
+        targetZ = targetPlaceZ;
+        targetY = 0.33;
+        vacuumEngaged = stepProg < 0.76;
+        statusText = `SEATING IN BLISTER POCKET #${activePocketIdx + 1}`;
+      } else {
+        // Phase 4: High-Speed Snap Retract back to Conveyor Infeed
+        const p = smooth(0.82, 1.00, stepProg);
+        targetX = (1 - p) * targetPlaceX + p * (-0.22);
+        targetZ = (1 - p) * targetPlaceZ + p * Z_PICK_ZONE;
+        targetY = 0.33 + Math.sin(p * Math.PI) * 0.12;
         vacuumEngaged = false;
-        statusText = `TRAY PACKED (4/4) · ADVANCING OUTFEED LINE`;
-
-        // Smoothly roll the completed packaging tray forward along outfeed track
-        blisterCarton.position.z = pDispatch * 0.32;
+        statusText = `SNAP RETRACT · INTERCEPTING NEXT UNIT`;
       }
 
-      if (t < PACK_PHASE_TIME) {
-        blisterCarton.position.z = 0;
-      }
-
-      // Update Tool Platform Position & Vacuum Indicator
+      // Update Tool Platform Position & Vacuum Glow Indicator
       toolPlatform.position.set(targetX, targetY, targetZ);
       vacuumGlow.visible = vacuumEngaged;
 
@@ -1840,7 +1885,6 @@ function buildAccurateDeltaRobot(scene: THREE.Scene, isWireframe = false) {
       for (let i = 0; i < 3; i++) {
         const theta = solveDeltaArmIK(i, targetX, targetY, targetZ);
         bicepAngles.push(theta);
-        // Rotate bicep arm around motor Z axis
         bicepGroups[i].rotation.z = Math.PI / 2 - theta;
 
         // Obtain exact elbow position in root space
@@ -1875,40 +1919,50 @@ function buildAccurateDeltaRobot(scene: THREE.Scene, isWireframe = false) {
         rod2.scale.set(1, L_ROD, 1);
       }
 
-      // ── Dynamic Position & State for all 4 Canister Products ──
-      for (let i = 0; i < 4; i++) {
+      // ── Continuous, Non-Spawning Conveyor Product Stream ──
+      // For each product i, it travels at constant velocity V_BELT on the conveyor until picked!
+      for (let i = 0; i < 8; i++) {
         const prod = products[i];
-        const dst = blisterWorldPos[i];
-        const nominalPickZ = -0.06 + (i * 0.035);
+        const isItemBatchA = i < 4;
+        const itemTray = isItemBatchA ? trayA : trayB;
+        const itemPocketIdx = i % 4;
+        const itemOffset = pocketLocalOffsets[itemPocketIdx];
+        const itemGripTime = i * STEP_TIME + 0.20;
 
-        if (t >= PACK_PHASE_TIME) {
-          // All 4 placed in blister tray and advancing together down outfeed track
-          const pDispatch = smooth(PACK_PHASE_TIME, TOTAL_CYCLE, t);
-          prod.position.set(dst.x, 0.187, dst.z + pDispatch * 0.32);
-          pocketLeds[i].material = m.laserCyan;
-        } else if (i < activeStep) {
-          // Already successfully packed in blister pocket
-          prod.position.set(dst.x, 0.187, dst.z);
-          pocketLeds[i].material = m.laserCyan;
-        } else if (i > activeStep) {
-          // Still approaching on infeed belt
-          const incomingZ = nominalPickZ - (i - activeStep) * 0.14 + (stepProg * 0.035);
-          prod.position.set(-0.22, 0.177, incomingZ);
-          pocketLeds[i].material = ledDarkMat;
+        // Calculate time delta until this item is gripped
+        let timeUntilGrip = itemGripTime - t;
+        if (timeUntilGrip < -0.05) {
+          timeUntilGrip += TOTAL_CYCLE;
+        }
+
+        if (timeUntilGrip <= 0.01 && timeUntilGrip > -(STEP_TIME * 0.60)) {
+          // Case 1: Currently Held in Flight by Vacuum Cup!
+          prod.visible = true;
+          prod.position.set(targetX, targetY - 0.14 - 0.012, targetZ);
+        } else if (timeUntilGrip <= -(STEP_TIME * 0.60) || (i < activeStep && (activeStep - i) < 4)) {
+          // Case 2: Successfully Placed into its Blister Tray Pocket!
+          const trayZ = itemTray.carton.position.z;
+          prod.visible = (trayZ + itemOffset.z) < 0.44; // Hides inside outfeed tunnel
+          prod.position.set(0.22 + itemOffset.x, 0.187, trayZ + itemOffset.z);
+          itemTray.leds[itemPocketIdx].material = m.laserCyan;
         } else {
-          // Currently active item i
-          if (stepProg < 0.20) {
-            // Resting on conveyor entering pick zone
-            prod.position.set(-0.22, 0.177, nominalPickZ);
-            pocketLeds[i].material = ledDarkMat;
-          } else if (stepProg < 0.74) {
-            // Clamped to suction cup and flying across in high-G arc!
-            prod.position.set(targetX, targetY - 0.14 - 0.012, targetZ);
-            pocketLeds[i].material = ledDarkMat;
+          // Case 3: Continuously Traveling on the Conveyor Belt at Constant Velocity V_BELT!
+          // Distance behind the pick point is exactly V_BELT * timeUntilGrip
+          const conveyorZ = Z_PICK_ZONE - V_BELT * timeUntilGrip;
+
+          // Products emerge from the infeed shroud (-0.50m) and are visible along the belt
+          if (conveyorZ >= -0.54 && conveyorZ <= 0.55) {
+            prod.visible = true;
+            prod.position.set(-0.22, 0.177, conveyorZ);
           } else {
-            // Deposited in destination blister pocket
-            prod.position.set(dst.x, 0.187, dst.z);
-            pocketLeds[i].material = m.laserCyan;
+            // Inside upstream infeed hopper
+            prod.visible = false;
+            prod.position.set(-0.22, 0.177, -0.65);
+          }
+
+          // Unlit LED while empty
+          if (i >= activeStep) {
+            itemTray.leds[itemPocketIdx].material = ledDarkMat;
           }
         }
       }
@@ -1918,7 +1972,7 @@ function buildAccurateDeltaRobot(scene: THREE.Scene, isWireframe = false) {
         j2: (bicepAngles[1] * (180 / Math.PI)).toFixed(1),
         j3: `${(bicepAngles[2] * (180 / Math.PI)).toFixed(1)}° · 15.2G`,
         j4: `160 PICKS/MIN`,
-        tcp: `BELT 0.85m/s · [${Math.min(4, activeStep + 1)}/4] CANISTER`,
+        tcp: `BELT 0.20m/s · [${activeStep + 1}/8] UNIT`,
         status: statusText,
       };
     },
