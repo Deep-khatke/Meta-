@@ -55,8 +55,8 @@ const ROBOT_CATALOG: RobotMeta[] = [
     dof: '4-DOF (2R + 1P + 1R)',
     payload: '5.0 kg',
     cycleTime: '0.24 s',
-    description: 'Precision SCARA with rigid cast column, dual horizontal arms, high-speed vertical ball-screw spline quill, and vacuum tool head.',
-    features: ['High-speed Z-Quill Ball Screw Plunge', 'Silicone Vacuum Suction Head', 'Rigid Dual-Bearing Column Support'],
+    description: 'Precision SCARA executing continuous 6-object micro-component pick & place from Feeder Pallet to PCB Sockets with 4-DOF inverse kinematics.',
+    features: ['Continuous 6-Object Pick & Place Cycle', 'Real-Time 4-DOF SCARA Kinematics', 'Silicone Vacuum Suction & Contact Sensing'],
   },
   {
     id: 'delta',
@@ -806,11 +806,19 @@ function buildAccurateSCARARobot(scene: THREE.Scene, isWireframe = false) {
   const m = createStudioMaterials(isWireframe);
   const root = new THREE.Group();
 
-  // Heavy Rigid Mounting Column with Rear Reinforcing Spine
+  // 1. Heavy Rigid Mounting Column with Rear Reinforcing Spine
   const columnBase = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.08, 0.3), m.castIronDark);
   columnBase.position.y = 0.04;
   columnBase.castShadow = true;
   root.add(columnBase);
+
+  // 4 Corner Mounting Anchor Bolts
+  for (let b = 0; b < 4; b++) {
+    const ang = (b / 4) * Math.PI * 2 + Math.PI / 4;
+    const bolt = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.02, 12), m.chromeShaft);
+    bolt.position.set(Math.cos(ang) * 0.12, 0.085, Math.sin(ang) * 0.12);
+    root.add(bolt);
+  }
 
   const mainColumn = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.14, 0.56, 32), m.castAluminiumLight);
   mainColumn.position.y = 0.32;
@@ -825,7 +833,7 @@ function buildAccurateSCARARobot(scene: THREE.Scene, isWireframe = false) {
   topColumnCap.position.y = 0.61;
   root.add(topColumnCap);
 
-  // Arm 1 (J1: Rotates horizontally around vertical column axis)
+  // 2. Arm 1 (J1: Rotates horizontally around vertical column axis, L1 = 0.38m)
   const arm1Group = new THREE.Group();
   arm1Group.position.y = 0.58;
   root.add(arm1Group);
@@ -839,7 +847,11 @@ function buildAccurateSCARARobot(scene: THREE.Scene, isWireframe = false) {
   arm1PivotCap.position.x = 0.38;
   arm1Group.add(arm1PivotCap);
 
-  // Arm 2 (J2: Rotates horizontally around Arm 1 elbow)
+  const arm1AccentStripe = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.012, 0.142), m.vermilionAccent);
+  arm1AccentStripe.position.set(0.19, 0.05, 0);
+  arm1Group.add(arm1AccentStripe);
+
+  // 3. Arm 2 (J2: Rotates horizontally around Arm 1 elbow, L2 = 0.32m)
   const arm2Group = new THREE.Group();
   arm2Group.position.set(0.38, 0, 0);
   arm1Group.add(arm2Group);
@@ -858,7 +870,7 @@ function buildAccurateSCARARobot(scene: THREE.Scene, isWireframe = false) {
   quillAccent.position.set(0.32, 0.06, 0);
   arm2Group.add(quillAccent);
 
-  // J3 Linear Shaft & J4 Rotary Theta Axis
+  // 4. J3 Linear Shaft & J4 Rotary Theta Axis
   const splineShaftGroup = new THREE.Group();
   splineShaftGroup.position.set(0.32, 0, 0);
   arm2Group.add(splineShaftGroup);
@@ -873,47 +885,455 @@ function buildAccurateSCARARobot(scene: THREE.Scene, isWireframe = false) {
   vacuumTool.position.y = -0.36;
   splineShaftGroup.add(vacuumTool);
 
-  const suctionCup = new THREE.Mesh(new THREE.ConeGeometry(0.028, 0.03, 16), m.vermilionAccent);
+  const suctionCup = new THREE.Mesh(new THREE.ConeGeometry(0.026, 0.03, 16), m.vermilionAccent);
   suctionCup.rotation.x = Math.PI;
   suctionCup.position.y = -0.39;
   splineShaftGroup.add(suctionCup);
 
-  // Picked Microchip component
-  const electronicChip = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.006, 0.04), m.castIronDark);
-  electronicChip.position.y = -0.408;
-  splineShaftGroup.add(electronicChip);
+  // Active Vacuum Glow Ring at Suction Tip
+  const vacuumGlow = new THREE.Mesh(new THREE.TorusGeometry(0.020, 0.004, 12, 24), m.laserCyan);
+  vacuumGlow.rotation.x = Math.PI / 2;
+  vacuumGlow.position.y = -0.404;
+  vacuumGlow.visible = false;
+  splineShaftGroup.add(vacuumGlow);
 
-  // PCB Workstation fixture right beneath operating envelope
-  const pcbTable = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.04, 0.45), m.castIronDark);
-  pcbTable.position.set(0.36, 0.02, 0.1);
-  root.add(pcbTable);
+  // ── 5. Workstation Fixtures: Feeder Pallet (Source) & Target PCB (Destination) ──
+  // Input Feeder Pallet (CNC Machined Aluminum matrix tray at Z < 0)
+  const feederBase = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.04, 0.22), m.castAluminiumLight);
+  feederBase.position.set(0.36, 0.02, -0.18);
+  feederBase.castShadow = true;
+  root.add(feederBase);
 
-  const pcbGrid = new THREE.GridHelper(0.4, 8, 0x2dd4bf, 0x555555);
-  pcbGrid.position.set(0.36, 0.042, 0.1);
+  const feederPlate = new THREE.Mesh(new THREE.BoxGeometry(0.248, 0.012, 0.228), m.castIronDark);
+  feederPlate.position.set(0.36, 0.006, -0.18);
+  root.add(feederPlate);
+
+  const feederHeader = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.005, 0.018), m.vermilionAccent);
+  feederHeader.position.set(0.36, 0.042, -0.281);
+  root.add(feederHeader);
+
+  // Destination PCB Assembly Workstation (FR-4 substrate with SMD landing pads at Z > 0)
+  const pcbSubstrate = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.04, 0.22), m.castIronDark);
+  pcbSubstrate.position.set(0.36, 0.02, 0.18);
+  pcbSubstrate.castShadow = true;
+  root.add(pcbSubstrate);
+
+  const pcbRail1 = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.046, 0.228), m.castAluminiumLight);
+  pcbRail1.position.set(0.236, 0.023, 0.18);
+  root.add(pcbRail1);
+
+  const pcbRail2 = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.046, 0.228), m.castAluminiumLight);
+  pcbRail2.position.set(0.484, 0.023, 0.18);
+  root.add(pcbRail2);
+
+  const pcbGrid = new THREE.GridHelper(0.22, 10, 0x2dd4bf, 0x334155);
+  pcbGrid.position.set(0.36, 0.041, 0.18);
   root.add(pcbGrid);
+
+  // ── Coordinates for the 6 Feeder Slots and 6 PCB Sockets ──
+  const sourcePos: THREE.Vector3[] = [
+    new THREE.Vector3(0.31, 0.046, -0.23),
+    new THREE.Vector3(0.31, 0.046, -0.18),
+    new THREE.Vector3(0.31, 0.046, -0.13),
+    new THREE.Vector3(0.41, 0.046, -0.23),
+    new THREE.Vector3(0.41, 0.046, -0.18),
+    new THREE.Vector3(0.41, 0.046, -0.13),
+  ];
+
+  const destPos: THREE.Vector3[] = [
+    new THREE.Vector3(0.31, 0.046, 0.13),
+    new THREE.Vector3(0.31, 0.046, 0.18),
+    new THREE.Vector3(0.31, 0.046, 0.23),
+    new THREE.Vector3(0.41, 0.046, 0.13),
+    new THREE.Vector3(0.41, 0.046, 0.18),
+    new THREE.Vector3(0.41, 0.046, 0.23),
+  ];
+
+  const sourceAngles = [0, 0, 0, 0, 0, 0];
+  const destAngles = [0, Math.PI / 2, 0, Math.PI / 2, 0, Math.PI / 2];
+
+  // Precision Recesses on Feeder & Sockets on PCB
+  const pcbLeds: THREE.Mesh[] = [];
+  const ledOffMat = new THREE.MeshStandardMaterial({ color: 0x181a1b, roughness: 0.8 });
+
+  for (let i = 0; i < 6; i++) {
+    // Feeder Nest Pocket
+    const nestPocket = new THREE.Mesh(new THREE.BoxGeometry(0.044, 0.005, 0.044), m.castIronDark);
+    nestPocket.position.set(sourcePos[i].x, 0.039, sourcePos[i].z);
+    root.add(nestPocket);
+
+    const nestBevel = new THREE.Mesh(new THREE.RingGeometry(0.016, 0.021, 16), m.machinedBrass);
+    nestBevel.rotation.x = -Math.PI / 2;
+    nestBevel.position.set(sourcePos[i].x, 0.042, sourcePos[i].z);
+    root.add(nestBevel);
+
+    // PCB SMD Socket Landing Frame
+    const pcbSocket = new THREE.Mesh(new THREE.BoxGeometry(0.044, 0.004, 0.044), m.castIronDark);
+    pcbSocket.position.set(destPos[i].x, 0.041, destPos[i].z);
+    root.add(pcbSocket);
+
+    const socketPads = new THREE.Mesh(new THREE.RingGeometry(0.018, 0.022, 16), m.machinedBrass);
+    socketPads.rotation.x = -Math.PI / 2;
+    socketPads.position.set(destPos[i].x, 0.043, destPos[i].z);
+    root.add(socketPads);
+
+    // Live Socket Status Indicator LED
+    const led = new THREE.Mesh(new THREE.CylinderGeometry(0.0035, 0.0035, 0.003, 12), ledOffMat);
+    led.position.set(destPos[i].x - 0.025, 0.043, destPos[i].z);
+    root.add(led);
+    pcbLeds.push(led);
+
+    // Trajectory dashed flight path arc connecting Feeder Slot i to PCB Socket i
+    const pts: THREE.Vector3[] = [];
+    for (let s = 0; s <= 24; s++) {
+      const f = s / 24;
+      const arcX = (1 - f) * sourcePos[i].x + f * destPos[i].x + 0.035 * Math.sin(f * Math.PI);
+      const arcZ = (1 - f) * sourcePos[i].z + f * destPos[i].z;
+      const arcY = 0.048 + Math.sin(f * Math.PI) * 0.12;
+      pts.push(new THREE.Vector3(arcX, arcY, arcZ));
+    }
+    const trajLine = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints(pts),
+      new THREE.LineDashedMaterial({ color: 0x2dd4bf, dashSize: 0.02, gapSize: 0.015, transparent: true, opacity: 0.35 })
+    );
+    trajLine.computeLineDistances();
+    root.add(trajLine);
+  }
+
+  // ── 6. Six Distinct Physical Micro-Electronic Components ──
+  const COMPONENT_SPECS = [
+    { code: 'IC-01', name: 'MCU BGA-256' },
+    { code: 'IC-02', name: 'DUAL INDUCTOR' },
+    { code: 'IC-03', name: '6-DOF IMU CAN' },
+    { code: 'IC-04', name: 'OPTO-ISOLATOR' },
+    { code: 'IC-05', name: 'LPDDR5 MEMORY' },
+    { code: 'IC-06', name: 'NEURAL NPU DIE' },
+  ];
+
+  const objects: THREE.Group[] = [];
+
+  // Component 0: High-End Microcontroller (MCU BGA-256)
+  const obj0 = new THREE.Group();
+  const c0Body = new THREE.Mesh(new THREE.BoxGeometry(0.034, 0.009, 0.034), m.castIronDark);
+  c0Body.castShadow = true;
+  obj0.add(c0Body);
+  const c0Cap = new THREE.Mesh(new THREE.BoxGeometry(0.024, 0.002, 0.024), m.chromeShaft);
+  c0Cap.position.y = 0.005;
+  obj0.add(c0Cap);
+  const c0Pin1 = new THREE.Mesh(new THREE.SphereGeometry(0.0025, 8, 8), m.laserCyan);
+  c0Pin1.position.set(-0.011, 0.006, -0.011);
+  obj0.add(c0Pin1);
+  objects.push(obj0);
+
+  // Component 1: Dual Surface-Mount Power Inductor
+  const obj1 = new THREE.Group();
+  const c1Body = new THREE.Mesh(new THREE.BoxGeometry(0.036, 0.011, 0.026), m.castIronDark);
+  c1Body.castShadow = true;
+  obj1.add(c1Body);
+  const c1CoilL = new THREE.Mesh(new THREE.CylinderGeometry(0.0055, 0.0055, 0.012, 16), m.vermilionAccent);
+  c1CoilL.position.x = -0.008;
+  obj1.add(c1CoilL);
+  const c1CoilR = new THREE.Mesh(new THREE.CylinderGeometry(0.0055, 0.0055, 0.012, 16), m.vermilionAccent);
+  c1CoilR.position.x = 0.008;
+  obj1.add(c1CoilR);
+  const c1TopPlate = new THREE.Mesh(new THREE.BoxGeometry(0.034, 0.002, 0.024), m.castIronDark);
+  c1TopPlate.position.y = 0.006;
+  obj1.add(c1TopPlate);
+  objects.push(obj1);
+
+  // Component 2: Precision 6-DOF MEMS IMU Sensor
+  const obj2 = new THREE.Group();
+  const c2Body = new THREE.Mesh(new THREE.BoxGeometry(0.028, 0.008, 0.028), m.machinedBrass);
+  c2Body.castShadow = true;
+  obj2.add(c2Body);
+  const c2Can = new THREE.Mesh(new THREE.CylinderGeometry(0.010, 0.010, 0.004, 16), m.castAluminiumLight);
+  c2Can.position.y = 0.005;
+  obj2.add(c2Can);
+  const c2Notch = new THREE.Mesh(new THREE.BoxGeometry(0.003, 0.003, 0.003), m.vermilionAccent);
+  c2Notch.position.set(0.012, 0.004, 0);
+  obj2.add(c2Notch);
+  objects.push(obj2);
+
+  // Component 3: High-Isolation Optocoupler Transceiver
+  const obj3 = new THREE.Group();
+  const c3Body = new THREE.Mesh(new THREE.BoxGeometry(0.032, 0.010, 0.026), m.ceramicShell);
+  c3Body.castShadow = true;
+  obj3.add(c3Body);
+  const c3Lens = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.005, 0.003, 16), m.laserCyan);
+  c3Lens.position.y = 0.006;
+  obj3.add(c3Lens);
+  const c3Shield = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.002, 0.024), m.castIronDark);
+  c3Shield.position.y = 0.0055;
+  obj3.add(c3Shield);
+  objects.push(obj3);
+
+  // Component 4: High-Bandwidth LPDDR5 Memory Module
+  const obj4 = new THREE.Group();
+  const c4Body = new THREE.Mesh(new THREE.BoxGeometry(0.038, 0.008, 0.024), m.castIronDark);
+  c4Body.castShadow = true;
+  obj4.add(c4Body);
+  const c4HeatStripe = new THREE.Mesh(new THREE.BoxGeometry(0.026, 0.002, 0.016), m.machinedBrass);
+  c4HeatStripe.position.y = 0.005;
+  obj4.add(c4HeatStripe);
+  for (let pin = 0; pin < 4; pin++) {
+    const px = -0.015 + pin * 0.010;
+    const pMesh1 = new THREE.Mesh(new THREE.BoxGeometry(0.003, 0.004, 0.004), m.chromeShaft);
+    pMesh1.position.set(px, 0.002, 0.013);
+    obj4.add(pMesh1);
+    const pMesh2 = new THREE.Mesh(new THREE.BoxGeometry(0.003, 0.004, 0.004), m.chromeShaft);
+    pMesh2.position.set(px, 0.002, -0.013);
+    obj4.add(pMesh2);
+  }
+  objects.push(obj4);
+
+  // Component 5: Neural Edge AI Accelerator (NPU)
+  const obj5 = new THREE.Group();
+  const c5Body = new THREE.Mesh(new THREE.BoxGeometry(0.034, 0.010, 0.034), m.castIronDark);
+  c5Body.castShadow = true;
+  obj5.add(c5Body);
+  const c5Bezel = new THREE.Mesh(new THREE.BoxGeometry(0.030, 0.002, 0.030), m.vermilionAccent);
+  c5Bezel.position.y = 0.005;
+  obj5.add(c5Bezel);
+  const c5Die = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.003, 0.018), m.chromeShaft);
+  c5Die.position.y = 0.0065;
+  obj5.add(c5Die);
+  objects.push(obj5);
+
+  // Add all 6 objects to root scene
+  for (let i = 0; i < 6; i++) {
+    objects[i].position.copy(sourcePos[i]);
+    objects[i].rotation.y = sourceAngles[i];
+    root.add(objects[i]);
+  }
 
   scene.add(root);
   root.scale.setScalar(1.3);
 
+  // ── 7. Inverse Kinematics & Smoothstep Helpers ──
+  const L1 = 0.38;
+  const L2 = 0.32;
+
+  function solveSCARA_IK(x: number, z: number) {
+    const dSq = x * x + z * z;
+    let cosJ2 = (dSq - L1 * L1 - L2 * L2) / (2 * L1 * L2);
+    cosJ2 = Math.max(-0.9999, Math.min(0.9999, cosJ2));
+    const j2 = Math.acos(cosJ2);
+    const phi = Math.atan2(-z, x);
+    const beta = Math.atan2(L2 * Math.sin(j2), L1 + L2 * Math.cos(j2));
+    const j1 = phi - beta;
+    return { j1, j2 };
+  }
+
+  const smooth = (a: number, b: number, v: number) => {
+    const x = Math.max(0, Math.min(1, (v - a) / (b - a)));
+    return x * x * (3 - 2 * x);
+  };
+
   return {
     root,
     update: (time: number, speedMultiplier: number) => {
-      const t = time * 2.2 * speedMultiplier;
-      arm1Group.rotation.y = Math.sin(t * 0.9) * 0.85;
-      arm2Group.rotation.y = Math.cos(t * 1.2) * 1.1;
+      // Complete continuous 6-object bidirectional cycle: 33.6s total (2.8s per transfer)
+      const STEP_TIME = 2.8;
+      const TOTAL_CYCLE = STEP_TIME * 12; // 16.8s forward (Feeder -> PCB) + 16.8s reverse (PCB -> Feeder)
+      const t = (time * 1.0 * speedMultiplier) % TOTAL_CYCLE;
+      const isForward = t < TOTAL_CYCLE / 2;
 
-      // Realistic high-speed vertical Z plunge
-      const plungePhase = Math.sin(t * 2.4);
-      splineShaftGroup.position.y = Math.max(-0.16, plungePhase * 0.15 - 0.04);
-      chromeQuill.rotation.y = t * 4.0;
+      let activeStep = 0;
+      let stepProg = 0;
+
+      if (isForward) {
+        activeStep = Math.min(5, Math.floor(t / STEP_TIME));
+        stepProg = (t % STEP_TIME) / STEP_TIME;
+      } else {
+        const revT = t - TOTAL_CYCLE / 2;
+        const revStep = Math.min(5, Math.floor(revT / STEP_TIME));
+        activeStep = 5 - revStep;
+        stepProg = (revT % STEP_TIME) / STEP_TIME;
+      }
+
+      const activeSpec = COMPONENT_SPECS[activeStep];
+      const src = isForward ? sourcePos[activeStep] : destPos[activeStep];
+      const dst = isForward ? destPos[activeStep] : sourcePos[activeStep];
+      const srcAngle = isForward ? sourceAngles[activeStep] : destAngles[activeStep];
+      const dstAngle = isForward ? destAngles[activeStep] : sourceAngles[activeStep];
+
+      // Starting horizontal point & angle from previous cycle position
+      let fromPos: THREE.Vector3;
+      let fromAngle: number;
+      if (isForward) {
+        if (activeStep === 0) {
+          fromPos = sourcePos[0];
+          fromAngle = sourceAngles[0];
+        } else {
+          fromPos = destPos[activeStep - 1];
+          fromAngle = destAngles[activeStep - 1];
+        }
+      } else {
+        const revStep = 5 - activeStep;
+        if (revStep === 0) {
+          fromPos = destPos[5];
+          fromAngle = destAngles[5];
+        } else {
+          fromPos = sourcePos[activeStep + 1];
+          fromAngle = sourceAngles[activeStep + 1];
+        }
+      }
+
+      let tcpX = src.x;
+      let tcpZ = src.z;
+      let quillY = 0;
+      let j4Angle = srcAngle;
+      let vacuumActive = false;
+      let statusText = '';
+
+      if (stepProg < 0.14) {
+        // Phase 1: Transit across from previous fixture to source
+        const p = smooth(0, 0.14, stepProg);
+        tcpX = (1 - p) * fromPos.x + p * src.x;
+        tcpZ = (1 - p) * fromPos.z + p * src.z;
+        quillY = 0;
+        j4Angle = (1 - p) * fromAngle + p * srcAngle;
+        vacuumActive = false;
+        statusText = isForward
+          ? `APPROACHING FEEDER [${activeStep + 1}/6] · ${activeSpec.name}`
+          : `RETRIEVING FROM PCB [${activeStep + 1}/6] · ${activeSpec.name}`;
+      } else if (stepProg < 0.28) {
+        // Phase 2: High-speed vertical Z plunge onto component
+        const p = smooth(0.14, 0.28, stepProg);
+        tcpX = src.x;
+        tcpZ = src.z;
+        quillY = -0.121 * p;
+        j4Angle = srcAngle;
+        vacuumActive = stepProg > 0.21;
+        statusText = isForward
+          ? `ENGAGING VACUUM · COMPONENT [${activeStep + 1}/6]`
+          : `ENGAGING VACUUM · PCB SOCKET [${activeStep + 1}/6]`;
+      } else if (stepProg < 0.42) {
+        // Phase 3: Vertical lift of gripped component to transit clearance
+        const p = smooth(0.28, 0.42, stepProg);
+        tcpX = src.x;
+        tcpZ = src.z;
+        quillY = -0.121 * (1 - p);
+        j4Angle = srcAngle;
+        vacuumActive = true;
+        statusText = isForward
+          ? `LIFTING COMPONENT [${activeStep + 1}/6] (-85 kPa)`
+          : `LIFTING COMPONENT [${activeStep + 1}/6] FROM PCB`;
+      } else if (stepProg < 0.72) {
+        // Phase 4: High-speed horizontal SCARA transfer arc across to destination
+        const p = smooth(0.42, 0.72, stepProg);
+        tcpX = (1 - p) * src.x + p * dst.x + 0.035 * Math.sin(p * Math.PI);
+        tcpZ = (1 - p) * src.z + p * dst.z;
+        quillY = 0;
+        j4Angle = (1 - p) * srcAngle + p * dstAngle;
+        vacuumActive = true;
+        statusText = isForward
+          ? `TRANSFERRING [${activeStep + 1}/6] TO PCB SOCKET`
+          : `RETURNING [${activeStep + 1}/6] TO FEEDER PALLET`;
+      } else if (stepProg < 0.86) {
+        // Phase 5: High-speed vertical Z plunge to seat component in socket
+        const p = smooth(0.72, 0.86, stepProg);
+        tcpX = dst.x;
+        tcpZ = dst.z;
+        quillY = -0.121 * p;
+        j4Angle = dstAngle;
+        vacuumActive = stepProg < 0.81;
+        statusText = isForward
+          ? `SEATING COMPONENT [${activeStep + 1}/6] IN SOCKET`
+          : `SEATING COMPONENT [${activeStep + 1}/6] IN FEEDER TRAY`;
+      } else {
+        // Phase 6: Retract quill, leaving component seated
+        const p = smooth(0.86, 1.00, stepProg);
+        tcpX = dst.x;
+        tcpZ = dst.z;
+        quillY = -0.121 * (1 - p);
+        j4Angle = dstAngle;
+        vacuumActive = false;
+        statusText = isForward
+          ? `COMPONENT [${activeStep + 1}/6] SEATED · VACUUM OFF`
+          : `COMPONENT [${activeStep + 1}/6] RESTORED TO FEEDER`;
+      }
+
+      // ── Apply Inverse Kinematics to SCARA Robot Arms & Quill ──
+      const { j1, j2 } = solveSCARA_IK(tcpX, tcpZ);
+      arm1Group.rotation.y = j1;
+      arm2Group.rotation.y = j2;
+      splineShaftGroup.position.y = quillY;
+      chromeQuill.rotation.y = j4Angle;
+      vacuumGlow.visible = vacuumActive;
+
+      // ── Synchronize Positions & States for all 6 Objects ──
+      const toolTipWorldY = 0.58 + quillY - 0.408;
+
+      for (let i = 0; i < 6; i++) {
+        const obj = objects[i];
+        if (isForward) {
+          if (i < activeStep) {
+            // Already placed on PCB
+            obj.position.copy(destPos[i]);
+            obj.rotation.y = destAngles[i];
+            pcbLeds[i].material = m.laserCyan;
+          } else if (i > activeStep) {
+            // Waiting in Feeder
+            obj.position.copy(sourcePos[i]);
+            obj.rotation.y = sourceAngles[i];
+            pcbLeds[i].material = ledOffMat;
+          } else {
+            // Active component i
+            if (stepProg < 0.28) {
+              obj.position.copy(sourcePos[i]);
+              obj.rotation.y = sourceAngles[i];
+              pcbLeds[i].material = ledOffMat;
+            } else if (stepProg < 0.86) {
+              // Attached to vacuum cup
+              obj.position.set(tcpX, toolTipWorldY - 0.005, tcpZ);
+              obj.rotation.y = j4Angle;
+              pcbLeds[i].material = ledOffMat;
+            } else {
+              obj.position.copy(destPos[i]);
+              obj.rotation.y = destAngles[i];
+              pcbLeds[i].material = m.laserCyan;
+            }
+          }
+        } else {
+          // Reverse pass
+          if (i > activeStep) {
+            // Returned to Feeder
+            obj.position.copy(sourcePos[i]);
+            obj.rotation.y = sourceAngles[i];
+            pcbLeds[i].material = ledOffMat;
+          } else if (i < activeStep) {
+            // Waiting on PCB
+            obj.position.copy(destPos[i]);
+            obj.rotation.y = destAngles[i];
+            pcbLeds[i].material = m.laserCyan;
+          } else {
+            // Active component i
+            if (stepProg < 0.28) {
+              obj.position.copy(destPos[i]);
+              obj.rotation.y = destAngles[i];
+              pcbLeds[i].material = m.laserCyan;
+            } else if (stepProg < 0.86) {
+              // Attached to vacuum cup
+              obj.position.set(tcpX, toolTipWorldY - 0.005, tcpZ);
+              obj.rotation.y = j4Angle;
+              pcbLeds[i].material = ledOffMat;
+            } else {
+              obj.position.copy(sourcePos[i]);
+              obj.rotation.y = sourceAngles[i];
+              pcbLeds[i].material = ledOffMat;
+            }
+          }
+        }
+      }
 
       return {
-        j1: (arm1Group.rotation.y * (180 / Math.PI)).toFixed(1),
-        j2: (arm2Group.rotation.y * (180 / Math.PI)).toFixed(1),
-        j3: `${(Math.abs(splineShaftGroup.position.y) * 1000).toFixed(0)} mm`,
-        j4: `${((chromeQuill.rotation.y % (Math.PI * 2)) * (180 / Math.PI)).toFixed(0)}°`,
-        tcp: `REPEATABILITY ±0.012mm`,
-        status: 'HIGH-SPEED SMT PLACEMENT',
+        j1: (j1 * (180 / Math.PI)).toFixed(1),
+        j2: (j2 * (180 / Math.PI)).toFixed(1),
+        j3: `${(Math.abs(quillY) * 1000).toFixed(0)} mm`,
+        j4: `${(((j4Angle * (180 / Math.PI)) % 360 + 360) % 360).toFixed(0)}°`,
+        tcp: `[${activeStep + 1}/6] ${activeSpec.code} ${activeSpec.name}`,
+        status: statusText,
       };
     },
     dispose: () => {
