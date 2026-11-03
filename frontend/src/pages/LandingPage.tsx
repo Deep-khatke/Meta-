@@ -71,12 +71,12 @@ const ROBOT_CATALOG: RobotMeta[] = [
   {
     id: 'mobile',
     name: 'AMR-4 Industrial Rover',
-    category: 'Autonomous Mobile Robot (AGV)',
+    category: 'Autonomous Mobile Robot (AMR / AGV)',
     dof: '3-DOF Planar (X, Y, θ)',
     payload: '50.0 kg',
     cycleTime: '2.2 m/s',
-    description: 'Heavy-duty AGV with steel chassis, rolling drive wheels, front/rear caster swivels, and 360° spinning LiDAR scanner with live laser fan.',
-    features: ['True Wheel Rolling Physics', 'Active 360° Planar LiDAR Ray Fan', 'Safety Perimeter Status LED Ring'],
+    description: 'Autonomous mobile robot executing intelligent material transport between workstations, dynamic obstacle avoidance, differential drive kinematics, and active 360° LiDAR mapping.',
+    features: ['Workstation Material Transfer & Cargo Deck', 'Dynamic 360° LiDAR Obstacle Rerouting', 'True Differential Rolling Wheels & Swivel Casters'],
   },
 ];
 
@@ -1989,157 +1989,618 @@ function buildAccurateMobileRover(scene: THREE.Scene, isWireframe = false) {
   const m = createStudioMaterials(isWireframe);
   const root = new THREE.Group();
 
-  // 1. Lower Industrial Welded Chassis Base
-  const chassisBase = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.12, 0.38), m.castIronDark);
-  chassisBase.position.y = 0.12;
-  chassisBase.castShadow = true;
-  root.add(chassisBase);
+  // ── 1. Warehouse Floor Grid & Navigation Corridor Markings ──
+  const floorGrid = new THREE.GridHelper(2.8, 28, 0x2dd4bf, 0x26292b);
+  floorGrid.position.y = 0.001;
+  root.add(floorGrid);
 
-  // Upper Molded Ceramic Cover Deck
-  const coverDeck = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.08, 0.32), m.ceramicShell);
-  coverDeck.position.y = 0.22;
-  coverDeck.castShadow = true;
-  root.add(coverDeck);
+  // Safety Corridor Floor Guideway Dashed Line
+  const corridorPts: THREE.Vector3[] = [];
+  for (let c = 0; c <= 32; c++) {
+    const f = c / 32;
+    const cx = -0.9 + f * 1.8;
+    const cz = -0.38 * Math.cos(f * Math.PI);
+    corridorPts.push(new THREE.Vector3(cx, 0.002, cz));
+  }
+  const corridorLine = new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints(corridorPts),
+    new THREE.LineDashedMaterial({ color: 0xd4af37, dashSize: 0.06, gapSize: 0.04, transparent: true, opacity: 0.55 })
+  );
+  corridorLine.computeLineDistances();
+  root.add(corridorLine);
 
-  // 360° Safety Perimeter LED Strip (Pulses amber/vermilion)
-  const safetyBand = new THREE.Mesh(new THREE.BoxGeometry(0.548, 0.016, 0.388), m.vermilionAccent);
-  safetyBand.position.y = 0.17;
-  root.add(safetyBand);
+  // ── 2. Fixed Factory Workstations (Station Alpha & Station Beta) ──
+  // Station Alpha (Infeed Material Loading Dock at X = -0.90, Z = -0.38)
+  const stationAlpha = new THREE.Group();
+  stationAlpha.position.set(-0.90, 0, -0.38);
+  root.add(stationAlpha);
 
-  // 2. Drive Wheels (Two mid-mounted traction drive wheels)
-  // Wheel meshes are created with cylinder oriented along X, so rotating around X rolls along Z heading!
-  const wheelGeo = new THREE.CylinderGeometry(0.09, 0.09, 0.05, 24);
-  const wheelHubGeo = new THREE.CylinderGeometry(0.055, 0.055, 0.054, 24);
+  const dockAlphaBase = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.12, 0.32), m.castIronDark);
+  dockAlphaBase.position.y = 0.06;
+  dockAlphaBase.castShadow = true;
+  stationAlpha.add(dockAlphaBase);
 
-  // Left Drive Wheel
-  const leftWheelGroup = new THREE.Group();
-  leftWheelGroup.position.set(0, 0.09, 0.21);
-  root.add(leftWheelGroup);
+  const dockAlphaTop = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.015, 0.33), m.castAluminiumLight);
+  dockAlphaTop.position.y = 0.128;
+  stationAlpha.add(dockAlphaTop);
 
-  const leftTire = new THREE.Mesh(wheelGeo, m.rubberTread);
-  leftTire.rotation.x = Math.PI / 2;
-  leftTire.castShadow = true;
-  leftWheelGroup.add(leftTire);
-
-  const leftHub = new THREE.Mesh(wheelHubGeo, m.vermilionAccent);
-  leftHub.rotation.x = Math.PI / 2;
-  leftWheelGroup.add(leftHub);
-
-  // Right Drive Wheel
-  const rightWheelGroup = new THREE.Group();
-  rightWheelGroup.position.set(0, 0.09, -0.21);
-  root.add(rightWheelGroup);
-
-  const rightTire = new THREE.Mesh(wheelGeo, m.rubberTread);
-  rightTire.rotation.x = Math.PI / 2;
-  rightTire.castShadow = true;
-  rightWheelGroup.add(rightTire);
-
-  const rightHub = new THREE.Mesh(wheelHubGeo, m.vermilionAccent);
-  rightHub.rotation.x = Math.PI / 2;
-  rightWheelGroup.add(rightHub);
-
-  // 4 Corner Omnidirectional Caster Housings
-  const casterPositions = [
-    [0.2, 0.045, 0.13],
-    [0.2, 0.045, -0.13],
-    [-0.2, 0.045, 0.13],
-    [-0.2, 0.045, -0.13],
-  ];
-  casterPositions.forEach(([cx, cy, cz]) => {
-    const casterBracket = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, 0.04), m.castIronDark);
-    casterBracket.position.set(cx, cy + 0.02, cz);
-    root.add(casterBracket);
-
-    const casterBall = new THREE.Mesh(new THREE.SphereGeometry(0.025, 14, 14), m.chromeShaft);
-    casterBall.position.set(cx, cy, cz);
-    root.add(casterBall);
-  });
-
-  // 3. Sensor Tower & 360° LiDAR Scanner
-  const sensorPylon = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.12, 20), m.castIronDark);
-  sensorPylon.position.y = 0.32;
-  root.add(sensorPylon);
-
-  // Spinning LiDAR Head
-  const lidarRotor = new THREE.Group();
-  lidarRotor.position.y = 0.39;
-  root.add(lidarRotor);
-
-  const lidarPuck = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.05, 24), m.castAluminiumLight);
-  lidarRotor.add(lidarPuck);
-
-  const lidarOpticsRing = new THREE.Mesh(new THREE.CylinderGeometry(0.058, 0.058, 0.015, 24), m.laserCyan);
-  lidarOpticsRing.position.y = 0.01;
-  lidarRotor.add(lidarOpticsRing);
-
-  // 24 Active Planar LiDAR Laser Beams emitting 360°
-  for (let r = 0; r < 24; r++) {
-    const beamAngle = (r / 24) * Math.PI * 2;
-    const beamDistance = 0.85 + (r % 4) * 0.3;
-    const beamPts = [
-      new THREE.Vector3(0, 0, 0),
-      new THREE.Vector3(Math.cos(beamAngle) * beamDistance, -0.12, Math.sin(beamAngle) * beamDistance)
-    ];
-    const beamGeo = new THREE.BufferGeometry().setFromPoints(beamPts);
-    const beamLine = new THREE.Line(beamGeo, new THREE.LineBasicMaterial({
-      color: 0x2dd4bf, transparent: true, opacity: 0.55
-    }));
-    lidarRotor.add(beamLine);
+  // Rollers on Station Alpha
+  for (let r = 0; r < 4; r++) {
+    const roller = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.28, 16), m.chromeShaft);
+    roller.rotation.x = Math.PI / 2;
+    roller.position.set(-0.10 + r * 0.065, 0.144, 0);
+    stationAlpha.add(roller);
   }
 
-  // Front Stereo RGB-D Cameras (Intel RealSense form-factor)
-  const cameraBar = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.025, 0.14), m.castIronDark);
-  cameraBar.position.set(0.25, 0.23, 0);
-  root.add(cameraBar);
+  // Station Alpha Indicator Beacon (Green)
+  const beaconAlpha = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.03, 12), m.laserCyan);
+  beaconAlpha.position.set(-0.14, 0.22, 0.13);
+  stationAlpha.add(beaconAlpha);
 
-  const lensLeft = new THREE.Mesh(new THREE.SphereGeometry(0.008, 12, 12), m.chromeShaft);
-  lensLeft.position.set(0.272, 0.23, 0.045);
-  root.add(lensLeft);
+  const pylonAlpha = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.08, 12), m.castIronDark);
+  pylonAlpha.position.set(-0.14, 0.17, 0.13);
+  stationAlpha.add(pylonAlpha);
 
-  const lensRight = new THREE.Mesh(new THREE.SphereGeometry(0.008, 12, 12), m.chromeShaft);
-  lensRight.position.set(0.272, 0.23, -0.045);
-  root.add(lensRight);
+  // Station Beta (Assembly Receiving Dock at X = +0.90, Z = +0.38)
+  const stationBeta = new THREE.Group();
+  stationBeta.position.set(0.90, 0, 0.38);
+  root.add(stationBeta);
 
-  // Dynamic Obstacle Pylons on Ground
-  const obsA = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.35, 24), m.castIronDark);
-  obsA.position.set(0.9, 0.175, 0.45);
-  root.add(obsA);
+  const dockBetaBase = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.12, 0.32), m.castIronDark);
+  dockBetaBase.position.y = 0.06;
+  dockBetaBase.castShadow = true;
+  stationBeta.add(dockBetaBase);
 
-  const obsB = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.24, 0.24), m.vermilionAccent);
-  obsB.position.set(-0.85, 0.12, -0.5);
-  root.add(obsB);
+  const dockBetaTop = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.015, 0.33), m.castAluminiumLight);
+  dockBetaTop.position.y = 0.128;
+  stationBeta.add(dockBetaTop);
+
+  for (let r = 0; r < 4; r++) {
+    const roller = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.28, 16), m.chromeShaft);
+    roller.rotation.x = Math.PI / 2;
+    roller.position.set(-0.10 + r * 0.065, 0.144, 0);
+    stationBeta.add(roller);
+  }
+
+  const beaconBeta = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.03, 12), m.laserCyan);
+  beaconBeta.position.set(0.14, 0.22, -0.13);
+  stationBeta.add(beaconBeta);
+
+  const pylonBeta = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.08, 12), m.castIronDark);
+  pylonBeta.position.set(0.14, 0.17, -0.13);
+  stationBeta.add(pylonBeta);
+
+  // ── 3. Static Industrial Obstacles in Environment ──
+  // Obstacle 1: Heavy Equipment Column & Safety Bollard at (-0.05, 0, -0.15)
+  const obs1Group = new THREE.Group();
+  obs1Group.position.set(-0.05, 0, -0.15);
+  root.add(obs1Group);
+
+  const bollard1 = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.38, 20), m.castIronDark);
+  bollard1.position.y = 0.19;
+  bollard1.castShadow = true;
+  obs1Group.add(bollard1);
+
+  const bollardRing1 = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.04, 20), m.vermilionAccent);
+  bollardRing1.position.y = 0.28;
+  obs1Group.add(bollardRing1);
+
+  const bollardRing2 = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.04, 20), m.vermilionAccent);
+  bollardRing2.position.y = 0.14;
+  obs1Group.add(bollardRing2);
+
+  // Storage Staging Crate next to bollard
+  const crateObs = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.16, 0.18), m.machinedBrass);
+  crateObs.position.set(0.08, 0.08, -0.10);
+  crateObs.castShadow = true;
+  obs1Group.add(crateObs);
+
+  // Obstacle 2: Hazard Warning Cone with Strobe at (+0.30, 0, +0.28)
+  const obs2Group = new THREE.Group();
+  obs2Group.position.set(0.30, 0, 0.28);
+  root.add(obs2Group);
+
+  const cone = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.30, 16), m.vermilionAccent);
+  cone.position.y = 0.15;
+  cone.castShadow = true;
+  obs2Group.add(cone);
+
+  const coneStripe = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.065, 0.06, 16), m.ceramicShell);
+  coneStripe.position.y = 0.13;
+  obs2Group.add(coneStripe);
+
+  const coneStrobe = new THREE.Mesh(new THREE.SphereGeometry(0.015, 12, 12), m.laserRed);
+  coneStrobe.position.y = 0.31;
+  obs2Group.add(coneStrobe);
+
+  // ── 4. Autonomous Mobile Robot Assembly (AMR-4) ──
+  const roverGroup = new THREE.Group();
+  roverGroup.position.set(-0.90, 0, -0.38);
+  root.add(roverGroup);
+
+  // 1. Lower Industrial Welded Chassis Base
+  const chassisBase = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.09, 0.36), m.castIronDark);
+  chassisBase.position.y = 0.085;
+  chassisBase.castShadow = true;
+  roverGroup.add(chassisBase);
+
+  // Protective Corner Bumper Facets
+  const bumperFront = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.07, 0.37), m.castIronDark);
+  bumperFront.position.set(0.245, 0.085, 0);
+  roverGroup.add(bumperFront);
+
+  const bumperRear = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.07, 0.37), m.castIronDark);
+  bumperRear.position.set(-0.245, 0.085, 0);
+  roverGroup.add(bumperRear);
+
+  // Upper Molded Ceramic White Shell Deck
+  const coverDeck = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.08, 0.32), m.ceramicShell);
+  coverDeck.position.y = 0.165;
+  coverDeck.castShadow = true;
+  roverGroup.add(coverDeck);
+
+  // 360° Safety Perimeter Glow LED Strip (Dynamically changes color: Cyan = Clear, Amber = Avoidance)
+  const safetyGlowMat = new THREE.MeshBasicMaterial({ color: 0x2dd4bf, transparent: true, opacity: 0.85 });
+  const safetyBand = new THREE.Mesh(new THREE.BoxGeometry(0.53, 0.016, 0.37), safetyGlowMat);
+  safetyBand.position.y = 0.132;
+  roverGroup.add(safetyBand);
+
+  // Motorized Cargo Deck with Stainless Rollers
+  const deckPlate = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.012, 0.28), m.castAluminiumLight);
+  deckPlate.position.set(-0.02, 0.21, 0);
+  roverGroup.add(deckPlate);
+
+  const cargoRollers: THREE.Mesh[] = [];
+  for (let cr = 0; cr < 5; cr++) {
+    const cRoller = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.26, 12), m.chromeShaft);
+    cRoller.rotation.x = Math.PI / 2;
+    cRoller.position.set(-0.14 + cr * 0.06, 0.222, 0);
+    roverGroup.add(cRoller);
+    cargoRollers.push(cRoller);
+  }
+
+  // Side Cargo Retaining Guide Rails
+  const deckRailL = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.024, 0.008), m.vermilionAccent);
+  deckRailL.position.set(-0.02, 0.23, 0.136);
+  roverGroup.add(deckRailL);
+
+  const deckRailR = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.024, 0.008), m.vermilionAccent);
+  deckRailR.position.set(-0.02, 0.23, -0.136);
+  roverGroup.add(deckRailR);
+
+  // Emergency Stop Button on Rover Top
+  const eStopBezel = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.01, 16), m.machinedBrass);
+  eStopBezel.position.set(-0.16, 0.215, 0.10);
+  roverGroup.add(eStopBezel);
+
+  const eStopMushroom = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.014, 16), m.vermilionAccent);
+  eStopMushroom.position.set(-0.16, 0.225, 0.10);
+  roverGroup.add(eStopMushroom);
+
+  // Rear ROS 2 Node Telemetry Display Screen
+  const screenBezel = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.045, 0.09), m.castIronDark);
+  screenBezel.position.set(-0.221, 0.17, 0);
+  roverGroup.add(screenBezel);
+
+  const screenDisplay = new THREE.Mesh(new THREE.BoxGeometry(0.005, 0.038, 0.08), m.laserCyan);
+  screenDisplay.position.set(-0.224, 0.17, 0);
+  roverGroup.add(screenDisplay);
+
+  // ── 5. Proper Differential Traction Drive Wheels (True Rolling Physics) ──
+  // Wheel radius R_WHEEL = 0.085m, width = 0.045m
+  const R_WHEEL = 0.085;
+  const wheelTrackB = 0.39; // Lateral distance between left & right wheels
+
+  // Helper to build a wheel with grooved rubber tread and vermilion rim
+  function buildTractionWheel() {
+    const group = new THREE.Group();
+
+    // Tire mesh with outer rubber tread
+    const tire = new THREE.Mesh(new THREE.CylinderGeometry(R_WHEEL, R_WHEEL, 0.042, 24), m.rubberTread);
+    tire.rotation.x = Math.PI / 2; // Axis along Z
+    tire.castShadow = true;
+    group.add(tire);
+
+    // Deep-dish vermilion center hub
+    const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.052, 0.052, 0.046, 24), m.vermilionAccent);
+    hub.rotation.x = Math.PI / 2;
+    group.add(hub);
+
+    // Center chrome dust cap
+    const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.050, 16), m.chromeShaft);
+    cap.rotation.x = Math.PI / 2;
+    group.add(cap);
+
+    // Radial tread index spokes (so spinning is clearly visible!)
+    for (let sp = 0; sp < 6; sp++) {
+      const ang = (sp / 6) * Math.PI;
+      const spoke = new THREE.Mesh(new THREE.BoxGeometry(0.006, 0.08, 0.048), m.castAluminiumLight);
+      spoke.rotation.z = ang;
+      group.add(spoke);
+    }
+
+    return group;
+  }
+
+  // Left Drive Wheel (at +Z)
+  const leftWheelAssembly = buildTractionWheel();
+  leftWheelAssembly.position.set(0, R_WHEEL, wheelTrackB / 2);
+  roverGroup.add(leftWheelAssembly);
+
+  // Right Drive Wheel (at -Z)
+  const rightWheelAssembly = buildTractionWheel();
+  rightWheelAssembly.position.set(0, R_WHEEL, -wheelTrackB / 2);
+  roverGroup.add(rightWheelAssembly);
+
+  // 4 Corner Omnidirectional Swivel Caster Assemblies
+  const casterYokes: THREE.Group[] = [];
+  const casterOffsets = [
+    { x: 0.19, z: 0.13 },
+    { x: 0.19, z: -0.13 },
+    { x: -0.19, z: 0.13 },
+    { x: -0.19, z: -0.13 },
+  ];
+
+  casterOffsets.forEach(pos => {
+    const casterMount = new THREE.Group();
+    casterMount.position.set(pos.x, 0.048, pos.z);
+    roverGroup.add(casterMount);
+
+    // Vertical steering swivel yoke
+    const yoke = new THREE.Group();
+    casterMount.add(yoke);
+    casterYokes.push(yoke);
+
+    const yokeBracket = new THREE.Mesh(new THREE.BoxGeometry(0.032, 0.038, 0.032), m.castIronDark);
+    yokeBracket.position.y = 0.015;
+    yoke.add(yokeBracket);
+
+    const casterBall = new THREE.Mesh(new THREE.SphereGeometry(0.024, 16, 16), m.chromeShaft);
+    casterBall.position.set(0, -0.015, 0);
+    yoke.add(casterBall);
+  });
+
+  // ── 6. Advanced Sensor Suite (360° LiDAR, Stereo Depth Camera & Sonar) ──
+  // Pylon Mast
+  const sensorPylon = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.055, 0.11, 20), m.castIronDark);
+  sensorPylon.position.set(0.12, 0.26, 0);
+  roverGroup.add(sensorPylon);
+
+  // High-Speed Spinning LiDAR Puck
+  const lidarRotor = new THREE.Group();
+  lidarRotor.position.set(0.12, 0.33, 0);
+  roverGroup.add(lidarRotor);
+
+  const lidarPuck = new THREE.Mesh(new THREE.CylinderGeometry(0.048, 0.048, 0.042, 24), m.castAluminiumLight);
+  lidarRotor.add(lidarPuck);
+
+  const lidarOpticsRing = new THREE.Mesh(new THREE.CylinderGeometry(0.050, 0.050, 0.012, 24), m.laserCyan);
+  lidarOpticsRing.position.y = 0.008;
+  lidarRotor.add(lidarOpticsRing);
+
+  // 32 Active Planar LiDAR Laser Beams with Dynamic Obstacle Contact Dots
+  const lidarBeamLines: THREE.Line[] = [];
+  const lidarHitDots: THREE.Mesh[] = [];
+
+  for (let r = 0; r < 32; r++) {
+    const beamPts = [new THREE.Vector3(0, 0, 0), new THREE.Vector3(1.2, 0, 0)];
+    const beamGeo = new THREE.BufferGeometry().setFromPoints(beamPts);
+    const beamLine = new THREE.Line(beamGeo, new THREE.LineBasicMaterial({
+      color: 0x2dd4bf, transparent: true, opacity: 0.65
+    }));
+    lidarRotor.add(beamLine);
+    lidarBeamLines.push(beamLine);
+
+    // Glowing point-cloud contact dot at the end of each ray
+    const hitDot = new THREE.Mesh(new THREE.SphereGeometry(0.010, 8, 8), m.laserCyan);
+    hitDot.visible = false;
+    lidarRotor.add(hitDot);
+    lidarHitDots.push(hitDot);
+  }
+
+  // Front Stereo Depth Camera (Intel RealSense Form-Factor)
+  const cameraBar = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.022, 0.13), m.castIronDark);
+  cameraBar.position.set(0.25, 0.18, 0);
+  roverGroup.add(cameraBar);
+
+  const lensL = new THREE.Mesh(new THREE.SphereGeometry(0.007, 12, 12), m.chromeShaft);
+  lensL.position.set(0.268, 0.18, 0.042);
+  roverGroup.add(lensL);
+
+  const lensR = new THREE.Mesh(new THREE.SphereGeometry(0.007, 12, 12), m.chromeShaft);
+  lensR.position.set(0.268, 0.18, -0.042);
+  roverGroup.add(lensR);
+
+  // 4 Front/Rear Ultrasonic Sonar Transducer Eyes
+  const sonarPositions = [
+    { x: 0.265, y: 0.08, z: 0.11 },
+    { x: 0.265, y: 0.08, z: -0.11 },
+    { x: -0.265, y: 0.08, z: 0.11 },
+    { x: -0.265, y: 0.08, z: -0.11 },
+  ];
+  sonarPositions.forEach(sp => {
+    const sonarEye = new THREE.Mesh(new THREE.CylinderGeometry(0.007, 0.007, 0.006, 12), m.laserCyan);
+    sonarEye.rotation.z = Math.PI / 2;
+    sonarEye.position.set(sp.x, sp.y, sp.z);
+    roverGroup.add(sonarEye);
+  });
+
+  // Front Floor-Projected Blue Direction Warning Chevron
+  const projChevronGeo = new THREE.RingGeometry(0.18, 0.22, 16, 1, 0, Math.PI);
+  const projChevronMat = new THREE.MeshBasicMaterial({ color: 0x2dd4bf, transparent: true, opacity: 0.55, side: THREE.DoubleSide });
+  const projectedFloorHalo = new THREE.Mesh(projChevronGeo, projChevronMat);
+  projectedFloorHalo.rotation.x = -Math.PI / 2;
+  projectedFloorHalo.rotation.z = -Math.PI / 2;
+  projectedFloorHalo.position.set(0.48, 0.004, 0);
+  roverGroup.add(projectedFloorHalo);
+
+  // ── 7. Physical Industrial Material Cargo Container ──
+  const cargoContainer = new THREE.Group();
+  root.add(cargoContainer);
+
+  const crateBody = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.12, 0.20), m.castAluminiumLight);
+  crateBody.position.y = 0.06;
+  crateBody.castShadow = true;
+  cargoContainer.add(crateBody);
+
+  const crateLid = new THREE.Mesh(new THREE.BoxGeometry(0.23, 0.016, 0.21), m.vermilionAccent);
+  crateLid.position.y = 0.126;
+  cargoContainer.add(crateLid);
+
+  const crateHandle = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.12, 12), m.chromeShaft);
+  crateHandle.rotation.x = Math.PI / 2;
+  crateHandle.position.set(0, 0.142, 0);
+  cargoContainer.add(crateHandle);
+
+  const crateLabel = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.04, 0.004), m.castIronDark);
+  crateLabel.position.set(0, 0.06, 0.102);
+  cargoContainer.add(crateLabel);
 
   scene.add(root);
-  root.scale.setScalar(1.3);
+  root.scale.setScalar(1.25);
+
+  // Dynamic state accumulators for true differential drive physics
+  let leftWheelAngle = 0;
+  let rightWheelAngle = 0;
+  let prevRoverX = -0.90;
+  let prevRoverZ = -0.38;
+  let prevHeading = 0;
+  let hasInitPos = false;
+
+  const smooth = (a: number, b: number, v: number) => {
+    const x = Math.max(0, Math.min(1, (v - a) / (b - a)));
+    return x * x * (3 - 2 * x);
+  };
+
+  const TOTAL_CYCLE = 16.0; // 16s complete round-trip autonomous mission
 
   return {
     root,
     update: (time: number, speedMultiplier: number) => {
-      const t = time * 0.9 * speedMultiplier;
+      const t = (time * 1.0 * speedMultiplier) % TOTAL_CYCLE;
 
-      // Realistic smooth path trajectory
-      root.position.x = Math.sin(t * 0.8) * 0.4;
-      root.position.z = Math.cos(t * 0.6) * 0.35;
-      root.rotation.y = Math.sin(t * 0.8) * 0.6;
+      // ── Autonomous Navigation Trajectory & Obstacle Avoidance Spline ──
+      // Stage 1: Docked at Station Alpha (0.0s - 2.5s)
+      // Stage 2: Eastbound Transit with Dynamic Obstacle Detour (2.5s - 8.0s)
+      // Stage 3: Docked at Station Beta (8.0s - 10.5s)
+      // Stage 4: Westbound Return Transit across North Corridor (10.5s - 16.0s)
 
-      // Physically rolling drive wheels
-      const wheelRoll = t * 4.0;
-      leftTire.rotation.x = wheelRoll;
-      leftHub.rotation.x = wheelRoll;
-      rightTire.rotation.x = wheelRoll;
-      rightHub.rotation.x = wheelRoll;
+      let posX = -0.90;
+      let posZ = -0.38;
+      let heading = 0;
+      let statusText = '';
+      let isAvoiding = false;
+      let linearVel = 0;
+      let cargoState: 'onAlpha' | 'loading' | 'onRover' | 'unloading' | 'onBeta' = 'onAlpha';
 
-      // Continuous 360° LiDAR rotational sweep
-      lidarRotor.rotation.y += 0.14 * speedMultiplier;
+      if (t < 2.5) {
+        // Stage 1: Station Alpha Docking & Cargo Loading
+        posX = -0.90;
+        posZ = -0.38;
+        heading = 0;
+        linearVel = 0;
+
+        if (t < 1.0) {
+          cargoState = 'onAlpha';
+          statusText = 'STATION ALPHA: DOCKED · INFEED CONVEYOR READY';
+        } else {
+          cargoState = 'loading';
+          statusText = 'MATERIAL LOADING: 50kg PRECISION PAYLOAD TRANSFER';
+        }
+      } else if (t < 8.0) {
+        // Stage 2: Eastbound Transit with Dynamic Obstacle Avoidance
+        const p = (t - 2.5) / 5.5; // Progress from 0 to 1
+        cargoState = 'onRover';
+
+        // Base straight corridor is X = -0.90 -> +0.90
+        posX = -0.90 + p * 1.80;
+
+        // Dynamic Detour around Obstacle 1 (-0.05, -0.15) and Obstacle 2 (+0.30, +0.28)
+        // Obstacle 1 is encountered around p = 0.45. Rover steers southward to Z = -0.42 to clear it!
+        const avoidanceDip = Math.sin(p * Math.PI) * -0.22;
+        posZ = -0.38 + p * 0.76 + avoidanceDip;
+
+        // Is rover near obstacle?
+        isAvoiding = p > 0.30 && p < 0.65;
+        linearVel = isAvoiding ? 1.15 : 1.85;
+
+        // Compute tangent heading angle
+        const nextP = Math.min(1, p + 0.02);
+        const nextX = -0.90 + nextP * 1.80;
+        const nextZ = -0.38 + nextP * 0.76 + Math.sin(nextP * Math.PI) * -0.22;
+        heading = Math.atan2(nextZ - posZ, nextX - posX);
+
+        statusText = isAvoiding
+          ? 'OBSTACLE DETECTED (0.62m) · DWA PLANNER DETOUR ACTIVE'
+          : 'AUTONOMOUS NAVIGATION: IN-TRANSIT TO STATION BETA';
+      } else if (t < 10.5) {
+        // Stage 3: Station Beta Docking & Cargo Unloading
+        posX = 0.90;
+        posZ = 0.38;
+        heading = 0;
+        linearVel = 0;
+
+        if (t < 9.5) {
+          cargoState = 'unloading';
+          statusText = 'STATION BETA: DOCKED · UNLOADING MATERIAL PAYLOAD';
+        } else {
+          cargoState = 'onBeta';
+          statusText = 'MATERIAL DELIVERED (50kg) · RETURN PATH PLANNED';
+        }
+      } else {
+        // Stage 4: Westbound Return Corridor Navigation
+        const p = (t - 10.5) / 5.5; // Progress from 0 to 1
+        cargoState = 'onBeta';
+        linearVel = 2.05;
+
+        // Smooth return path via open northern corridor
+        posX = 0.90 - p * 1.80;
+        posZ = 0.38 - p * 0.76 + Math.sin(p * Math.PI) * 0.18;
+
+        const nextP = Math.min(1, p + 0.02);
+        const nextX = 0.90 - nextP * 1.80;
+        const nextZ = 0.38 - nextP * 0.76 + Math.sin(nextP * Math.PI) * 0.18;
+        heading = Math.atan2(nextZ - posZ, nextX - posX);
+
+        statusText = 'RETURN TRANSIT · GLOBAL COSTMAP PATH CLEAR';
+      }
+
+      // Update Rover Position and Heading
+      roverGroup.position.set(posX, 0, posZ);
+      roverGroup.rotation.y = -heading;
+
+      // ── Physical Differential Wheel Rolling Kinematics ──
+      if (!hasInitPos) {
+        prevRoverX = posX;
+        prevRoverZ = posZ;
+        prevHeading = heading;
+        hasInitPos = true;
+      }
+
+      const dx = posX - prevRoverX;
+      const dz = posZ - prevRoverZ;
+      const distTraveled = Math.sqrt(dx * dx + dz * dz);
+      let dHeading = heading - prevHeading;
+      while (dHeading > Math.PI) dHeading -= Math.PI * 2;
+      while (dHeading < -Math.PI) dHeading += Math.PI * 2;
+
+      // True differential wheel velocities (outer wheel spins faster during turns)
+      const dRollL = (distTraveled - dHeading * (wheelTrackB / 2)) / R_WHEEL;
+      const dRollR = (distTraveled + dHeading * (wheelTrackB / 2)) / R_WHEEL;
+
+      leftWheelAngle -= dRollL;
+      rightWheelAngle -= dRollR;
+
+      leftWheelAssembly.rotation.z = leftWheelAngle;
+      rightWheelAssembly.rotation.z = rightWheelAngle;
+
+      prevRoverX = posX;
+      prevRoverZ = posZ;
+      prevHeading = heading;
+
+      // Update 4 Swivel Casters to follow instantaneous steering tangent
+      casterYokes.forEach(yoke => {
+        yoke.rotation.y = -dHeading * 6.0;
+      });
+
+      // ── 360° Spinning LiDAR Scanner & Real-Time Collision Raycasting ──
+      lidarRotor.rotation.y += 0.22 * speedMultiplier;
+
+      // Check distance to Obstacle 1 and Obstacle 2 for all 32 beams
+      const obs1World = new THREE.Vector3(-0.05, 0, -0.15);
+      const obs2World = new THREE.Vector3(0.30, 0, 0.28);
+      const roverWorld = new THREE.Vector3(posX, 0, posZ);
+
+      for (let r = 0; r < 32; r++) {
+        const beamAngle = (r / 32) * Math.PI * 2;
+        // World angle of this laser beam
+        const worldAngle = beamAngle + lidarRotor.rotation.y - heading;
+        const rayDir = new THREE.Vector3(Math.cos(worldAngle), 0, Math.sin(worldAngle));
+
+        let beamDist = 1.25;
+        let hasHit = false;
+
+        // Distance to Obstacle 1
+        const toObs1 = obs1World.clone().sub(roverWorld);
+        const proj1 = toObs1.dot(rayDir);
+        if (proj1 > 0 && proj1 < 1.25) {
+          const perp1 = toObs1.clone().addScaledVector(rayDir, -proj1).length();
+          if (perp1 < 0.16) {
+            beamDist = Math.max(0.15, proj1 - 0.08);
+            hasHit = true;
+          }
+        }
+
+        // Distance to Obstacle 2
+        const toObs2 = obs2World.clone().sub(roverWorld);
+        const proj2 = toObs2.dot(rayDir);
+        if (proj2 > 0 && proj2 < 1.25) {
+          const perp2 = toObs2.clone().addScaledVector(rayDir, -proj2).length();
+          if (perp2 < 0.14) {
+            beamDist = Math.min(beamDist, Math.max(0.15, proj2 - 0.07));
+            hasHit = true;
+          }
+        }
+
+        // Update beam line endpoints
+        const posAttr = lidarBeamLines[r].geometry.attributes.position as THREE.BufferAttribute;
+        posAttr.setXYZ(1, Math.cos(beamAngle) * beamDist, 0, Math.sin(beamAngle) * beamDist);
+        posAttr.needsUpdate = true;
+
+        // Set beam color: Red/Amber on obstacle collision, Cyan on clear space
+        const lineMat = lidarBeamLines[r].material as THREE.LineBasicMaterial;
+        lineMat.color.setHex(hasHit ? 0xc4472d : 0x2dd4bf);
+        lineMat.opacity = hasHit ? 0.95 : 0.40;
+
+        // Contact point dot
+        const dot = lidarHitDots[r];
+        dot.visible = hasHit;
+        if (hasHit) {
+          dot.position.set(Math.cos(beamAngle) * beamDist, 0, Math.sin(beamAngle) * beamDist);
+        }
+      }
+
+      // ── Safety Perimeter Glow & Warning Chevron State ──
+      if (isAvoiding) {
+        safetyGlowMat.color.setHex(0xd4af37); // Amber warning during detour
+        projChevronMat.color.setHex(0xd4af37);
+      } else if (linearVel === 0) {
+        safetyGlowMat.color.setHex(0xc4472d); // Red when stationary / docked
+        projChevronMat.color.setHex(0xc4472d);
+      } else {
+        safetyGlowMat.color.setHex(0x2dd4bf); // Cyan during clear cruising
+        projChevronMat.color.setHex(0x2dd4bf);
+      }
+
+      // ── Material Transportation: Cargo Container State Machine ──
+      if (cargoState === 'onAlpha') {
+        cargoContainer.position.set(-0.90, 0.15, -0.38);
+        cargoContainer.rotation.y = 0;
+      } else if (cargoState === 'loading') {
+        const pLoad = smooth(1.0, 2.5, t);
+        cargoContainer.position.set(-0.90 + pLoad * 0.02, 0.15 + pLoad * 0.08, -0.38);
+        cargoContainer.rotation.y = 0;
+      } else if (cargoState === 'onRover') {
+        // Firmly positioned on rover's deck
+        cargoContainer.position.set(posX, 0.23, posZ);
+        cargoContainer.rotation.y = -heading;
+      } else if (cargoState === 'unloading') {
+        const pUnload = smooth(8.0, 9.5, t);
+        cargoContainer.position.set(0.90, 0.23 - pUnload * 0.08, 0.38);
+        cargoContainer.rotation.y = 0;
+      } else {
+        // Settled on Station Beta receiving dock
+        cargoContainer.position.set(0.90, 0.15, 0.38);
+        cargoContainer.rotation.y = 0;
+      }
 
       return {
-        j1: `X: ${root.position.x.toFixed(2)} m`,
-        j2: `Z: ${root.position.z.toFixed(2)} m`,
-        j3: `HEADING: ${(root.rotation.y * (180 / Math.PI)).toFixed(1)}°`,
-        j4: `VEL: 1.84 m/s`,
-        tcp: `24 BEAMS · OBSTACLES: CLEAR`,
-        status: 'ODOMETRY STREAMING (60Hz)',
+        j1: (posX * 100).toFixed(0),
+        j2: (posZ * 100).toFixed(0),
+        j3: `${((-heading * 180) / Math.PI).toFixed(0)}° · ${linearVel.toFixed(1)}m/s`,
+        j4: isAvoiding ? 'DETOUR: DWA' : 'ROUTE: CLEAR',
+        tcp: `PAYLOAD: 50kg · 32 BEAMS`,
+        status: statusText,
       };
     },
     dispose: () => {
