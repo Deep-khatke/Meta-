@@ -299,7 +299,7 @@ export function AurixScrollShowcase({ onExploreStudio }: AurixScrollShowcaseProp
           }}
         />
 
-        {/* Top Header HUD Bar */}
+        {/* Top Header Controls Bar */}
         <div
           style={{
             position: 'absolute',
@@ -307,39 +307,11 @@ export function AurixScrollShowcase({ onExploreStudio }: AurixScrollShowcaseProp
             left: '48px',
             right: '48px',
             display: 'flex',
-            justifyContent: 'space-between',
+            justifyContent: 'flex-end',
             alignItems: 'center',
             zIndex: 20
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <span
-              style={{
-                fontFamily: 'IBM Plex Mono, monospace',
-                fontSize: '11px',
-                letterSpacing: '0.22em',
-                color: '#00e5ff',
-                fontWeight: 700,
-                background: 'rgba(0, 229, 255, 0.1)',
-                border: '1px solid rgba(0, 229, 255, 0.3)',
-                padding: '5px 14px',
-                borderRadius: '20px'
-              }}
-            >
-              AURIX ARCHITECTURE // 50-FRAME DECONSTRUCTION
-            </span>
-            <span
-              style={{
-                fontFamily: 'IBM Plex Mono, monospace',
-                fontSize: '12px',
-                color: isDetached ? '#00e5ff' : '#94a3b8',
-                fontWeight: isDetached ? 700 : 500
-              }}
-            >
-              FRAME {String(currentFrame + 1).padStart(2, '0')} / {TOTAL_FRAMES}
-            </span>
-          </div>
-
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <button
               onClick={togglePlay}
