@@ -4258,7 +4258,7 @@ class AIReasoningService:
         # 18. Reinforcement Learning
         if any(w in p for w in ['arm', 'manipulator', 'scara']) and any(w in p for w in ['train', 'pick', 'grasp', 'rl']):
             acts.append(('train_arm_live_interactive', {'arm_identifier': 'arm', 'total_episodes': 4}))
-        elif any(w in p for w in ['train robot', 'train rover', 'rover train', 'robot train', 'make robot train', 'make rover train']):
+        elif any(w in p for w in ['train robot', 'train rover', 'rover train', 'robot train', 'make robot train', 'make rover train', 'train a ppo', 'train ppo', 'ppo reinforcement', 'reinforcement learning', 'train policy', 'start rl', 'ppo rover', 'rover ppo']):
             acts.append(('train_rover_live_interactive', {'robot_identifier': 'robot', 'total_episodes': 4}))
         elif any(w in p for w in ['happen live', 'learn then fail', 'learning then fail', 'failing again', 'trying again', 'isac sim', 'isaac sim', 'isaac lab', 'train drone live', 'live drone training', 'drone is learning', 'drone learning']):
             acts.append(('train_drone_live_interactive', {'drone_identifier': 'drone', 'target_altitude': 1.5, 'total_episodes': 4}))

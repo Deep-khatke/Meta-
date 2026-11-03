@@ -1013,19 +1013,69 @@ class MuJoCoEngine:
                                 if "target" in o.name.lower() or "target" in o.id.lower() or "goal" in o.name.lower()]
                     target = tgt_objs[0].position if tgt_objs else [2.5, 0.5, 0.25]
 
-                obs = RoboForgeGymEnv.compute_observation(
-                    robot_pos=[float(r_pos[0]), float(r_pos[1]), 0.07],
-                    robot_quat=r_quat,
-                    linear_speed=lin_speed,
-                    angular_speed=ang_speed,
-                    target_pos=target,
-                    obstacles=self.project.objects,
-                    max_linear_velocity=self.project.robot.max_linear_velocity,
-                    max_angular_velocity=self.project.robot.max_angular_velocity
-                )
-                action, _ = self.active_rl_policy_model.predict(obs, deterministic=True)
-                v = float(np.clip(action[0], -1.0, 1.0) * self.project.robot.max_linear_velocity)
-                omega = float(np.clip(action[1], -1.0, 1.0) * self.project.robot.max_angular_velocity)
+                dist_to_goal = math.hypot(target[0] - r_pos[0], target[1] - r_pos[1])
+                if dist_to_goal < 0.25:
+                    v = 0.0
+                    omega = 0.0
+                else:
+                    obs = RoboForgeGymEnv.compute_observation(
+                        robot_pos=[float(r_pos[0]), float(r_pos[1]), 0.07],
+                        robot_quat=r_quat,
+                        linear_speed=lin_speed,
+                        angular_speed=ang_speed,
+                        target_pos=target,
+                        obstacles=self.project.objects,
+                        max_linear_velocity=self.project.robot.max_linear_velocity,
+                        max_angular_velocity=self.project.robot.max_angular_velocity
+                    )
+                    action, _ = self.active_rl_policy_model.predict(obs, deterministic=True)
+                    raw_v = float(np.clip(action[0], -1.0, 1.0) * self.project.robot.max_linear_velocity)
+                    raw_w = float(np.clip(action[1], -1.0, 1.0) * self.project.robot.max_angular_velocity)
+
+                    v_max = self.project.robot.max_linear_velocity
+                    w_max = self.project.robot.max_angular_velocity
+                    fwd = quat_to_forward(r_quat)
+                    current_yaw = math.atan2(fwd[1], fwd[0])
+                    diff = np.array(target[:2], dtype=float) - r_pos
+                    goal_dist = max(1e-4, float(np.linalg.norm(diff)))
+                    f_att = diff / goal_dist
+                    f_rep = np.zeros(2, dtype=float)
+                    f_tan = np.zeros(2, dtype=float)
+                    closest_clearance = 999.0
+                    for obj in self.project.objects:
+                        o_pos = np.array(obj.position[:2], dtype=float)
+                        delta = r_pos - o_pos
+                        center_dist = float(np.linalg.norm(delta))
+                        obs_radius = math.hypot(obj.size[0], obj.size[1]) if getattr(obj, "type", "") == "box" and len(getattr(obj, "size", [])) >= 2 else (obj.size[0] if getattr(obj, "size", None) else 0.3)
+                        clearance = center_dist - obs_radius - 0.28
+                        if clearance < closest_clearance:
+                            closest_clearance = clearance
+                        if clearance < 0.75:
+                            norm_dir = delta / max(1e-4, center_dist)
+                            inv_d = 1.0 / max(0.04, clearance)
+                            rep_strength = 2.0 * (inv_d - (1.0 / 0.75)) * (inv_d ** 1.3)
+                            f_rep += norm_dir * rep_strength
+                            tan_1 = np.array([-norm_dir[1], norm_dir[0]])
+                            tan_2 = -tan_1
+                            chosen_tan = tan_1 if np.dot(tan_1, f_att) >= np.dot(tan_2, f_att) else tan_2
+                            f_tan += chosen_tan * (rep_strength * 1.5)
+
+                    f_net = f_att + f_rep + f_tan
+                    desired_yaw = math.atan2(f_net[1], f_net[0])
+                    heading_err = (desired_yaw - current_yaw + math.pi) % (2.0 * math.pi) - math.pi
+                    speed_factor = max(0.25, min(1.0, closest_clearance / 0.55)) if closest_clearance < 0.55 else 1.0
+
+                    if closest_clearance < 0.12:
+                        v = -0.15
+                        omega = 2.5 if heading_err >= 0 else -2.5
+                    else:
+                        guide_w = max(-w_max, min(w_max, heading_err * 2.5))
+                        align = max(0.1, math.cos(heading_err))
+                        guide_v = min(v_max, max(0.35, dist_to_goal * 0.8)) * speed_factor * align
+                        if abs(heading_err) > 0.7:
+                            guide_v = max(0.1, guide_v * 0.25)
+                        v = float(0.25 * raw_v + 0.75 * guide_v)
+                        omega = float(0.25 * raw_w + 0.75 * guide_w)
             except Exception as ex:
                 logger.warning("RL Policy inference error in rover control: %s", ex)
                 v = self.teleop_cmd.linear

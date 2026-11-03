@@ -1094,12 +1094,8 @@ class RLTrainingManager:
         job_id = f"ppo_rover_nav_{uuid.uuid4().hex[:6]}"
         engine._live_job_id = job_id
         thread = threading.Thread(
-            target=self.run_live_training,
-            kwargs=dict(
-                engine=engine, job_id=job_id, total_timesteps=max(8000, total_episodes * 5000),
-                chunk_timesteps=4000, robot_kind="mobile",
-                label="PPO Rover Navigation (Live)",
-            ),
+            target=self._run_live_rover_curriculum,
+            args=(engine, job_id, total_episodes),
             daemon=True,
         )
         thread.start()
