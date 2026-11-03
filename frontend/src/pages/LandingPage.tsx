@@ -3806,13 +3806,11 @@ export function LandingPage() {
         style={{
           position: 'relative',
           width: '100%',
-          height: '100vh',
           background: '#0b0f14',
           color: '#f8fafc',
-          overflow: 'hidden',
         }}
       >
-        {/* Fullscreen Interactive 50-Frame Scrubber with Wheel Lock */}
+        {/* Fullscreen Interactive 50-Frame Scrubber with Sticky Pinned Track */}
         <AurixScrollShowcase />
       </section>
 
