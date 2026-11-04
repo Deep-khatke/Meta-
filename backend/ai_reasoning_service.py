@@ -6,6 +6,11 @@ grounded in real MuJoCo simulation telemetry and validated research tools.
 
 from __future__ import annotations
 import os
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except Exception:
+    pass
 import re
 import math
 import time

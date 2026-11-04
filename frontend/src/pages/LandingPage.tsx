@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import * as THREE from 'three';
 import { OrbitControls } from 'three-stdlib';
 import { AurixScrollShowcase } from '../components/AurixScrollShowcase';
+import { UserProfileBadge } from '../components/UserProfileBadge';
 import {
   BrainCircuit, Sparkles, Shield, Cpu, Activity, ArrowRight,
   BookOpen, Layers, CheckCircle2, ChevronRight, X, Copy,
@@ -2927,19 +2928,7 @@ function BubbleNavBar({
 
       {/* Action Group */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-        <Link to="/login" style={{ textDecoration: 'none' }}>
-          <div style={{
-            fontFamily: 'Manrope, sans-serif',
-            fontSize: '13px',
-            fontWeight: 600,
-            color: C.black,
-            opacity: 0.75,
-            padding: '8px 14px',
-            borderRadius: '100px',
-          }}>
-            Log in
-          </div>
-        </Link>
+        <UserProfileBadge variant="light" />
 
         <Link to="/studio" style={{ textDecoration: 'none' }}>
           <div

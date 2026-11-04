@@ -6,6 +6,8 @@ import {
   Heart, Sparkles, Volume2, VolumeX, Hand,
   Cookie, RotateCw
 } from 'lucide-react';
+import { GoogleSignInButton } from '../components/GoogleSignInButton';
+import { useAuth } from '../context/AuthContext';
 
 const C = {
   ivory: '#F1EEE7',
@@ -1142,6 +1144,7 @@ type FormState = 'idle' | 'submitting' | 'error' | 'success';
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
@@ -1205,15 +1208,23 @@ export function LoginPage() {
     }
     setState('submitting');
     setRobotMood('excited');
-    setSpeechBubble("Authenticating credentials... Preparing your workspace!");
+    setSpeechBubble("Verifying credentials with database...");
     roboAudio.playHappyChirp();
 
-    await new Promise(r => setTimeout(r, 1200));
-    setState('success');
-    setRobotMood('hearts');
-    setSpeechBubble("Access granted! Opening 3D Robotics Studio...");
-    triggerAction('flip', "Welcome back! Entering Studio! 🚀");
-    setTimeout(() => navigate('/studio'), 900);
+    try {
+      await login(email, password);
+      setState('success');
+      setRobotMood('hearts');
+      setSpeechBubble("Access granted! Opening 3D Robotics Studio...");
+      triggerAction('flip', "Welcome back! Entering Studio! 🚀");
+      setTimeout(() => navigate('/studio'), 900);
+    } catch (err: any) {
+      setState('error');
+      const errText = err.message || 'Invalid email or password.';
+      setErrorMsg(errText);
+      setRobotMood('shy');
+      setSpeechBubble(errText);
+    }
   };
 
   return (
@@ -1459,6 +1470,29 @@ export function LoginPage() {
             <p style={{ fontSize: '14px', color: C.black, opacity: 0.5, margin: 0 }}>
               Sign in to your RoboForge workspace.
             </p>
+          </div>
+
+          {/* Google One-Click Sign In */}
+          <div style={{ marginBottom: '18px' }}>
+            <GoogleSignInButton
+              text="signin_with"
+              onSuccess={() => {
+                setState('success');
+                setRobotMood('excited');
+                setSpeechBubble('Google Authenticated! Opening your workspace...');
+                roboAudio.playHappyChirp();
+                setTimeout(() => navigate('/studio'), 800);
+              }}
+              onError={(err) => {
+                setErrorMsg(err);
+                setState('error');
+              }}
+            />
+            <div style={{ display: 'flex', alignItems: 'center', margin: '16px 0 2px', gap: '10px' }}>
+              <div style={{ flex: 1, height: '1px', background: 'rgba(32,34,34,0.12)' }} />
+              <span style={{ fontSize: '11px', fontFamily: 'IBM Plex Mono, monospace', color: C.muted, letterSpacing: '0.1em' }}>OR EMAIL</span>
+              <div style={{ flex: 1, height: '1px', background: 'rgba(32,34,34,0.12)' }} />
+            </div>
           </div>
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>

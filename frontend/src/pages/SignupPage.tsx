@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { GoogleSignInButton } from '../components/GoogleSignInButton';
+import { useAuth } from '../context/AuthContext';
 
 const C = {
   ivory: '#F1EEE7',
@@ -13,19 +15,35 @@ type FormState = 'idle' | 'submitting' | 'error' | 'success';
 
 export function SignupPage() {
   const navigate = useNavigate();
+  const { signup } = useAuth();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
   const [state, setState] = useState<FormState>('idle');
+  const [errorMsg, setErrorMsg] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !email || !password) { setState('error'); return; }
+    if (!name || !email || !password) {
+      setErrorMsg('Please complete all fields.');
+      setState('error');
+      return;
+    }
+    if (password.length < 6) {
+      setErrorMsg('Password must be at least 6 characters.');
+      setState('error');
+      return;
+    }
     setState('submitting');
-    await new Promise(r => setTimeout(r, 1200));
-    setState('success');
-    setTimeout(() => navigate('/studio'), 700);
+    try {
+      await signup(name, email, password);
+      setState('success');
+      setTimeout(() => navigate('/studio'), 700);
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Registration failed.');
+      setState('error');
+    }
   };
 
   return (
@@ -63,6 +81,23 @@ export function SignupPage() {
           <p style={{ fontSize: '14px', color: C.black, opacity: 0.5, margin: 0 }}>
             Create your RoboForge account to save projects and run experiments.
           </p>
+        </div>
+
+        {/* Google One-Click Sign Up */}
+        <div style={{ marginBottom: '20px' }}>
+          <GoogleSignInButton
+            text="signup_with"
+            onSuccess={() => {
+              setState('success');
+              setTimeout(() => navigate('/studio'), 600);
+            }}
+            onError={() => setState('error')}
+          />
+          <div style={{ display: 'flex', alignItems: 'center', margin: '18px 0 4px', gap: '10px' }}>
+            <div style={{ flex: 1, height: '1px', background: 'rgba(32,34,34,0.12)' }} />
+            <span style={{ fontSize: '11px', fontFamily: 'IBM Plex Mono, monospace', color: C.muted, letterSpacing: '0.1em' }}>OR REGISTER WITH EMAIL</span>
+            <div style={{ flex: 1, height: '1px', background: 'rgba(32,34,34,0.12)' }} />
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
@@ -145,7 +180,7 @@ export function SignupPage() {
               borderRadius: '3px', padding: '10px 14px',
               fontFamily: 'IBM Plex Mono, monospace', fontSize: '11px', color: C.red, letterSpacing: '0.06em',
             }}>
-              Please complete all fields.
+              {errorMsg || 'Please complete all fields.'}
             </div>
           )}
 

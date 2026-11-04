@@ -6,6 +6,7 @@ import {
   Box, Bot, Package, Radio, Compass, Layers, Plus, Sparkles, GitFork
 } from 'lucide-react';
 import { Project, SimulationState, WorkspaceSection } from '../types';
+import { UserProfileBadge } from './UserProfileBadge';
 
 interface ToolbarProps {
   project: Project;
@@ -342,6 +343,11 @@ export const Toolbar: React.FC<ToolbarProps> = ({
         >
           <Activity size={11} />
           <span>{isConnected ? 'ON' : 'OFF'}</span>
+        </div>
+
+        {/* User Profile Badge */}
+        <div style={{ marginLeft: 6, display: 'flex', alignItems: 'center' }}>
+          <UserProfileBadge variant="dark" />
         </div>
       </div>
     </header>

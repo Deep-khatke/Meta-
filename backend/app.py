@@ -13,9 +13,10 @@ try:
 except Exception:
     pass
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Request
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Request, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+import backend.database as db
 
 import time
 import math
@@ -3108,3 +3109,137 @@ async def websocket_endpoint(websocket: WebSocket):
     except Exception as e:
         active_connections.discard(websocket)
         logger.warning("WebSocket error: %s", e)
+
+
+# ---------------------------------------------------------
+# User Authentication & Database Management (SQLite)
+# ---------------------------------------------------------
+class RegisterRequest(BaseModel):
+    name: str = Field(..., min_length=1)
+    email: str = Field(..., min_length=3)
+    password: str = Field(..., min_length=6)
+
+
+class LoginRequest(BaseModel):
+    email: str = Field(..., min_length=3)
+    password: str = Field(..., min_length=1)
+
+
+class GoogleAuthRequest(BaseModel):
+    credential: Optional[str] = Field(None, description="Google ID Token / Credential string")
+    sub: Optional[str] = None
+    email: Optional[str] = None
+    name: Optional[str] = None
+    picture: Optional[str] = None
+    client_id: Optional[str] = None
+
+
+def _decode_jwt_unverified(token: str) -> Dict[str, Any]:
+    """Safely decodes JWT payload without requiring external signature keys."""
+    try:
+        parts = token.split(".")
+        if len(parts) < 2:
+            return {}
+        import base64
+        payload_b64 = parts[1] + "=" * (-len(parts[1]) % 4)
+        decoded = base64.urlsafe_b64decode(payload_b64).decode("utf-8")
+        return json.loads(decoded)
+    except Exception as e:
+        logger.warning("Failed to decode JWT unverified: %s", e)
+        return {}
+
+
+def _extract_token_from_request(req: Request, authorization: Optional[str] = None) -> Optional[str]:
+    """Extracts bearer token from Authorization header or cookie or query param."""
+    if authorization and authorization.startswith("Bearer "):
+        return authorization[7:].strip()
+    auth_header = req.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        return auth_header[7:].strip()
+    return req.cookies.get("roboforge_token") or req.query_params.get("token")
+
+
+@app.post("/api/auth/register")
+async def register_endpoint(req: RegisterRequest):
+    try:
+        result = db.register_user(req.name, req.email, req.password)
+        user = result["user"]
+        token = result["token"]
+        engine.log("info", f"User registered in database: '{user['name']}' ({user['email']})")
+        await broadcast_json({"type": "user_authenticated", "data": user})
+        return {"status": "ok", "user": user, "token": token}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.exception("Registration error: %s", e)
+        raise HTTPException(status_code=500, detail="Registration failed. Please try again.")
+
+
+@app.post("/api/auth/login")
+async def login_endpoint(req: LoginRequest):
+    try:
+        result = db.authenticate_user(req.email, req.password)
+        user = result["user"]
+        token = result["token"]
+        engine.log("info", f"User logged in from database: '{user['name']}' ({user['email']})")
+        await broadcast_json({"type": "user_authenticated", "data": user})
+        return {"status": "ok", "user": user, "token": token}
+    except ValueError as e:
+        raise HTTPException(status_code=401, detail=str(e))
+    except Exception as e:
+        logger.exception("Login error: %s", e)
+        raise HTTPException(status_code=500, detail="Authentication failed. Please try again.")
+
+
+@app.post("/api/auth/google")
+async def google_auth_endpoint(req: GoogleAuthRequest):
+    sub = req.sub
+    email = req.email or ""
+    name = req.name or ""
+    picture = req.picture
+
+    if req.credential:
+        payload = _decode_jwt_unverified(req.credential)
+        if payload and payload.get("sub"):
+            sub = payload.get("sub")
+            email = payload.get("email", email)
+            name = payload.get("name") or (email.split("@")[0] if "@" in email else "") or name
+            picture = payload.get("picture", picture)
+
+    if not sub:
+        raise HTTPException(status_code=400, detail="Missing Google user identification.")
+
+    if not name:
+        name = email.split("@")[0] if "@" in email else "Google User"
+
+    try:
+        result = db.upsert_google_user(sub, email, name, picture)
+        user = result["user"]
+        token = result["token"]
+        engine.log("info", f"User '{user['name']}' ({user['email']}) authenticated via Google OAuth into SQLite DB.")
+        await broadcast_json({"type": "user_authenticated", "data": user})
+        return {"status": "ok", "user": user, "token": token}
+    except Exception as e:
+        logger.exception("Google auth database error: %s", e)
+        raise HTTPException(status_code=500, detail="Google authentication failed.")
+
+
+@app.get("/api/auth/me")
+def get_current_user_endpoint(request: Request, authorization: Optional[str] = Header(None)):
+    token = _extract_token_from_request(request, authorization)
+    if not token:
+        return {"authenticated": False, "user": None}
+    user = db.get_user_by_session(token)
+    if not user:
+        return {"authenticated": False, "user": None}
+    return {"authenticated": True, "user": user}
+
+
+@app.post("/api/auth/logout")
+async def logout_endpoint(request: Request, authorization: Optional[str] = Header(None)):
+    token = _extract_token_from_request(request, authorization)
+    if token:
+        db.delete_session(token)
+    await broadcast_json({"type": "user_logged_out"})
+    return {"status": "ok", "message": "Logged out successfully."}
+
