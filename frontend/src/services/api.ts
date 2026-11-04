@@ -152,6 +152,38 @@ export async function importURDF(urdfXml: string, setAsActive: boolean = true): 
   return res.json();
 }
 
+// --- Attachable Sensors (Isaac-Lab-style) ---
+export async function listSensors(): Promise<{ sensors: any[]; attachable_bodies: string[] }> {
+  const res = await fetch(`${API_BASE}/sensors`);
+  if (!res.ok) throw new Error('Failed to list sensors');
+  return res.json();
+}
+
+export async function addSensor(body: {
+  type: string; parent_body: string; name?: string;
+  num_beams?: number; max_range?: number; mount_pos?: number[];
+}): Promise<any> {
+  const res = await fetch(`${API_BASE}/sensors`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error('Failed to add sensor');
+  return res.json();
+}
+
+export async function updateSensor(sensorId: string, body: Record<string, any>): Promise<any> {
+  const res = await fetch(`${API_BASE}/sensors/${sensorId}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error('Failed to update sensor');
+  return res.json();
+}
+
+export async function removeSensor(sensorId: string): Promise<any> {
+  const res = await fetch(`${API_BASE}/sensors/${sensorId}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Failed to remove sensor');
+  return res.json();
+}
+
 export async function trainDroneLive(totalEpisodes: number = 4): Promise<any> {
   const res = await fetch(`${API_BASE}/rl/train-drone-live`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -177,6 +209,49 @@ export async function trainRoverLive(totalEpisodes: number = 4): Promise<any> {
   });
   if (!res.ok) throw new Error('Failed to start live rover training');
   return res.json();
+}
+
+export async function stopAllRl(): Promise<any> {
+  const res = await fetch(`${API_BASE}/rl/stop-all`, { method: 'POST' });
+  if (!res.ok) throw new Error('Failed to stop RL training/policy');
+  return res.json();
+}
+
+// ---------------- Mission Planner ----------------
+export interface MissionPayload {
+  name?: string;
+  waypoints: Array<[number, number]>;
+  speed: number;
+  loop: boolean;
+  laps?: number;
+  domain_randomize?: boolean;
+  altitude?: number;
+  vehicle?: 'auto' | 'rover' | 'drone';
+}
+
+async function missionPost(path: string, body: MissionPayload): Promise<any> {
+  const res = await fetch(`${API_BASE}/mission/${path}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.detail || `Mission ${path} failed`);
+  return data;
+}
+export const missionRun = (m: MissionPayload) => missionPost('run', m);
+export const missionTrain = (m: MissionPayload) => missionPost('train', m);
+export const missionSave = (m: MissionPayload) => missionPost('save', m);
+export async function missionList(): Promise<string[]> {
+  const res = await fetch(`${API_BASE}/mission/list`);
+  return res.ok ? (await res.json()).missions || [] : [];
+}
+export async function missionLoad(name: string): Promise<MissionPayload> {
+  const res = await fetch(`${API_BASE}/mission/load/${encodeURIComponent(name)}`);
+  if (!res.ok) throw new Error('Failed to load mission');
+  return res.json();
+}
+export async function stopMission(): Promise<void> {
+  await fetch(`${API_BASE}/agent/trajectory/cancel`, { method: 'POST' });
+  await fetch(`${API_BASE}/rl/stop-all`, { method: 'POST' });
 }
 
 export async function controlRobotJoint(jointName: string, target: number): Promise<any> {
@@ -904,8 +979,9 @@ export class SimulationSocket {
   public sendTeleop(linear: number, angular: number) {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify({ type: 'teleop', linear, angular }));
-    } else {
-      // Fallback to REST
+    } else if (linear !== 0 || angular !== 0) {
+      // REST fallback ONLY for a real (non-zero) command, so a disconnected socket can never
+      // flood the backend with teleop requests (which otherwise return 502 in a tight loop).
       postTeleop({ linear, angular }).catch(() => {});
     }
   }

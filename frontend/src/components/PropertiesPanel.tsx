@@ -5,6 +5,7 @@ import {
   Radio, Cpu, GitFork, ShieldCheck, Video
 } from 'lucide-react';
 import { Project, SceneObject, SimulationState, SensorSettings } from '../types';
+import { SensorsPanel } from './SensorsPanel';
 
 interface PropertiesPanelProps {
   project: Project;
@@ -804,6 +805,10 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
             </div>
           )}
         </div>
+
+        {/* Attachable Sensors (Isaac-Lab-style): add/attach/read IMU, LiDAR, Camera, Contact
+            on ANY body (rover, drone, or arm link) with live readings. */}
+        <SensorsPanel simState={simState} onShowToast={(m) => { /* toast handled by parent elsewhere */ }} />
 
         {/* Simulated LiDAR Configuration & Live Data */}
         <div className="rf-prop-group">

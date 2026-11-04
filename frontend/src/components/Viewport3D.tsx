@@ -5,9 +5,9 @@ import { Project, SimulationState, SceneObject, JointModel } from '../types';
 import {
   Camera, Compass, Crosshair, ArrowUp, ArrowDown, ArrowLeft, ArrowRight,
   Move, RotateCw, Maximize2, X, Eye, EyeOff, Radio, Magnet, Video, Zap,
-  GitFork, Layers, Route, FileUp, Trash2, Cpu, Sparkles
+  GitFork, Layers, Route, FileUp, Trash2, Cpu, Sparkles, Square
 } from 'lucide-react';
-import { importURDF, importMJCF, trainDroneLive, trainArmLive, trainRoverLive } from '../services/api';
+import { importURDF, importMJCF, trainDroneLive, trainArmLive, trainRoverLive, stopAllRl } from '../services/api';
 import { MotorControlHUD } from './MotorControlHUD';
 
 interface Viewport3DProps {
@@ -23,6 +23,12 @@ interface Viewport3DProps {
   onUpdateTarget?: (target: [number, number, number]) => void;
   autoDriveEnabled?: boolean;
   onToggleAutoDrive?: () => void;
+  /** Mission planner: when set, clicking the ground calls onGroundClick with world (x,y). */
+  placementMode?: string | null;
+  onGroundClick?: (x: number, y: number) => void;
+  /** Mission planner waypoints to draw as numbered markers + a path line. */
+  missionWaypoints?: Array<[number, number]>;
+  missionLoop?: boolean;
 }
 
 export const Viewport3D: React.FC<Viewport3DProps> = ({
@@ -38,6 +44,10 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
   onUpdateTarget,
   autoDriveEnabled = false,
   onToggleAutoDrive,
+  placementMode = null,
+  onGroundClick,
+  missionWaypoints,
+  missionLoop = true,
 }) => {
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const [sceneInstance, setSceneInstance] = useState<THREE.Scene | null>(null);
@@ -57,6 +67,19 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
   const [surfaceSnap, setSurfaceSnap] = useState<boolean>(true); // Ground and stacking surface snapping
   const [attachmentSnap, setAttachmentSnap] = useState<boolean>(true); // Robot mount & EE flange snapping
   const [snapNotification, setSnapNotification] = useState<string | null>(null);
+  const [stoppingRl, setStoppingRl] = useState<boolean>(false);
+
+  const handleStopRl = async () => {
+    setStoppingRl(true);
+    try {
+      await stopAllRl();
+    } catch (e) {
+      console.error('Failed to stop RL training/policy', e);
+    } finally {
+      // Keep the busy state briefly so the next state poll reflects rl_training_active=false.
+      setTimeout(() => setStoppingRl(false), 800);
+    }
+  };
 
   // Onboard Camera HUD Picture-in-Picture
   const [showCameraHUD, setShowCameraHUD] = useState<boolean>(true);
@@ -99,6 +122,61 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     attachmentSnapRef.current = attachmentSnap;
     simStateRef.current = simState;
   }, [selectedObjectId, onUpdateObject, onUpdateTarget, project, surfaceSnap, attachmentSnap, simState]);
+
+  // Reactively sync obstacle meshes whenever the scene objects change (add / delete / clear /
+  // move / recolor). The main scene-build effect runs once (empty deps), so without this a live
+  // "clear scene", spawn, or delete wouldn't update the viewport even though project state changed.
+  useEffect(() => {
+    const grp = obstaclesGroupRef.current;
+    if (!grp) return;
+    const objs = project?.objects || [];
+    const liveIds = new Set(objs.map((o) => o.id));
+
+    // Remove meshes for objects no longer present (handles delete + clear-scene).
+    objectMeshesRef.current.forEach((mesh, id) => {
+      if (!liveIds.has(id)) {
+        grp.remove(mesh);
+        mesh.traverse((child: any) => {
+          child.geometry?.dispose?.();
+          if (child.material) {
+            if (Array.isArray(child.material)) child.material.forEach((m: any) => m.dispose());
+            else child.material.dispose();
+          }
+        });
+        objectMeshesRef.current.delete(id);
+      }
+    });
+
+    // Add primitive obstacle meshes for new objects; update pose/color for existing ones.
+    // (Drones / secondary robots are built by the main scene effect; skip them here.)
+    objs.forEach((obj) => {
+      const isDrone = obj.name.toLowerCase().includes('drone') || obj.id.startsWith('drone');
+      const isSecBot = (obj.name.toLowerCase().includes('robot') || obj.id.startsWith('robot') || obj.name.toLowerCase().includes('forgebot')) && !isDrone;
+      let mesh = objectMeshesRef.current.get(obj.id);
+      if (!mesh) {
+        if (isDrone || isSecBot) return; // handled on full scene build
+        let geo: THREE.BufferGeometry;
+        if (obj.type === 'sphere') geo = new THREE.SphereGeometry(obj.size[0] || 0.2, 24, 24);
+        else if (obj.type === 'cylinder') geo = new THREE.CylinderGeometry(obj.size[0] || 0.2, obj.size[0] || 0.2, (obj.size[1] || 0.3) * 2, 24);
+        else geo = new THREE.BoxGeometry((obj.size[0] || 0.2) * 2, (obj.size[1] || 0.2) * 2, (obj.size[2] || 0.2) * 2);
+        const mat = new THREE.MeshStandardMaterial({ color: new THREE.Color(obj.color || '#8892b0'), roughness: 0.4, metalness: 0.2 });
+        mesh = new THREE.Mesh(geo, mat);
+        mesh.name = `obj_${obj.id}`;
+        (mesh as any).userData = { id: obj.id, isObstacle: true };
+        mesh.castShadow = true; mesh.receiveShadow = true;
+        grp.add(mesh);
+        objectMeshesRef.current.set(obj.id, mesh);
+      }
+      // Update pose/color/visibility (skip while the user is dragging this one).
+      if (!(isDraggingTransformRef.current && selectedObjectIdRef.current === obj.id)) {
+        mesh.position.set(obj.position[0], obj.position[1], obj.position[2]);
+        mesh.rotation.set((obj.rotation[0] * Math.PI) / 180, (obj.rotation[1] * Math.PI) / 180, (obj.rotation[2] * Math.PI) / 180);
+      }
+      const m = (mesh as any).material;
+      if (m && m.color) m.color.set(obj.color || '#8892b0');
+      mesh.visible = obj.visible !== false;
+    });
+  }, [project?.objects]);
 
   // Mesh registries for fast per-frame update
   const robotGroupRef = useRef<THREE.Group | null>(null);
@@ -439,6 +517,11 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
                 Math.max(0.01, (geom.size[1] || 0.15) * 2),
                 20
               );
+              // Three.js cylinders extend along local +Y, but MuJoCo/URDF cylinders (and our arm
+              // segments) extend along local +Z. Bake a +90deg X rotation into the geometry so the
+              // segment points up the kinematic chain (along Z) instead of lying sideways. This is
+              // why the arm previously looked like disconnected, misaligned blobs.
+              gGeo.rotateX(Math.PI / 2);
             }
             const baseColor = new THREE.Color(geom.color || '#5b6b7f');
             const mat = new THREE.MeshStandardMaterial({
@@ -457,15 +540,20 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
             (mesh as any).userData = { id: 'generic_robot', linkName, isRobot: true };
             linkGroup.add(mesh);
 
-            // Dark metallic joint hub at the link origin so segments read as a connected robot
-            // (not floating primitives).
-            const hubR = geom.type === 'cylinder' ? Math.max(0.02, (geom.size[0] || 0.05) * 1.35) : 0.045;
-            const hub = new THREE.Mesh(
-              new THREE.SphereGeometry(hubR, 20, 16),
-              new THREE.MeshStandardMaterial({ color: 0x23272e, metalness: 0.9, roughness: 0.35 })
-            );
-            hub.castShadow = true; hub.receiveShadow = true;
-            linkGroup.add(hub);
+            // Small dark joint hub at the link's pivot (origin), so consecutive segments read as
+            // connected by a joint rather than as floating primitives. Kept small so it doesn't
+            // swamp the segment (the old large hub made the arm look like stacked balls).
+            if (linkName !== rootLinkName) {
+              const hubR = Math.max(0.028, (geom.type === 'cylinder' ? (geom.size[0] || 0.05) : 0.04) * 1.15);
+              const hub = new THREE.Mesh(
+                new THREE.SphereGeometry(hubR, 20, 16),
+                new THREE.MeshStandardMaterial({ color: 0x1f2937, metalness: 0.9, roughness: 0.35 })
+              );
+              hub.castShadow = true; hub.receiveShadow = true;
+              // Hub sits at the link frame origin (the joint pivot), NOT at the geom midpoint.
+              hub.position.set(0, 0, 0);
+              linkGroup.add(hub);
+            }
           }
         }
 
@@ -1461,6 +1549,96 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
   }, [sceneInstance, project, buildSceneObjects]);
 
   // Target Goal Beacon Rendering
+  // Swarm ghost rovers (parallel PPO attempts), colored by outcome.
+  const ghostPoolRef = useRef<THREE.Group | null>(null);
+  useEffect(() => {
+    if (!sceneInstance) return;
+    const ghosts = simState?.rl_ghosts || [];
+    let pool = ghostPoolRef.current;
+    if (!pool) {
+      pool = new THREE.Group();
+      pool.name = 'rl_ghosts';
+      sceneInstance.add(pool);
+      ghostPoolRef.current = pool;
+    }
+    const colors = [0x60a5fa, 0x22c55e, 0xef4444, 0x94a3b8]; // trying, goal, crash, timeout
+    while (pool.children.length < ghosts.length) {
+      const g = new THREE.Group();
+      const body = new THREE.Mesh(
+        new THREE.BoxGeometry(0.42, 0.3, 0.12),
+        new THREE.MeshBasicMaterial({ color: colors[0], transparent: true, opacity: 0.35, depthWrite: false }),
+      );
+      body.position.z = 0.09;
+      const nose = new THREE.Mesh(
+        new THREE.ConeGeometry(0.06, 0.14, 12),
+        new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5, depthWrite: false }),
+      );
+      nose.rotation.z = -Math.PI / 2; // point along +X (robot forward)
+      nose.position.set(0.26, 0, 0.09);
+      g.add(body, nose);
+      pool.add(g);
+    }
+    pool.children.forEach((child, i) => {
+      const g = ghosts[i];
+      child.visible = !!g;
+      if (!g) return;
+      child.position.set(g[0], g[1], 0);
+      child.rotation.set(0, 0, g[2]);
+      const body = (child as THREE.Group).children[0] as THREE.Mesh;
+      const mat = body.material as THREE.MeshBasicMaterial;
+      mat.color.setHex(colors[Math.max(0, Math.min(3, Math.round(g[3])))]);
+      mat.opacity = g[3] === 0 ? 0.35 : 0.55;
+    });
+  }, [sceneInstance, simState?.rl_ghosts]);
+
+  // Mission planner path: numbered waypoint markers + connecting line (closed if looping).
+  useEffect(() => {
+    if (!sceneInstance) return;
+    const old = sceneInstance.getObjectByName('mission_path');
+    if (old) {
+      old.traverse((o: any) => { o.geometry?.dispose?.(); o.material?.dispose?.(); });
+      sceneInstance.remove(old);
+    }
+    if (!missionWaypoints || missionWaypoints.length === 0) return;
+    const group = new THREE.Group();
+    group.name = 'mission_path';
+    missionWaypoints.forEach(([x, y], i) => {
+      const isStart = i === 0;
+      const marker = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.12, 0.12, 0.04, 24),
+        new THREE.MeshBasicMaterial({ color: isStart ? 0x22c55e : 0xf59e0b }),
+      );
+      marker.rotation.x = Math.PI / 2; // cylinder axis -> world Z
+      marker.position.set(x, y, 0.03);
+      group.add(marker);
+      // Number label as a sprite so it's readable from any camera angle.
+      const c = document.createElement('canvas');
+      c.width = 64; c.height = 64;
+      const ctx = c.getContext('2d');
+      if (ctx) {
+        ctx.fillStyle = 'rgba(0,0,0,0.75)';
+        ctx.beginPath(); ctx.arc(32, 32, 28, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 34px sans-serif';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(String(i + 1), 32, 34);
+      }
+      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), depthTest: false }));
+      sprite.scale.set(0.3, 0.3, 0.3);
+      sprite.position.set(x, y, 0.35);
+      group.add(sprite);
+    });
+    if (missionWaypoints.length >= 2) {
+      const pts = missionWaypoints.map(([x, y]) => new THREE.Vector3(x, y, 0.03));
+      if (missionLoop && missionWaypoints.length >= 3) pts.push(pts[0].clone());
+      const line = new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints(pts),
+        new THREE.LineBasicMaterial({ color: 0xf59e0b }),
+      );
+      group.add(line);
+    }
+    sceneInstance.add(group);
+  }, [sceneInstance, missionWaypoints, missionLoop]);
+
   useEffect(() => {
     if (!sceneInstance) return;
     let beaconGroup = sceneInstance.getObjectByName('target_beacon') as THREE.Group;
@@ -1502,14 +1680,31 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
         pillarMesh.rotation.x = Math.PI / 2;
         beaconGroup.add(pillarMesh);
 
+        // Floating 3D goal sphere — the authoritative point the policy chases. For an arm/drone
+        // the goal is a point in the air, so this sphere (not the floor ring) is the true target.
+        const goalGeo = new THREE.SphereGeometry(0.06, 20, 16);
+        const goalMat = new THREE.MeshBasicMaterial({ color: 0x34d399, transparent: true, opacity: 0.9 });
+        const goalSphere = new THREE.Mesh(goalGeo, goalMat);
+        goalSphere.name = 'target_goal_sphere';
+        beaconGroup.add(goalSphere);
+
         sceneInstance.add(beaconGroup);
       }
+      // Position the group at the target XY. The floor ring/pillar sit on the ground; the goal
+      // sphere floats at the true target Z so an arm/drone goal reads correctly in 3D.
+      const tz = typeof targetPosition[2] === 'number' ? targetPosition[2] : 0.25;
       beaconGroup.position.set(targetPosition[0], targetPosition[1], 0);
+      const goalSphere = beaconGroup.getObjectByName('target_goal_sphere');
+      if (goalSphere) goalSphere.position.set(0, 0, Math.max(0.02, tz));
+      // For an aerial/arm goal, de-emphasise the floor ring (it's a 3D point, not a ground spot).
+      const kind = (simStateRef.current as any)?.rl_policy_kind;
+      const ring = beaconGroup.getObjectByName('target_ring') as THREE.Mesh | undefined;
+      if (ring) ring.visible = !(kind === 'arm' || kind === 'generic' || kind === 'drone');
       beaconGroup.visible = true;
     } else if (beaconGroup) {
       beaconGroup.visible = false;
     }
-  }, [sceneInstance, targetPosition]);
+  }, [sceneInstance, targetPosition, simState?.rl_policy_kind]);
 
   // Trajectory Trail
   useEffect(() => {
@@ -1722,6 +1917,17 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     mouseRef.current.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
 
     raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
+
+    // Mission planner placement: project the click onto the ground plane (z=0, Z-up world)
+    // so users place waypoints/obstacles by clicking — no coordinates needed.
+    if (placementMode && onGroundClick) {
+      const groundPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+      const hit = new THREE.Vector3();
+      if (raycasterRef.current.ray.intersectPlane(groundPlane, hit)) {
+        onGroundClick(Math.round(hit.x * 100) / 100, Math.round(hit.y * 100) / 100);
+      }
+      return;
+    }
 
     const interactableObjects: THREE.Object3D[] = [];
     if (robotGroupRef.current) {
@@ -2078,6 +2284,28 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
           >
             <Cpu size={13} color="#c084fc" />
             <span>RL Policy: {simState.active_rl_policy_name || 'Active'}</span>
+            <button
+              onClick={handleStopRl}
+              disabled={stoppingRl}
+              title="Disengage active RL policy"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+                marginLeft: 4,
+                padding: '2px 7px',
+                fontSize: 10,
+                fontWeight: 700,
+                color: '#fff',
+                background: stoppingRl ? 'rgba(248,113,113,0.4)' : 'linear-gradient(90deg, #ef4444, #b91c1c)',
+                border: '1px solid rgba(248,113,113,0.7)',
+                borderRadius: 5,
+                cursor: stoppingRl ? 'default' : 'pointer',
+              }}
+            >
+              <Square size={10} fill="#fff" />
+              {stoppingRl ? '…' : 'Stop'}
+            </button>
           </div>
         )}
 
@@ -2422,9 +2650,35 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
               <Cpu size={15} color="#c084fc" />
               <span>Live PPO Training{simState.rl_training_model_name ? ` — ${simState.rl_training_model_name}` : ''}</span>
             </div>
-            <span style={{ fontSize: 12, fontWeight: 700, color: '#c084fc' }}>
-              {Math.round(simState.rl_training_percent ?? 0)}%
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: '#c084fc' }}>
+                {Math.round(simState.rl_training_percent ?? 0)}%
+              </span>
+              <button
+                onClick={handleStopRl}
+                disabled={stoppingRl}
+                title="Stop training / disengage policy"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  padding: '4px 10px',
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: '#fff',
+                  background: stoppingRl
+                    ? 'rgba(248, 113, 113, 0.4)'
+                    : 'linear-gradient(90deg, #ef4444, #b91c1c)',
+                  border: '1px solid rgba(248,113,113,0.7)',
+                  borderRadius: 7,
+                  cursor: stoppingRl ? 'default' : 'pointer',
+                  boxShadow: '0 0 10px rgba(239,68,68,0.5)',
+                }}
+              >
+                <Square size={11} fill="#fff" />
+                {stoppingRl ? 'Stopping…' : 'Stop'}
+              </button>
+            </div>
           </div>
           {/* Progress bar */}
           <div style={{ height: 8, borderRadius: 999, background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
@@ -2443,6 +2697,16 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
             <span>Steps: <b style={{ color: '#e5e7eb' }}>{(simState.rl_training_step ?? 0).toLocaleString()}</b></span>
             <span>Reward: <b style={{ color: (simState.rl_training_reward ?? 0) >= 0 ? '#34d399' : '#f87171' }}>{(simState.rl_training_reward ?? 0).toFixed(1)}</b></span>
           </div>
+          {(simState.rl_swarm_size ?? 0) > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6, fontSize: 11, color: '#cbd5e1' }}>
+              <span>Swarm: <b style={{ color: '#22c55e' }}>{simState.rl_swarm_success ?? 0}</b>/{simState.rl_swarm_size} reached goal</span>
+              <span style={{ display: 'flex', gap: 8, fontSize: 10, color: '#94a3b8' }}>
+                <span><span style={{ color: '#60a5fa' }}>■</span> trying</span>
+                <span><span style={{ color: '#22c55e' }}>■</span> goal</span>
+                <span><span style={{ color: '#ef4444' }}>■</span> crash</span>
+              </span>
+            </div>
+          )}
           {simState.rl_training_status && (
             <div style={{ marginTop: 6, fontSize: 10.5, color: '#8b5cf6', fontFamily: 'monospace', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {simState.rl_training_status}

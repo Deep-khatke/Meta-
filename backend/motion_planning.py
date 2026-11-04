@@ -236,14 +236,22 @@ class ContinuousTrajectoryController:
         v_max: float = 1.2,
         w_max: float = 2.5,
         waypoint_tolerance: float = 0.28,
-        goal_tolerance: float = 0.15
+        goal_tolerance: float = 0.15,
+        loop: bool = False,
+        max_laps: int = 3,
     ):
         self.waypoints = waypoints
         self.v_max = v_max
         self.w_max = w_max
         self.waypoint_tolerance = waypoint_tolerance
         self.goal_tolerance = goal_tolerance
-        
+        # Looping: for closed shapes (circle/square/figure-8) cycle the waypoints continuously
+        # for `max_laps` laps instead of stopping at the last point. One general mechanism drives
+        # any shape; `loop` just controls whether it repeats.
+        self.loop = bool(loop)
+        self.max_laps = max(1, int(max_laps))
+        self.laps_completed: int = 0
+
         self.current_index: int = 0
         self.is_completed: bool = False
         self.is_failed: bool = False
@@ -266,6 +274,28 @@ class ContinuousTrajectoryController:
         dy = cur_wp[1] - ry
         dist_to_wp = math.sqrt(dx * dx + dy * dy)
 
+        if self.loop and n > 1:
+            # Looping shapes never stop on the final waypoint; they wrap around. Completion is
+            # decided by lap count. Advance through (and wrap) waypoints as they're reached.
+            guard = 0
+            while dist_to_wp <= self.waypoint_tolerance and guard < n:
+                guard += 1
+                nxt = self.current_index + 1
+                if nxt >= n:
+                    # Completed a lap; wrap to the start (skip index 0 if it duplicates the last).
+                    self.laps_completed += 1
+                    if self.laps_completed >= self.max_laps:
+                        self.is_completed = True
+                        return 0.0, 0.0
+                    self.current_index = 0
+                else:
+                    self.current_index = nxt
+                cur_wp = self.waypoints[self.current_index]
+                dx = cur_wp[0] - rx
+                dy = cur_wp[1] - ry
+                dist_to_wp = math.sqrt(dx * dx + dy * dy)
+            return self._steer(dx, dy, ryaw, dt, decel=False)
+
         final_wp = self.waypoints[-1]
         dist_to_goal = math.sqrt((final_wp[0] - rx)**2 + (final_wp[1] - ry)**2)
 
@@ -283,6 +313,11 @@ class ContinuousTrajectoryController:
             dist_to_wp = math.sqrt(dx * dx + dy * dy)
 
         # Target heading towards current waypoint
+        return self._steer(dx, dy, ryaw, dt, decel=True, dist_to_goal=dist_to_goal)
+
+    def _steer(self, dx: float, dy: float, ryaw: float, dt: float,
+               decel: bool = True, dist_to_goal: float = 1e9) -> Tuple[float, float]:
+        """Shared heading-PD + forward-speed law. `decel` slows near the final goal (non-loop)."""
         target_yaw = math.atan2(dy, dx)
         e_theta = target_yaw - ryaw
         while e_theta > math.pi:
@@ -298,16 +333,84 @@ class ContinuousTrajectoryController:
         raw_w = self.kp_w * e_theta + self.kd_w * de
         cmd_w = max(-self.w_max, min(self.w_max, raw_w))
 
-        # Forward velocity: smooth alignment scaling + decel near final goal
+        # Forward velocity: smooth alignment scaling + optional decel near final goal
         heading_alignment = max(0.0, math.cos(e_theta))
         if abs(e_theta) > math.radians(70):
             # Heavy turn, pivot in place without racing forward
             cmd_v = 0.05
         else:
             speed_factor = heading_alignment
-            # Gentle slowdown only near final goal
-            if dist_to_goal < 0.6:
+            if decel and dist_to_goal < 0.6:
                 speed_factor *= max(0.25, dist_to_goal / 0.6)
             cmd_v = float(self.v_max * speed_factor)
 
         return cmd_v, cmd_w
+
+
+class DroneWaypointController:
+    """3D waypoint follower for the quadcopter. It does NOT compute thrusts — it advances the
+    drone's PD-autopilot target (`fly_to`) along a list of [x, y, z] waypoints, the exact analog
+    of the rover's ContinuousTrajectoryController (which advances a (v,w) teleop target). The
+    drone's existing position PID in apply_control flies it to each target under real dynamics.
+    """
+    def __init__(
+        self,
+        waypoints: List[List[float]],
+        waypoint_tolerance: float = 0.45,
+        goal_tolerance: float = 0.35,
+        loop: bool = False,
+        max_laps: int = 3,
+    ):
+        # Normalize to [x, y, z]; default altitude 1.2 m if a 2D point was given.
+        self.waypoints = [[float(p[0]), float(p[1]), float(p[2]) if len(p) >= 3 else 1.2] for p in waypoints]
+        self.waypoint_tolerance = waypoint_tolerance
+        self.goal_tolerance = goal_tolerance
+        self.loop = bool(loop)
+        self.max_laps = max(1, int(max_laps))
+        self.laps_completed = 0
+        self.current_index = 0
+        self.is_completed = False
+        self.is_failed = False
+        self.failure_reason = ""
+
+    def current_target(self) -> List[float]:
+        return self.waypoints[self.current_index]
+
+    def update(self, px: float, py: float, pz: float) -> List[float]:
+        """Given the drone's current 3D position, advance the waypoint index if reached and return
+        the [x, y, z] target the autopilot should fly toward now."""
+        if self.is_completed or self.is_failed or not self.waypoints:
+            return self.waypoints[-1] if self.waypoints else [0.0, 0.0, 1.2]
+
+        n = len(self.waypoints)
+        wp = self.waypoints[self.current_index]
+        dist = math.sqrt((wp[0] - px) ** 2 + (wp[1] - py) ** 2 + (wp[2] - pz) ** 2)
+
+        if self.loop and n > 1:
+            guard = 0
+            while dist <= self.waypoint_tolerance and guard < n:
+                guard += 1
+                nxt = self.current_index + 1
+                if nxt >= n:
+                    self.laps_completed += 1
+                    if self.laps_completed >= self.max_laps:
+                        self.is_completed = True
+                        return self.waypoints[-1]
+                    self.current_index = 0
+                else:
+                    self.current_index = nxt
+                wp = self.waypoints[self.current_index]
+                dist = math.sqrt((wp[0] - px) ** 2 + (wp[1] - py) ** 2 + (wp[2] - pz) ** 2)
+            return wp
+
+        # Open path: reached final waypoint?
+        final_wp = self.waypoints[-1]
+        if math.sqrt((final_wp[0] - px) ** 2 + (final_wp[1] - py) ** 2 + (final_wp[2] - pz) ** 2) <= self.goal_tolerance:
+            self.is_completed = True
+            return final_wp
+
+        while dist <= self.waypoint_tolerance and self.current_index < n - 1:
+            self.current_index += 1
+            wp = self.waypoints[self.current_index]
+            dist = math.sqrt((wp[0] - px) ** 2 + (wp[1] - py) ** 2 + (wp[2] - pz) ** 2)
+        return wp

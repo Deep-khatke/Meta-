@@ -25,6 +25,7 @@ interface BottomPanelProps {
   onShowToast?: (msg: string) => void;
   onProjectLoaded?: () => void;
   onSelectTarget?: (pos: [number, number, number] | null) => void;
+  onMissionWaypoints?: (waypoints: Array<[number, number]>, loop: boolean) => void;
   onSetTrail?: (trail: Array<[number, number, number]> | null) => void;
   activeLiveRun?: ExperimentRunResult | null;
   targetPosition?: [number, number, number] | null;
@@ -50,6 +51,7 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
   onShowToast = () => { },
   onProjectLoaded,
   onSelectTarget,
+  onMissionWaypoints,
   onSetTrail,
   activeLiveRun,
   targetPosition,
@@ -454,6 +456,7 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
                 targetPosition={targetPosition}
                 onProjectLoaded={onProjectLoaded}
                 onSelectTarget={onSelectTarget}
+                onMissionWaypoints={onMissionWaypoints}
                 onSwitchView={(v) => {
                   if (v === 'hypotheses') setActiveTab('research');
                   else setActiveTab('experiments');

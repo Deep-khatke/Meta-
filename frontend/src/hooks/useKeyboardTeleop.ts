@@ -74,7 +74,11 @@ export function useKeyboardTeleop(
     };
   }, [onTogglePlay, onReset, onAutoPlay, onFocusRobot]);
 
-  // Periodic teleoperation dispatch loop
+  // Periodic teleoperation dispatch loop. Only transmit when there is ACTUAL input, plus a
+  // single zero-command right after the keys are released to stop motion. Never spam the
+  // backend with zero teleop every tick (that floods /api/simulation/teleop with 502s when the
+  // socket is down and keeps nudging the simulation "on its own").
+  const wasMovingRef = useRef(false);
   useEffect(() => {
     const interval = setInterval(() => {
       const keys = activeKeysRef.current;
@@ -86,12 +90,16 @@ export function useKeyboardTeleop(
       if (keys['a'] || keys['arrowleft']) angular += 1.0; // Left rotation
       if (keys['d'] || keys['arrowright']) angular -= 1.0; // Right rotation
 
-      if (linear !== 0.0 || angular !== 0.0) {
-        onAutoPlay?.();
-      }
+      const moving = linear !== 0.0 || angular !== 0.0;
 
-      if (socket) {
-        socket.sendTeleop(linear, angular);
+      if (moving) {
+        onAutoPlay?.();
+        socket?.sendTeleop(linear, angular);
+        wasMovingRef.current = true;
+      } else if (wasMovingRef.current) {
+        // Keys just released: send ONE stop command, then go quiet.
+        socket?.sendTeleop(0.0, 0.0);
+        wasMovingRef.current = false;
       }
     }, 40);
 

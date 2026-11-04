@@ -99,6 +99,9 @@ def handle_engine_log(log_msg: LogMessage):
 engine = MuJoCoEngine(project_manager.get_current(), log_callback=handle_engine_log)
 agent_interface = AgentSimulationInterface(project_manager, engine, experiment_manager)
 
+from backend.rosbridge_server import RosbridgeServer
+rosbridge = RosbridgeServer(engine, agent_interface)
+
 simulation_task: Optional[asyncio.Task] = None
 
 async def broadcast_json(data: dict):
@@ -146,23 +149,47 @@ async def simulation_loop():
                         w_max = active_live_experiment["config"].robot.max_angular_velocity
 
                         rl_model = active_live_experiment.get("rl_model")
+                        used_policy = False
                         if rl_model is not None:
-                            state = engine.get_state()
-                            obs = RoboForgeGymEnv.compute_observation(
-                                robot_pos=state.robot.position,
-                                robot_quat=state.robot.quaternion,
-                                linear_speed=state.robot.linear_speed,
-                                angular_speed=state.robot.angular_speed,
-                                target_pos=active_live_experiment["config"].task.target_position,
-                                obstacles=active_live_experiment["config"].environment,
-                                max_linear_velocity=v_max,
-                                max_angular_velocity=w_max,
-                            )
-                            action, _ = rl_model.predict(obs, deterministic=True)
-                            act = np.clip(action, -1.0, 1.0)
-                            cmd_v = float(act[0] * v_max)
-                            cmd_w = float(act[1] * w_max)
-                        else:
+                            try:
+                                state = engine.get_state()
+                                obs = RoboForgeGymEnv.compute_observation(
+                                    robot_pos=state.robot.position,
+                                    robot_quat=state.robot.quaternion,
+                                    linear_speed=state.robot.linear_speed,
+                                    angular_speed=state.robot.angular_speed,
+                                    target_pos=active_live_experiment["config"].task.target_position,
+                                    obstacles=active_live_experiment["config"].environment,
+                                    max_linear_velocity=v_max,
+                                    max_angular_velocity=w_max,
+                                )
+                                # Guard: only drive with the policy if its observation space matches
+                                # the 16-D diff-drive navigation obs. A policy trained on a different
+                                # robot kind (arm=22-D, drone=15-D) must NOT be fed here -- that threw
+                                # "Unexpected observation shape" every step and froze the rover.
+                                exp_shape = getattr(getattr(rl_model, "observation_space", None), "shape", None)
+                                if exp_shape is not None and tuple(exp_shape) == (obs.shape[0],):
+                                    action, _ = rl_model.predict(obs, deterministic=True)
+                                    act = np.clip(action, -1.0, 1.0)
+                                    cmd_v = float(act[0] * v_max)
+                                    cmd_w = float(act[1] * w_max)
+                                    used_policy = True
+                                else:
+                                    # Mismatched policy -> drop it from this loop and fall back to the
+                                    # deterministic goal-seeking controller so the rover still drives.
+                                    if not active_live_experiment.get("_obs_warned"):
+                                        engine.log("warning",
+                                                   f"Deployed policy obs {tuple(exp_shape) if exp_shape else '?'} "
+                                                   f"!= navigation obs ({obs.shape[0]},); using goal-seeking controller.")
+                                        active_live_experiment["_obs_warned"] = True
+                                    active_live_experiment["rl_model"] = None
+                            except Exception as _pred_err:
+                                if not active_live_experiment.get("_obs_warned"):
+                                    engine.log("warning", f"Policy inference failed ({_pred_err}); using goal-seeking controller.")
+                                    active_live_experiment["_obs_warned"] = True
+                                active_live_experiment["rl_model"] = None
+
+                        if not used_policy:
                             cmd_v, cmd_w = experiment_manager._compute_goal_seeking_control(
                                 r_pos, r_quat, target, dist, v_max, w_max,
                                 obstacles=active_live_experiment["config"].environment,
@@ -299,6 +326,30 @@ async def simulation_loop():
                             engine.set_teleop(cmd_v, cmd_w)
                     except Exception as e:
                         logger.exception("Error in continuous trajectory step: %s", e)
+                elif agent_interface.active_drone_controller and (time.time() - engine.last_teleop_time > 0.35):
+                    # 3D drone waypoint follower: advance the PD-autopilot target along the path.
+                    try:
+                        dctrl = agent_interface.active_drone_controller
+                        fc = engine._find_drone_controller(agent_interface.active_drone_id or "drone")
+                        if fc is None:
+                            agent_interface.active_drone_controller = None
+                        else:
+                            cp = fc.current_position
+                            tgt = dctrl.update(float(cp[0]), float(cp[1]), float(cp[2]))
+                            fc.fly_to([tgt[0], tgt[1], tgt[2]])
+                            ts_ = agent_interface.trajectory_state
+                            if dctrl.is_completed:
+                                ts_.status = "completed"
+                                ts_.status_message = "Flight path completed."
+                                ts_.progress_pct = 100.0
+                                agent_interface.active_drone_controller = None
+                                fc.hover()
+                                await broadcast_json({"type": "trajectory_completed", "data": ts_.model_dump()})
+                            else:
+                                ts_.current_waypoint_index = dctrl.current_index
+                                ts_.progress_pct = round((dctrl.current_index / max(1, len(dctrl.waypoints))) * 100.0, 1)
+                    except Exception as e:
+                        logger.exception("Error in drone trajectory step: %s", e)
                 elif auto_drive_active and (time.time() - engine.last_teleop_time > 0.35):
                     # Autonomous navigation towards target waypoint
                     try:
@@ -324,8 +375,15 @@ async def simulation_loop():
                 # Compute how many physics steps to advance this loop tick
                 ts = engine.project.settings.timestep
                 mult = engine.project.settings.speed_multiplier
-                # Advance physics unless visual RL training curriculum is controlling drone kinematics
-                if not getattr(engine, "rl_training_active", False):
+                # Advance physics unless a visual RL curriculum is actively driving the engine
+                # itself. During the episodic rover trainer's LEARNING bursts the training thread
+                # is busy computing PPO and is NOT stepping the engine, so we must keep stepping
+                # here to keep the viewport live (otherwise the scene freezes/glitches). Only when
+                # the trainer is actively rolling out an attempt (rl_training_rollout_active) does
+                # it drive the engine, and we yield stepping to it to avoid double-stepping.
+                _train_active = getattr(engine, "rl_training_active", False)
+                _rollout_active = getattr(engine, "rl_training_rollout_active", False)
+                if not _train_active or (_train_active and not _rollout_active):
                     steps_to_take = max(1, min(20, int(round((dt_wall * mult) / ts))))
                     for _ in range(steps_to_take):
                         engine.step()
@@ -354,7 +412,12 @@ async def lifespan(app: FastAPI):
     global simulation_task
     simulation_task = asyncio.create_task(simulation_loop())
     engine.log("info", "RoboForge server initialized and physics engine ready.")
+    # Real ROS interoperability: rosbridge v2 server (Foxglove / roslibpy / roslibjs / ROS 2 graph).
+    await rosbridge.start()
+    if rosbridge.status()["running"]:
+        engine.log("info", f"rosbridge v2 server live at {rosbridge.status()['url']}")
     yield
+    await rosbridge.stop()
     if simulation_task:
         simulation_task.cancel()
         try:
@@ -495,6 +558,12 @@ active_swarm_config: Optional[dict] = None
 @app.get("/api/health")
 def get_health():
     return {"status": "ok", "engine_status": engine.status, "schema_version": project_manager.get_current().schema_version}
+
+
+@app.get("/api/ros2/bridge/status")
+def ros2_bridge_status():
+    """Live status of the rosbridge v2 server (real ROS client interoperability)."""
+    return rosbridge.status()
 
 
 @app.get("/api/project")
@@ -1199,6 +1268,148 @@ async def control_robot_joints(req: JointControlRequest):
     return {"status": "ok", "targets": engine.joint_targets, "running": engine.status == "running"}
 
 
+class JointKeyframe(BaseModel):
+    targets: dict[str, float]
+    duration: float = 1.5
+
+
+class JointKeyframeRequest(BaseModel):
+    keyframes: list[JointKeyframe]
+    loop: bool = False
+
+
+@app.post("/api/robot/joint-keyframes")
+async def play_joint_keyframes(req: JointKeyframeRequest):
+    """Plays an authored sequence of joint poses (keyframes) on the active articulated robot,
+    smoothly interpolating the position actuators from one pose to the next. This is the
+    deterministic way to make an arm perform a specific motion (e.g. wave) without RL."""
+    kfs = [{"targets": kf.targets, "duration": kf.duration} for kf in req.keyframes]
+    res = engine.start_joint_keyframes(kfs, loop=req.loop)
+    if res.get("status") != "ok":
+        raise HTTPException(status_code=400, detail=res.get("message", "Could not start keyframes"))
+    return res
+
+
+@app.post("/api/robot/joint-keyframes/stop")
+async def stop_joint_keyframes():
+    return engine.stop_joint_keyframes()
+
+
+# -------------------- Attachable Sensors (Isaac-Lab-style) --------------------
+
+class SensorCreateRequest(BaseModel):
+    name: Optional[str] = None
+    type: str = "imu"
+    parent_body: str = "robot"
+    mount_pos: Optional[list[float]] = None
+    mount_rpy: Optional[list[float]] = None
+    num_beams: Optional[int] = None
+    fov_deg: Optional[float] = None
+    max_range: Optional[float] = None
+    enabled: Optional[bool] = None
+
+
+class SensorUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    parent_body: Optional[str] = None
+    mount_pos: Optional[list[float]] = None
+    mount_rpy: Optional[list[float]] = None
+    enabled: Optional[bool] = None
+    num_beams: Optional[int] = None
+    fov_deg: Optional[float] = None
+    max_range: Optional[float] = None
+    min_range: Optional[float] = None
+    noise_std: Optional[float] = None
+    width: Optional[int] = None
+    height: Optional[int] = None
+
+
+def _attachable_body_names() -> list[str]:
+    """Bodies a sensor can attach to: the rover, any scene object (drones/boxes), and arm links."""
+    names: list[str] = []
+    if getattr(engine.project, "robot", None) is not None and getattr(engine.project, "robot_active", True):
+        names.append("robot")
+    for o in engine.project.objects:
+        names.append(o.id)
+    gr = getattr(engine.project, "generic_robot", None)
+    if gr is not None:
+        names.extend([l.name for l in gr.links])
+    return names
+
+
+@app.get("/api/sensors")
+def list_sensors():
+    """Returns all attached sensor instances and the bodies they can attach to."""
+    return {
+        "sensors": [s.model_dump() for s in (engine.project.sensors_list or [])],
+        "attachable_bodies": _attachable_body_names(),
+    }
+
+
+@app.post("/api/sensors")
+async def add_sensor(req: SensorCreateRequest):
+    """Attaches a new sensor instance to a named body and rebuilds the live model."""
+    import uuid as _uuid
+    from backend.models import SensorInstance
+    stype = (req.type or "imu").lower().strip()
+    if stype not in ("lidar", "imu", "camera", "contact", "rangefinder"):
+        raise HTTPException(status_code=400, detail=f"Unknown sensor type '{stype}'")
+    defaults = {"lidar": [0.1, 0.0, 0.1], "rangefinder": [0.1, 0.0, 0.1],
+                "imu": [0.0, 0.0, 0.05], "camera": [0.12, 0.0, 0.08], "contact": [0.0, 0.0, 0.0]}
+    sid = f"sensor_{_uuid.uuid4().hex[:6]}"
+    s = SensorInstance(
+        id=sid,
+        name=req.name or f"{stype.capitalize()} {_uuid.uuid4().hex[:3]}",
+        type=stype,  # type: ignore
+        parent_body=req.parent_body or "robot",
+        mount_pos=req.mount_pos or defaults.get(stype, [0.0, 0.0, 0.05]),
+        mount_rpy=req.mount_rpy or [0.0, 0.0, 0.0],
+        enabled=True if req.enabled is None else bool(req.enabled),
+    )
+    if req.num_beams is not None: s.num_beams = int(req.num_beams)
+    if req.fov_deg is not None: s.fov_deg = float(req.fov_deg)
+    if req.max_range is not None: s.max_range = float(req.max_range)
+    engine.project.sensors_list.append(s)
+    project_manager.current_project.sensors_list = engine.project.sensors_list
+    engine.rebuild_model(preserve_state=True)
+    await broadcast_json({"type": "project_updated", "data": engine.project.model_dump()})
+    return {"status": "ok", "sensor": s.model_dump()}
+
+
+@app.post("/api/sensors/{sensor_id}")
+async def update_sensor(sensor_id: str, req: SensorUpdateRequest):
+    """Edits an existing sensor's attachment / mount / parameters."""
+    s = next((x for x in engine.project.sensors_list if x.id == sensor_id), None)
+    if s is None:
+        raise HTTPException(status_code=404, detail=f"Sensor '{sensor_id}' not found")
+    for field in ("name", "parent_body", "mount_pos", "mount_rpy", "enabled",
+                  "num_beams", "fov_deg", "max_range", "min_range", "noise_std", "width", "height"):
+        val = getattr(req, field, None)
+        if val is not None:
+            setattr(s, field, val)
+    project_manager.current_project.sensors_list = engine.project.sensors_list
+    engine.rebuild_model(preserve_state=True)
+    await broadcast_json({"type": "project_updated", "data": engine.project.model_dump()})
+    return {"status": "ok", "sensor": s.model_dump()}
+
+
+@app.delete("/api/sensors/{sensor_id}")
+async def remove_sensor(sensor_id: str):
+    """Detaches/removes a sensor instance."""
+    before = len(engine.project.sensors_list)
+    engine.project.sensors_list = [x for x in engine.project.sensors_list if x.id != sensor_id]
+    project_manager.current_project.sensors_list = engine.project.sensors_list
+    engine.rebuild_model(preserve_state=True)
+    await broadcast_json({"type": "project_updated", "data": engine.project.model_dump()})
+    return {"status": "ok", "removed": before - len(engine.project.sensors_list)}
+
+
+@app.get("/api/sensors/readings")
+def get_sensor_readings():
+    """Returns the current live reading of every attached sensor."""
+    return {"readings": engine.get_state().sensor_readings}
+
+
 @app.get("/api/robot/generic")
 def get_generic_robot():
     return {"robot": engine.project.generic_robot}
@@ -1891,6 +2102,51 @@ def cancel_rl_training(job_id: str):
     return {"status": "cancelled", "job_id": job_id}
 
 
+@app.post("/api/rl/stop-all")
+async def stop_all_rl():
+    """Single 'Stop' action for the viewport HUD. Cancels any queued/running training job
+    (both the background job-manager jobs AND the live episodic 'watch it learn' curriculum),
+    and disengages any deployed RL policy so the robot halts cleanly. Also handles orphaned/
+    stale jobs that show progress with no active robot."""
+    cancelled_jobs = []
+    try:
+        for job in training_manager.list_jobs():
+            if job.status in ("queued", "training"):
+                if training_manager.cancel_training(job.job_id):
+                    cancelled_jobs.append(job.job_id)
+    except Exception as e:
+        logger.warning("stop-all: job cancel sweep failed: %s", e)
+
+    # Stop the live episodic curriculum (it polls engine.rl_training_active each step).
+    training_was_live = bool(getattr(engine, "rl_training_active", False))
+    try:
+        engine.rl_training_active = False
+        engine.rl_training_rollout_active = True
+        engine.rl_training_status = "Training stopped by user."
+        engine.rl_training_percent = 0.0
+    except Exception as e:
+        logger.warning("stop-all: clearing live training flags failed: %s", e)
+
+    # Disengage any deployed (non-training) policy / autonomous drive.
+    policy_was_active = bool(getattr(engine, "active_rl_policy_model", None) is not None)
+    try:
+        engine.disengage_rl_policy()
+    except Exception as e:
+        logger.warning("stop-all: disengage policy failed: %s", e)
+
+    try:
+        await broadcast_json({"type": "project_updated", "data": engine.project.model_dump()})
+    except Exception:
+        pass
+
+    return {
+        "status": "stopped",
+        "cancelled_jobs": cancelled_jobs,
+        "training_was_live": training_was_live,
+        "policy_was_active": policy_was_active,
+    }
+
+
 class LiveDroneTrainingRequest(BaseModel):
     drone_identifier: str = "drone"
     target_altitude: float = 1.5
@@ -1905,6 +2161,9 @@ class LiveArmTrainingRequest(BaseModel):
 class LiveRoverTrainingRequest(BaseModel):
     robot_identifier: str = "robot"
     total_episodes: int = 4
+    task_description: str = ""
+    reward_code: Optional[str] = None
+    domain_randomize: bool = False
 
 
 @app.post("/api/rl/train-drone-live")
@@ -1938,7 +2197,10 @@ async def train_rover_live_endpoint(req: LiveRoverTrainingRequest = LiveRoverTra
     res = training_manager.start_live_interactive_rover_training(
         engine=engine,
         robot_identifier=req.robot_identifier,
-        total_episodes=req.total_episodes
+        total_episodes=req.total_episodes,
+        task_description=req.task_description,
+        reward_code=req.reward_code,
+        domain_randomize=req.domain_randomize,
     )
     await broadcast_json({"type": "project_updated", "data": engine.project.model_dump()})
     return res
@@ -1948,6 +2210,45 @@ async def train_rover_live_endpoint(req: LiveRoverTrainingRequest = LiveRoverTra
 @app.get("/api/rl/models")
 def list_rl_models():
     return {"models": training_manager.list_models()}
+
+
+@app.get("/api/rl/models/{model_id}/export")
+def export_rl_policy_package(model_id: str):
+    """Download a portable package (ONNX policy + ROS 2 node + README) for a trained policy,
+    ready to run on a real robot."""
+    from fastapi.responses import Response
+    from backend.policy_export import build_policy_package
+    model = training_manager.load_model(model_id)
+    if model is None:
+        raise HTTPException(status_code=404, detail="Policy not found or could not be loaded.")
+    meta = training_manager.get_model_metadata(model_id) or type("M", (), {"model_dump": lambda self: {"model_id": model_id}})()
+    try:
+        data = build_policy_package(model, meta, engine.project)
+    except Exception as e:
+        logger.exception("Policy export failed: %s", e)
+        raise HTTPException(status_code=500, detail=f"Export failed: {e}")
+    return Response(
+        content=data,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{model_id}_policy_package.zip"'},
+    )
+
+
+class RobustnessRequest(BaseModel):
+    episodes: int = Field(default=20, ge=4, le=100)
+    compare_baseline: bool = True
+
+
+@app.post("/api/rl/models/{model_id}/robustness")
+def rl_policy_robustness(model_id: str, req: RobustnessRequest = RobustnessRequest()):
+    """Robustness scorecard: evaluate the policy across domain-randomized worlds (friction, mass,
+    gravity, sensor noise) and report reliability vs a clean-physics baseline."""
+    from backend.robustness_eval import evaluate_robustness
+    res = evaluate_robustness(model_id, engine.project, episodes=req.episodes,
+                              compare_baseline=req.compare_baseline)
+    if res.get("status") != "success":
+        raise HTTPException(status_code=404, detail=res.get("detail", "Evaluation failed"))
+    return res
 
 
 @app.get("/api/rl/models/{model_id}")
@@ -2047,7 +2348,21 @@ async def execute_rl_policy_live(req: ExecuteRLPolicyRequest):
         else:
             # Arm / generic: policy drives the existing articulated robot in the scene.
             engine.rebuild_model(preserve_state=False)
+            # Seed the authoritative target BEFORE binding the driver env so the deployed arm
+            # chases the trained goal (or an explicit request target), not a random point.
+            if req.target_position and len(req.target_position) >= 3:
+                engine.active_rl_policy_target_pos = list(req.target_position)
+            elif meta is not None and getattr(meta, "target_position", None):
+                engine.active_rl_policy_target_pos = list(meta.target_position)
             res = engine.set_active_rl_policy(req.model_id)
+            # If the request specified a target, re-apply it (set_active_rl_policy may have
+            # resampled from metadata) and push it into the live driver env.
+            if req.target_position and len(req.target_position) >= 3:
+                engine.active_rl_policy_target_pos = list(req.target_position)
+                drv = getattr(engine, "active_rl_policy_env", None)
+                if drv is not None and hasattr(drv, "target_position"):
+                    import numpy as _np
+                    drv.target_position = _np.array(req.target_position[:3], dtype=_np.float32)
 
         engine.last_teleop_time = 0.0  # allow apply_control's policy branch to run immediately
         engine.play()
@@ -2186,7 +2501,7 @@ async def ai_conversational_chat(req: AIChatRequest):
         # Record user turn
         chat_memory.append_message(session_id=session_id, role="user", content=req.prompt)
 
-        service = get_ai_reasoning_service(project_manager, engine=engine)
+        service = get_ai_reasoning_service(project_manager, engine=engine, agent_interface=agent_interface)
         res = service.chat(req)
 
         # If any actions altered the scene or physics, broadcast updated project state
@@ -2207,7 +2522,26 @@ async def ai_conversational_chat(req: AIChatRequest):
         return res
     except Exception as e:
         logger.exception("AI chat reasoning error: %s", e)
-        raise HTTPException(status_code=500, detail=str(e))
+        # Never surface a raw 500 to the chat UI. Degrade to a graceful assistant message so the
+        # conversation keeps working even if one reasoning path hit an unexpected error.
+        try:
+            fallback = AIChatResponse(
+                reply=(
+                    "I hit an internal error while processing that request, so I couldn't complete it. "
+                    "Please try rephrasing, or ask me to do something specific in the scene "
+                    "(e.g. 'spawn a box', 'train a PPO policy on this robot', 'reset the simulation')."
+                ),
+                provider="RoboForge",
+                is_model_inference=False,
+                is_fallback=True,
+                mode=getattr(req, "mode", "autonomous"),
+                thought_steps=[],
+                tools_invoked=[],
+                actions_executed=[],
+            )
+            return fallback
+        except Exception:
+            raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/api/ai/chat/history")
@@ -2520,7 +2854,184 @@ def agent_trajectory_status():
 @app.post("/api/agent/trajectory/cancel")
 def agent_cancel_trajectory():
     success = agent_interface.cancel_motion_trajectory()
+    try:
+        agent_interface.cancel_drone_trajectory()
+    except Exception:
+        pass
     return {"status": "cancelled", "success": success}
+
+
+class DrivePathRequest(BaseModel):
+    shape: str = ""
+    size: float = Field(default=1.6, ge=0.4, le=4.0)
+    waypoints: Optional[List[List[float]]] = None
+    center: Optional[List[float]] = None
+    laps: int = Field(default=3, ge=1, le=20)
+    loop: Optional[bool] = None
+    altitude: float = Field(default=1.2, ge=0.3, le=5.0)
+
+
+@app.post("/api/agent/drone-path", response_model=TrajectoryExecutionState)
+async def agent_drone_path(req: DrivePathRequest):
+    """Fly the drone along a shape/path or explicit 3D waypoints. Geometry flight-following, no RL."""
+    from backend.path_shapes import generate_path
+    center = req.center
+    if center is None:
+        fc = engine._find_drone_controller("drone")
+        center = [fc.current_position[0], fc.current_position[1]] if fc else [0.0, 0.0]
+    try:
+        bound = float(project_manager.get_current().settings.world_boundaries[0])
+    except Exception:
+        bound = 6.0
+    plan = generate_path(description=req.shape, center=center, size=req.size,
+                         points=req.waypoints, arena_bound=abs(bound) if bound else 6.0, closed=req.loop)
+    wps3d = [[p[0], p[1], req.altitude] for p in plan["waypoints"]]
+    state = agent_interface.execute_drone_waypoint_path(
+        waypoints=wps3d, loop=plan["loop"], max_laps=req.laps, shape=plan["shape"])
+    await broadcast_json({"type": "project_updated", "data": engine.project.model_dump()})
+    return state
+
+
+@app.post("/api/agent/drive-path", response_model=TrajectoryExecutionState)
+async def agent_drive_path(req: DrivePathRequest):
+    """Drive the rover along ANY shape/path (square, triangle, N-gon, circle, figure-8, star,
+    zig-zag, spiral, wave, line) or an explicit waypoint list — geometry path-following, no RL."""
+    from backend.path_shapes import generate_path
+    center = req.center
+    if center is None:
+        try:
+            st = engine.get_state()
+            center = [st.robot.position[0], st.robot.position[1]]
+        except Exception:
+            center = [0.0, 0.0]
+    try:
+        bound = float(project_manager.get_current().settings.world_boundaries[0])
+    except Exception:
+        bound = 6.0
+    plan = generate_path(description=req.shape, center=center, size=req.size,
+                         points=req.waypoints, arena_bound=abs(bound) if bound else 6.0, closed=req.loop)
+    state = agent_interface.execute_waypoint_path(
+        waypoints=plan["waypoints"], loop=plan["loop"], max_laps=req.laps, shape=plan["shape"]
+    )
+    await broadcast_json({"type": "project_updated", "data": engine.project.model_dump()})
+    return state
+
+
+# ==========================================
+# Mission Planner: user-drawn waypoint paths
+# ==========================================
+from pathlib import Path as _Path
+MISSIONS_DIR = _Path("missions")
+MISSIONS_DIR.mkdir(exist_ok=True)
+
+
+class MissionRequest(BaseModel):
+    name: str = "mission"
+    waypoints: List[List[float]] = Field(default_factory=list)
+    speed: float = Field(default=1.0, ge=0.1, le=3.0)
+    loop: bool = True
+    laps: int = Field(default=3, ge=1, le=50)
+    domain_randomize: bool = False
+    altitude: float = Field(default=1.2, ge=0.3, le=5.0)
+    vehicle: str = "auto"  # "auto" | "rover" | "drone"
+
+
+def _mission_is_drone(req: MissionRequest) -> bool:
+    """Decide whether the mission should fly a drone: explicit vehicle, else auto-detect a drone
+    in the scene when there's no active ground rover."""
+    if req.vehicle == "drone":
+        return True
+    if req.vehicle == "rover":
+        return False
+    has_drone = len(getattr(engine, "drone_controllers", {})) > 0
+    has_rover = getattr(engine.project, "robot", None) is not None and getattr(engine.project, "robot_active", True)
+    return has_drone and not has_rover
+
+
+def _apply_mission_speed(speed: float):
+    rob = getattr(engine.project, "robot", None)
+    if rob is not None:
+        rob.max_linear_velocity = float(speed)
+
+
+@app.post("/api/mission/run")
+async def mission_run(req: MissionRequest):
+    """Drive/fly the user's clicked waypoint path right away (no training)."""
+    if len(req.waypoints) < 2:
+        raise HTTPException(status_code=400, detail="Add at least 2 waypoints.")
+    if _mission_is_drone(req):
+        # Give each 2D waypoint the chosen flight altitude and fly the drone through them.
+        wps3d = [[float(p[0]), float(p[1]), req.altitude] for p in req.waypoints]
+        state = agent_interface.execute_drone_waypoint_path(
+            waypoints=wps3d, loop=req.loop and len(wps3d) >= 3, max_laps=req.laps, shape="flight path")
+        await broadcast_json({"type": "project_updated", "data": engine.project.model_dump()})
+        return state
+    try:
+        engine.disengage_rl_policy()
+    except Exception:
+        pass
+    _apply_mission_speed(req.speed)
+    state = agent_interface.execute_waypoint_path(
+        waypoints=req.waypoints, loop=req.loop and len(req.waypoints) >= 3,
+        max_laps=req.laps, shape="custom path")
+    return state
+
+
+@app.post("/api/mission/train")
+async def mission_train(req: MissionRequest):
+    """Live PPO training, then the rover follows the user's exact waypoint path."""
+    if len(req.waypoints) < 2:
+        raise HTTPException(status_code=400, detail="Add at least 2 waypoints.")
+    try:
+        agent_interface.cancel_motion_trajectory()
+        engine.disengage_rl_policy()
+    except Exception:
+        pass
+    _apply_mission_speed(req.speed)
+    res = training_manager.start_live_interactive_rover_training(
+        engine=engine, robot_identifier="robot", total_episodes=4,
+        task_description="follow the custom path", waypoints=req.waypoints, loop=req.loop,
+        domain_randomize=req.domain_randomize)
+    await broadcast_json({"type": "project_updated", "data": engine.project.model_dump()})
+    return res
+
+
+@app.post("/api/mission/save")
+async def mission_save(req: MissionRequest):
+    """Save the mission (waypoints, speed, loop) together with the current scene obstacles."""
+    safe = "".join(ch for ch in req.name if ch.isalnum() or ch in "-_ ").strip() or "mission"
+    data = req.model_dump()
+    data["name"] = safe
+    data["objects"] = [o.model_dump() for o in engine.project.objects]
+    (MISSIONS_DIR / f"{safe}.json").write_text(json.dumps(data, indent=2), encoding="utf-8")
+    try:
+        project_manager.update_project(engine.project)
+        project_manager.save_project_to_disk()
+    except Exception:
+        pass
+    return {"status": "saved", "name": safe}
+
+
+@app.get("/api/mission/list")
+def mission_list():
+    return {"missions": sorted(p.stem for p in MISSIONS_DIR.glob("*.json"))}
+
+
+@app.get("/api/mission/load/{name}")
+async def mission_load(name: str):
+    """Load a saved mission: restores its obstacles into the scene and returns the waypoints."""
+    f = MISSIONS_DIR / f"{name}.json"
+    if not f.exists():
+        raise HTTPException(status_code=404, detail="Mission not found")
+    data = json.loads(f.read_text(encoding="utf-8"))
+    try:
+        engine.project.objects = [SceneObject(**o) for o in data.get("objects", [])]
+        engine.rebuild_model(preserve_state=False)
+        project_manager.update_project(engine.project)
+    except Exception as e:
+        logger.warning("Mission obstacle restore failed: %s", e)
+    await broadcast_json({"type": "project_updated", "data": engine.project.model_dump()})
+    return data
 
 @app.post("/api/agent/experiments/validate")
 def agent_validate_experiment(config: ExperimentConfig):

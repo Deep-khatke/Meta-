@@ -116,6 +116,7 @@ class DroneFlightController:
         self.current_altitude: float = 0.0
         self.current_velocity: List[float] = [0.0, 0.0, 0.0]
         self.current_position: List[float] = [0.0, 0.0, 0.0]
+        self._hold_yaw: Optional[float] = None
         # PID flight control parameters
         self.kp_z = 40.0
         self.kd_z = 15.0
@@ -187,6 +188,16 @@ class MuJoCoEngine:
         # Generic joint control targets: joint_name -> commanded position/velocity/torque
         self.joint_targets: Dict[str, float] = {}
         self.joint_actuator_ids: Dict[str, int] = {}
+
+        # Joint keyframe animation: play a user-defined sequence of joint poses in order, smoothly
+        # interpolating position targets between keyframes. Lets the user author motions (e.g. a
+        # wave) without RL. Each keyframe: {"targets": {joint: angle}, "duration": seconds}.
+        self.joint_keyframes: List[Dict[str, Any]] = []
+        self.joint_keyframe_active: bool = False
+        self.joint_keyframe_loop: bool = False
+        self.joint_keyframe_index: int = 0
+        self._kf_elapsed: float = 0.0
+        self._kf_start_pose: Dict[str, float] = {}
         
         # Actuator IDs and joint addresses for diff drive robot
         self.left_motor_id: int = -1
@@ -234,7 +245,25 @@ class MuJoCoEngine:
         self.rl_training_status: Optional[str] = None
         self.rl_training_model_name: Optional[str] = None
         self.rl_training_percent: float = 0.0
-
+        # When a visual RL curriculum is active, this flag says whether the TRAINING THREAD is
+        # currently driving the engine itself (a live rollout). Default True preserves legacy
+        # drone/arm curricula (which fully drive kinematics, so the server loop must yield). The
+        # episodic rover trainer toggles it False during PPO learning bursts so the server loop
+        # keeps stepping and the viewport stays live instead of freezing.
+        self.rl_training_rollout_active: bool = True
+        # Path-following ("carrot") for the deployed policy: an optional waypoint list the target
+        # walks along so the trained navigate policy traces ANY shape.
+        self.active_rl_policy_path: Optional[list] = None
+        self.active_rl_policy_path_idx: int = 0
+        self.active_rl_policy_path_closed: bool = True
+        # Episodic "watch it learn" telemetry
+        self.rl_training_last_outcome: Optional[str] = None
+        self.rl_training_success_streak: int = 0
+        self.rl_training_best_reward: float = 0.0
+        self.rl_training_attempts: int = 0
+        self.rl_ghosts: list = []
+        self.rl_swarm_success: int = 0
+        self.rl_swarm_size: int = 0
         # Snapshots
         self.snapshots: Dict[str, SimulationSnapshot] = {}
 
@@ -674,6 +703,10 @@ class MuJoCoEngine:
         return "".join(body), "".join(acts)
 
     def rebuild_model(self, preserve_state: bool = False):
+        with self._physics_lock:
+            return self._rebuild_model_impl(preserve_state)
+
+    def _rebuild_model_impl(self, preserve_state: bool = False):
         """Compiles the MuJoCo model and initializes MjData."""
         prev_data = None
         prev_model = None
@@ -756,6 +789,13 @@ class MuJoCoEngine:
             # Map object bodies and initialize controllers
             self.object_body_ids = {}
             self.drone_rotors: Dict[str, list] = {}
+            # Prune controllers for drones/robots that are no longer in the project (e.g. after a
+            # new project or clear), so stale entities don't linger in status or get driven.
+            _obj_ids = {o.id for o in self.project.objects}
+            for _sid in [k for k in self.drone_controllers if k not in _obj_ids]:
+                self.drone_controllers.pop(_sid, None)
+            for _sid in [k for k in self.secondary_robot_controllers if k not in _obj_ids]:
+                self.secondary_robot_controllers.pop(_sid, None)
             _spin_dir = [1, -1, -1, 1]
             for obj in self.project.objects:
                 bid = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, f"obj_{obj.id}")
@@ -863,6 +903,94 @@ class MuJoCoEngine:
 
     def set_joint_targets(self, targets: Dict[str, float]):
         self.joint_targets.update(targets)
+
+    def _current_joint_pose(self) -> Dict[str, float]:
+        """Reads the current angle of every actuated generic-robot joint from MuJoCo."""
+        pose: Dict[str, float] = {}
+        gr = getattr(self.project, "generic_robot", None)
+        if not gr or not self.model or not self.data:
+            return pose
+        for j in gr.joints:
+            if (j.actuator_mode or "position") is None:
+                continue
+            jid = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, j.name)
+            if jid >= 0:
+                qadr = self.model.jnt_qposadr[jid]
+                pose[j.name] = float(self.data.qpos[qadr])
+        return pose
+
+    def start_joint_keyframes(self, keyframes: List[Dict[str, Any]], loop: bool = False) -> Dict[str, Any]:
+        """Begins playing a sequence of joint keyframes. Each keyframe is
+        {"targets": {joint_name: angle_rad}, "duration": seconds}. Targets are reached by smoothly
+        interpolating the position actuators from the current pose to each keyframe in order.
+        """
+        gr = getattr(self.project, "generic_robot", None)
+        if not gr or not gr.joints:
+            return {"status": "error", "message": "No articulated robot in the scene to animate."}
+        valid_names = {j.name for j in gr.joints}
+        cleaned: List[Dict[str, Any]] = []
+        for kf in keyframes or []:
+            raw_t = kf.get("targets", {}) if isinstance(kf, dict) else {}
+            tgt = {str(k): float(v) for k, v in raw_t.items() if k in valid_names}
+            if not tgt:
+                continue
+            dur = float(kf.get("duration", 1.5)) if isinstance(kf, dict) else 1.5
+            cleaned.append({"targets": tgt, "duration": max(0.1, dur)})
+        if not cleaned:
+            return {"status": "error", "message": "No valid keyframes (unknown joint names?)."}
+
+        self.joint_keyframes = cleaned
+        self.joint_keyframe_loop = bool(loop)
+        self.joint_keyframe_index = 0
+        self._kf_elapsed = 0.0
+        self._kf_start_pose = self._current_joint_pose()
+        self.joint_keyframe_active = True
+        if self.status != "running":
+            self.play()
+        self.log("info", f"Playing {len(cleaned)} joint keyframe(s){' (looping)' if loop else ''}.")
+        return {"status": "ok", "keyframes": len(cleaned), "loop": self.joint_keyframe_loop}
+
+    def stop_joint_keyframes(self) -> Dict[str, Any]:
+        self.joint_keyframe_active = False
+        self.joint_keyframes = []
+        self.joint_keyframe_index = 0
+        self._kf_elapsed = 0.0
+        return {"status": "ok"}
+
+    def _advance_joint_keyframes(self, dt: float):
+        """Called each control step: interpolate joint position targets toward the active keyframe,
+        advancing to the next one when its duration elapses."""
+        if not self.joint_keyframe_active or not self.joint_keyframes:
+            return
+        if self.joint_keyframe_index >= len(self.joint_keyframes):
+            if self.joint_keyframe_loop:
+                self.joint_keyframe_index = 0
+                self._kf_elapsed = 0.0
+                self._kf_start_pose = self._current_joint_pose()
+            else:
+                self.joint_keyframe_active = False
+                return
+
+        kf = self.joint_keyframes[self.joint_keyframe_index]
+        dur = float(kf.get("duration", 1.5))
+        self._kf_elapsed += max(0.0, dt)
+        u = min(1.0, self._kf_elapsed / dur) if dur > 0 else 1.0
+        # Smoothstep easing for natural accel/decel.
+        s = u * u * (3.0 - 2.0 * u)
+
+        for jname, goal in kf["targets"].items():
+            start = self._kf_start_pose.get(jname, goal)
+            self.joint_targets[jname] = float(start + (goal - start) * s)
+
+        if u >= 1.0:
+            # Snap to goal, then advance to the next keyframe.
+            for jname, goal in kf["targets"].items():
+                self.joint_targets[jname] = float(goal)
+            self.joint_keyframe_index += 1
+            self._kf_elapsed = 0.0
+            self._kf_start_pose = self._current_joint_pose()
+            for jn, gv in kf["targets"].items():
+                self._kf_start_pose[jn] = float(gv)
 
     def rotor_hover_thrust(self, drone_id: str) -> float:
         """Per-rotor thrust (N) needed for one of the 4 rotors to hold the drone's weight at hover.
@@ -1005,19 +1133,54 @@ class MuJoCoEngine:
                 lin_speed = float(np.linalg.norm(self.data.qvel[vadr:vadr + 2]))
                 ang_speed = float(self.data.qvel[vadr + 5]) if vadr + 5 < len(self.data.qvel) else 0.0
 
-                # Authoritative target: use the goal bound at deploy time (matches training), then
-                # fall back to a named target/goal object, then a sane default.
-                target = getattr(self, "active_rl_policy_target_pos", None)
-                if not target:
-                    tgt_objs = [o for o in self.project.objects
-                                if "target" in o.name.lower() or "target" in o.id.lower() or "goal" in o.name.lower()]
-                    target = tgt_objs[0].position if tgt_objs else [2.5, 0.5, 0.25]
+                # PATH-FOLLOWING: if a shape/path is attached, trace it with a direct pure-pursuit
+                # controller (the same proven geometric law as ContinuousTrajectoryController),
+                # NOT the RL policy. The policy overshoots multi-segment paths; geometric tracking
+                # follows ANY shape faithfully (square, triangle, N-gon, figure-8, star, custom).
+                _path = getattr(self, "active_rl_policy_path", None)
+                _path_handled = False
+                if _path:
+                    idx = int(getattr(self, "active_rl_policy_path_idx", 0) or 0)
+                    closed = bool(getattr(self, "active_rl_policy_path_closed", True))
+                    n = len(_path)
+                    rx, ry = float(r_pos[0]), float(r_pos[1])
+                    cx, cy = float(_path[idx][0]), float(_path[idx][1])
+                    # Advance through any waypoints already within capture radius (handles overshoot).
+                    guard = 0
+                    while math.hypot(cx - rx, cy - ry) < 0.3 and guard < n:
+                        guard += 1
+                        idx = (idx + 1) if (idx + 1 < n) else (0 if closed else n - 1)
+                        self.active_rl_policy_path_idx = idx
+                        cx, cy = float(_path[idx][0]), float(_path[idx][1])
+                        if not closed and idx == n - 1:
+                            break
+                    r_yaw = math.atan2(2.0 * (r_quat[0] * r_quat[3] + r_quat[1] * r_quat[2]),
+                                       1.0 - 2.0 * (r_quat[2] ** 2 + r_quat[3] ** 2))
+                    e_theta = math.atan2(cy - ry, cx - rx) - r_yaw
+                    while e_theta > math.pi:
+                        e_theta -= 2.0 * math.pi
+                    while e_theta < -math.pi:
+                        e_theta += 2.0 * math.pi
+                    w_max = self.project.robot.max_angular_velocity
+                    v_max = self.project.robot.max_linear_velocity
+                    omega = max(-w_max, min(w_max, 3.2 * e_theta))
+                    # Slow down for sharp heading error so corners are crisp.
+                    if abs(e_theta) > math.radians(65):
+                        v = 0.06
+                    else:
+                        v = v_max * max(0.0, math.cos(e_theta))
+                    _path_handled = True
 
-                dist_to_goal = math.hypot(target[0] - r_pos[0], target[1] - r_pos[1])
-                if dist_to_goal < 0.25:
-                    v = 0.0
-                    omega = 0.0
+                if _path_handled:
+                    pass  # v, omega already set by pure-pursuit; skip RL inference below
                 else:
+                    # Authoritative target: use the goal bound at deploy time (matches training),
+                    # then fall back to a named target/goal object, then a sane default.
+                    target = getattr(self, "active_rl_policy_target_pos", None)
+                    if not target:
+                        tgt_objs = [o for o in self.project.objects
+                                    if "target" in o.name.lower() or "target" in o.id.lower() or "goal" in o.name.lower()]
+                        target = tgt_objs[0].position if tgt_objs else [2.5, 0.5, 0.25]
                     obs = RoboForgeGymEnv.compute_observation(
                         robot_pos=[float(r_pos[0]), float(r_pos[1]), 0.07],
                         robot_quat=r_quat,
@@ -1028,56 +1191,67 @@ class MuJoCoEngine:
                         max_linear_velocity=self.project.robot.max_linear_velocity,
                         max_angular_velocity=self.project.robot.max_angular_velocity
                     )
-                    action, _ = self.active_rl_policy_model.predict(obs, deterministic=True)
-                    raw_v = float(np.clip(action[0], -1.0, 1.0) * self.project.robot.max_linear_velocity)
-                    raw_w = float(np.clip(action[1], -1.0, 1.0) * self.project.robot.max_angular_velocity)
-
-                    v_max = self.project.robot.max_linear_velocity
-                    w_max = self.project.robot.max_angular_velocity
-                    fwd = quat_to_forward(r_quat)
-                    current_yaw = math.atan2(fwd[1], fwd[0])
-                    diff = np.array(target[:2], dtype=float) - r_pos
-                    goal_dist = max(1e-4, float(np.linalg.norm(diff)))
-                    f_att = diff / goal_dist
-                    f_rep = np.zeros(2, dtype=float)
-                    f_tan = np.zeros(2, dtype=float)
-                    closest_clearance = 999.0
-                    for obj in self.project.objects:
-                        o_pos = np.array(obj.position[:2], dtype=float)
-                        delta = r_pos - o_pos
-                        center_dist = float(np.linalg.norm(delta))
-                        obs_radius = math.hypot(obj.size[0], obj.size[1]) if getattr(obj, "type", "") == "box" and len(getattr(obj, "size", [])) >= 2 else (obj.size[0] if getattr(obj, "size", None) else 0.3)
-                        clearance = center_dist - obs_radius - 0.28
-                        if clearance < closest_clearance:
-                            closest_clearance = clearance
-                        if clearance < 0.75:
-                            norm_dir = delta / max(1e-4, center_dist)
-                            inv_d = 1.0 / max(0.04, clearance)
-                            rep_strength = 2.0 * (inv_d - (1.0 / 0.75)) * (inv_d ** 1.3)
-                            f_rep += norm_dir * rep_strength
-                            tan_1 = np.array([-norm_dir[1], norm_dir[0]])
-                            tan_2 = -tan_1
-                            chosen_tan = tan_1 if np.dot(tan_1, f_att) >= np.dot(tan_2, f_att) else tan_2
-                            f_tan += chosen_tan * (rep_strength * 1.5)
-
-                    f_net = f_att + f_rep + f_tan
-                    desired_yaw = math.atan2(f_net[1], f_net[0])
-                    heading_err = (desired_yaw - current_yaw + math.pi) % (2.0 * math.pi) - math.pi
-                    speed_factor = max(0.25, min(1.0, closest_clearance / 0.55)) if closest_clearance < 0.55 else 1.0
-
-                    if closest_clearance < 0.12:
-                        v = -0.15
-                        omega = 2.5 if heading_err >= 0 else -2.5
+                    # Guard against an obs-shape mismatch (a policy trained for a different robot
+                    # kind mistakenly tagged 'rover'). Disengage rather than crash/freeze.
+                    _exp = getattr(getattr(self.active_rl_policy_model, "observation_space", None), "shape", None)
+                    if _exp is not None and tuple(_exp) != (obs.shape[0],):
+                        self.log("warning", f"Rover policy obs {tuple(_exp)} != {(obs.shape[0],)}; disengaging mismatched policy.")
+                        self.disengage_rl_policy()
+                        v = 0.0
+                        omega = 0.0
                     else:
-                        guide_w = max(-w_max, min(w_max, heading_err * 2.5))
-                        align = max(0.1, math.cos(heading_err))
-                        guide_v = min(v_max, max(0.35, dist_to_goal * 0.8)) * speed_factor * align
-                        if abs(heading_err) > 0.7:
-                            guide_v = max(0.1, guide_v * 0.25)
-                        v = float(0.25 * raw_v + 0.75 * guide_v)
-                        omega = float(0.25 * raw_w + 0.75 * guide_w)
-            except Exception as ex:
-                logger.warning("RL Policy inference error in rover control: %s", ex)
+                        # Blend the learned policy with reactive APF obstacle avoidance so a
+                        # deployed policy still dodges obstacles on its way to the goal.
+                        action, _ = self.active_rl_policy_model.predict(obs, deterministic=True)
+                        raw_v = float(np.clip(action[0], -1.0, 1.0) * self.project.robot.max_linear_velocity)
+                        raw_w = float(np.clip(action[1], -1.0, 1.0) * self.project.robot.max_angular_velocity)
+                        dist_to_goal = math.hypot(target[0] - r_pos[0], target[1] - r_pos[1])
+                        v_max = self.project.robot.max_linear_velocity
+                        w_max = self.project.robot.max_angular_velocity
+                        fwd = quat_to_forward(r_quat)
+                        current_yaw = math.atan2(fwd[1], fwd[0])
+                        diff = np.array(target[:2], dtype=float) - r_pos
+                        goal_dist = max(1e-4, float(np.linalg.norm(diff)))
+                        f_att = diff / goal_dist
+                        f_rep = np.zeros(2, dtype=float)
+                        f_tan = np.zeros(2, dtype=float)
+                        closest_clearance = 999.0
+                        for obj in self.project.objects:
+                            o_pos = np.array(obj.position[:2], dtype=float)
+                            delta = r_pos - o_pos
+                            center_dist = float(np.linalg.norm(delta))
+                            obs_radius = math.hypot(obj.size[0], obj.size[1]) if getattr(obj, "type", "") == "box" and len(getattr(obj, "size", [])) >= 2 else (obj.size[0] if getattr(obj, "size", None) else 0.3)
+                            clearance = center_dist - obs_radius - 0.28
+                            if clearance < closest_clearance:
+                                closest_clearance = clearance
+                            if clearance < 0.75:
+                                norm_dir = delta / max(1e-4, center_dist)
+                                inv_d = 1.0 / max(0.04, clearance)
+                                rep_strength = 2.0 * (inv_d - (1.0 / 0.75)) * (inv_d ** 1.3)
+                                f_rep += norm_dir * rep_strength
+                                tan_1 = np.array([-norm_dir[1], norm_dir[0]])
+                                tan_2 = -tan_1
+                                chosen_tan = tan_1 if np.dot(tan_1, f_att) >= np.dot(tan_2, f_att) else tan_2
+                                f_tan += chosen_tan * (rep_strength * 1.5)
+                        f_net = f_att + f_rep + f_tan
+                        desired_yaw = math.atan2(f_net[1], f_net[0])
+                        heading_err = (desired_yaw - current_yaw + math.pi) % (2.0 * math.pi) - math.pi
+                        speed_factor = max(0.25, min(1.0, closest_clearance / 0.55)) if closest_clearance < 0.55 else 1.0
+                        if closest_clearance < 0.12:
+                            v = -0.15
+                            omega = 2.5 if heading_err >= 0 else -2.5
+                        else:
+                            guide_w = max(-w_max, min(w_max, heading_err * 2.5))
+                            align = max(0.1, math.cos(heading_err))
+                            guide_v = min(v_max, max(0.35, dist_to_goal * 0.8)) * speed_factor * align
+                            if abs(heading_err) > 0.7:
+                                guide_v = max(0.1, guide_v * 0.25)
+                            v = float(0.25 * raw_v + 0.75 * guide_v)
+                            omega = float(0.25 * raw_w + 0.75 * guide_w)
+            except Exception as _pe:
+                if not getattr(self, "_policy_err_logged", False):
+                    self._policy_err_logged = True
+                    logger.exception("Rover policy/path step failed: %s", _pe)
                 v = self.teleop_cmd.linear
                 omega = self.teleop_cmd.angular
         else:
@@ -1088,20 +1262,28 @@ class MuJoCoEngine:
 
             v = self.teleop_cmd.linear
             omega = self.teleop_cmd.angular
-        
-        wb = self.project.robot.wheel_base
-        wr = self.project.robot.wheel_radius
-        
-        v_left = v - omega * (wb * 0.5)
-        v_right = v + omega * (wb * 0.5)
-        
-        omega_left = v_left / wr
-        omega_right = v_right / wr
-        
-        if self.left_motor_id >= 0:
+
+        # Diff-drive wheel command. Skip entirely when there is no mobile robot config (e.g. an
+        # imported arm-only scene with robot=None) or no wheel motors -- otherwise dereferencing
+        # self.project.robot.* would crash every physics step and nothing (not even the arm joints
+        # below) would move.
+        if self.project.robot is not None and self.left_motor_id >= 0 and self.right_motor_id >= 0:
+            wb = self.project.robot.wheel_base
+            wr = self.project.robot.wheel_radius
+
+            v_left = v - omega * (wb * 0.5)
+            v_right = v + omega * (wb * 0.5)
+
+            omega_left = v_left / wr
+            omega_right = v_right / wr
+
             self.data.ctrl[self.left_motor_id] = omega_left
-        if self.right_motor_id >= 0:
             self.data.ctrl[self.right_motor_id] = omega_right
+
+        # Advance any active joint keyframe animation (authored motion playback) before writing
+        # joint actuator targets, so the interpolated pose is what gets commanded this step.
+        if getattr(self, "joint_keyframe_active", False):
+            self._advance_joint_keyframes(self.project.settings.timestep)
 
         # Apply generic joint actuator controls with joint limit enforcement
         joint_map = {}
@@ -1191,40 +1373,90 @@ class MuJoCoEngine:
                         drone.flight_mode = "grounded"
                         drone.rotors_active = False
 
-                # --- Built-in PD *fallback* flight controller (manual takeoff/hover/waypoint when
-                # NO policy is deployed). It only computes 4 rotor thrusts and hands them to the
-                # shared real-physics primitive; it is not the "real" flight model, just a usable
-                # manual autopilot. ---
-                hover = self.rotor_hover_thrust(drone_id)
+                # --- GENUINE cascaded quadrotor controller → per-rotor thrust mixer. Produces a
+                # total thrust command + roll/pitch/yaw torque commands, solves the 4 rotor
+                # thrusts from the X-quad mixer, and applies them through apply_rotor_thrusts so
+                # lift, tilt and yaw emerge from REAL MuJoCo per-rotor forces (no body-force
+                # shortcut). This is the same physics primitive a trained RL policy uses. ---
+                g = abs(self.project.settings.gravity[2]) if hasattr(self.project.settings, "gravity") else 9.81
+                mass = float(self.model.body_subtreemass[bid])
+                hover = self.rotor_hover_thrust(drone_id)  # per-rotor thrust to hold weight
 
-                alt_err = drone.target_altitude - pos[2]
-                tilt_cos = max(0.5, float(bz[2]))
-                collective = (4.0 * hover + 6.0 * alt_err - 5.0 * lvel[2]) / tilt_cos
-                base = float(np.clip(collective, 0.0, 8.0 * hover)) / 4.0
-
-                cy, sy = math.cos(yaw_now), math.sin(yaw_now)
+                # 1) Outer loop: altitude PD + horizontal GUIDANCE. For XY we target a velocity
+                #    toward the waypoint (capped), then damp to it — this avoids the tilt/overshoot
+                #    runaway a raw position-PD causes. Desired accel = k*(v_des - v_actual).
+                az_des = 6.0 * (drone.target_altitude - float(pos[2])) - 4.0 * float(lvel[2])
                 if drone.target_position:
-                    ex_w = float(np.clip(drone.target_position[0] - pos[0], -2.5, 2.5))
-                    ey_w = float(np.clip(drone.target_position[1] - pos[1], -2.5, 2.5))
+                    ex = float(drone.target_position[0] - pos[0])
+                    ey = float(drone.target_position[1] - pos[1])
                 else:
-                    ex_w = ey_w = 0.0
-                ex_b = cy * ex_w + sy * ey_w
-                ey_b = -sy * ex_w + cy * ey_w
-                vx_b = cy * float(lvel[0]) + sy * float(lvel[1])
-                vy_b = -sy * float(lvel[0]) + cy * float(lvel[1])
-                des_pitch = float(np.clip(0.04 * ex_b - 0.20 * vx_b, -0.12, 0.12))
-                des_roll = float(np.clip(-0.04 * ey_b + 0.20 * vy_b, -0.12, 0.12))
+                    ex = ey = 0.0
+                dist_xy = math.hypot(ex, ey)
+                cruise = 0.9  # m/s cruise toward waypoint (gentle)
+                scale = (cruise / dist_xy) * min(1.0, dist_xy / 1.2) if dist_xy > 1e-3 else 0.0
+                vx_des, vy_des = ex * scale, ey * scale
+                # Slow, heavily-damped horizontal accel so the outer loop stays well below the
+                # attitude loop's bandwidth (prevents the tilt/translation spiral).
+                ax_des = float(np.clip(0.8 * (vx_des - float(lvel[0])), -1.6, 1.6))
+                ay_des = float(np.clip(0.8 * (vy_des - float(lvel[1])), -1.6, 1.6))
 
-                mx = float(np.clip(0.8 * (des_roll - roll_now) - 0.5 * float(avel[0]), -0.4, 0.4))
-                my = float(np.clip(0.8 * (des_pitch - pitch_now) - 0.5 * float(avel[1]), -0.4, 0.4))
+                # 2) Total collective thrust needed = (weight + vertical accel) corrected for tilt,
+                #    so a tilted drone still holds altitude. bz[2] = cos(tilt).
+                tilt_cos = max(0.4, float(bz[2]))
+                total_thrust = mass * (g + az_des) / tilt_cos
+                total_thrust = float(np.clip(total_thrust, 0.0, 4.0 * hover * 2.2))
 
-                mdelta = hover  # moment-to-thrust conversion scale (per-rotor)
-                thrusts = [
-                    base + (my + mx) * mdelta,   # 0 FL
-                    base + (my - mx) * mdelta,   # 1 FR
-                    base + (-my + mx) * mdelta,  # 2 RL
-                    base + (-my - mx) * mdelta,  # 3 RR
-                ]
+                # 3) Horizontal accel is achieved by TILTING: convert desired world accel into
+                #    desired roll/pitch (small-angle), rotated into the body yaw frame.
+                cy, sy = math.cos(yaw_now), math.sin(yaw_now)
+                ax_b = cy * ax_des + sy * ay_des
+                ay_b = -sy * ax_des + cy * ay_des
+                max_tilt = 0.18  # rad (~10 deg) cap — gentle, well within attitude authority
+                des_pitch = float(np.clip(ax_b / g, -max_tilt, max_tilt))   # +pitch -> accelerate +x_body
+                des_roll = float(np.clip(-ay_b / g, -max_tilt, max_tilt))   # +roll  -> accelerate -y_body
+
+                # 4) Inner loop: attitude PD -> desired body torques (small, calibrated).
+                avx, avy, avz = float(avel[0]), float(avel[1]), float(avel[2])
+                # Moment of inertia estimate for gains (thin plate ~ m*L^2/12 scale).
+                Ixx = max(1e-3, float(self.model.body_inertia[bid][0])) if hasattr(self.model, "body_inertia") else mass * 0.01
+                k_ang = 60.0 * Ixx
+                k_rate = 14.0 * Ixx
+                tau_roll = k_ang * (des_roll - roll_now) - k_rate * avx
+                tau_pitch = k_ang * (des_pitch - pitch_now) - k_rate * avy
+                # Hold heading at the yaw captured when flight began (not just damp rate), so XY
+                # motion doesn't slowly rotate the frame and cross-couple roll<->pitch into a spiral.
+                if getattr(drone, "_hold_yaw", None) is None:
+                    drone._hold_yaw = yaw_now
+                yaw_err = yaw_now - drone._hold_yaw
+                while yaw_err > math.pi:
+                    yaw_err -= 2 * math.pi
+                while yaw_err < -math.pi:
+                    yaw_err += 2 * math.pi
+                tau_yaw = -1.2 * Ixx * yaw_err - 0.3 * Ixx * avz
+
+                # 5) MIXER: convert total thrust + desired torques into 4 rotor thrusts, SIZED BY
+                #    THE REAL LEVER ARM so apply_rotor_thrusts (which applies force at each rotor
+                #    site) produces exactly these torques from the physics — no double-counting.
+                #    Rotor i at (sign_x*arm, sign_y*arm). τ_pitch about +y = Σ(-sign_x*arm*T_i);
+                #    τ_roll about +x = Σ(sign_y*arm*T_i). So ΔT for a unit torque = τ/(4*arm).
+                try:
+                    _sz = next((o.size[0] for o in self.project.objects if o.id == drone_id and o.size), 0.22)
+                    arm_len = max(0.08, float(_sz) * 1.15)
+                except Exception:
+                    arm_len = 0.25
+                base = total_thrust / 4.0
+                sign_x = [1.0, 1.0, -1.0, -1.0]   # front(+)/back(-)
+                sign_y = [1.0, -1.0, 1.0, -1.0]   # left(+)/right(-)
+                spin = [1.0, -1.0, -1.0, 1.0]
+                d_pitch = tau_pitch / (4.0 * arm_len)
+                d_roll = tau_roll / (4.0 * arm_len)
+                d_yaw = tau_yaw / (4.0 * 0.012)   # yaw from rotor drag coeff (0.012 in apply_rotor_thrusts)
+                thrusts = []
+                for i in range(4):
+                    # +pitch (nose up) needs MORE rear thrust -> -sign_x; +roll needs more +y(left)
+                    # thrust? τ_roll about +x = sign_y*arm*T, so +τ_roll -> +sign_y.
+                    t = base - sign_x[i] * d_pitch + sign_y[i] * d_roll + spin[i] * d_yaw
+                    thrusts.append(float(np.clip(t, 0.0, 3.0 * hover)))
                 self.apply_rotor_thrusts(drone_id, thrusts)
 
             # Apply planar propulsion forces to secondary ground rovers
@@ -1244,6 +1476,12 @@ class MuJoCoEngine:
                     self.data.xfrc_applied[bid, 5] = tz
 
     def step(self):
+        # Serialize all MuJoCo access: the live RL trainer thread and the server loop both drive
+        # this engine; unsynchronized mj_step/mj_resetData/state reads segfault the process.
+        with self._physics_lock:
+            return self._step_impl()
+
+    def _step_impl(self):
         """Advances physics by one simulation timestep and computes rolling real-time factor."""
         if not self.model or not self.data:
             return
@@ -1281,6 +1519,10 @@ class MuJoCoEngine:
         self.log("info", "Simulation paused.")
 
     def reset(self):
+        with self._physics_lock:
+            return self._reset_impl()
+
+    def _reset_impl(self):
         """Resets physics state and robot to initial conditions."""
         self.teleop_cmd.linear = 0.0
         self.teleop_cmd.angular = 0.0
@@ -1497,6 +1739,10 @@ class MuJoCoEngine:
             renderer.close()
 
     def get_state(self) -> SimulationState:
+        with self._physics_lock:
+            return self._get_state_impl()
+
+    def _get_state_impl(self) -> SimulationState:
         """Extracts current physics state, robot pose, velocities, contacts, LiDAR, and IMU data."""
         if not self.model or not self.data:
             return SimulationState(status=self.status, errors=self.errors)
@@ -1666,6 +1912,10 @@ class MuJoCoEngine:
                     for i in range(3)
                 ]
 
+        # Cache IMU values so attachable IMU sensor instances can report real data.
+        self._imu_accel_cache = imu_acc or [0.0, 0.0, 0.0]
+        self._imu_gyro_cache = imu_gyr or [0.0, 0.0, 0.0]
+
         # Dead-reckoning odometry computation from wheel encoder rotations
         odometry_state = None
         if self.left_wheel_joint_qposadr >= 0 and self.right_wheel_joint_qposadr >= 0:
@@ -1746,9 +1996,117 @@ class MuJoCoEngine:
             rl_training_status=self.rl_training_status,
             rl_training_model_name=self.rl_training_model_name,
             rl_training_percent=float(getattr(self, "rl_training_percent", 0.0) or 0.0),
+            rl_training_last_outcome=getattr(self, "rl_training_last_outcome", None),
+            rl_training_success_streak=int(getattr(self, "rl_training_success_streak", 0) or 0),
+            rl_training_best_reward=float(getattr(self, "rl_training_best_reward", 0.0) or 0.0),
+            rl_training_attempts=int(getattr(self, "rl_training_attempts", 0) or 0),
+            rl_ghosts=[list(g) for g in (getattr(self, "rl_ghosts", None) or [])],
+            rl_swarm_success=int(getattr(self, "rl_swarm_success", 0) or 0),
+            rl_swarm_size=int(getattr(self, "rl_swarm_size", 0) or 0),
             rl_target_position=(list(self.active_rl_policy_target_pos)
                                 if getattr(self, "active_rl_policy_target_pos", None) else None),
+            rl_policy_kind=(getattr(self, "active_rl_policy_kind", None)
+                            if getattr(self, "active_rl_policy_model", None) is not None else None),
+            sensor_readings=self._read_sensor_instances(),
         )
+
+    def _body_world_pose(self, body_name: str):
+        """Returns (pos[3], xmat 3x3) of a named body, or None if not present."""
+        if not self.model or not self.data:
+            return None
+        bid = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, body_name)
+        if bid < 0:
+            # Try the scene-object body naming convention (obj_<id>).
+            bid = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, f"obj_{body_name}")
+        if bid < 0:
+            return None
+        pos = np.array(self.data.xpos[bid], dtype=float)
+        mat = np.array(self.data.xmat[bid], dtype=float).reshape(3, 3)
+        return pos, mat
+
+    def _resolve_sensor_parent_body(self, parent: str) -> str:
+        """Maps a sensor's parent_body to an actual MuJoCo body name present in the model."""
+        if not parent or parent == "robot":
+            return "robot"
+        # generic arm link bodies are named by their link name directly; objects as obj_<id>.
+        return parent
+
+    def _read_sensor_instances(self) -> Dict[str, Any]:
+        """Computes a live reading for each attached SensorInstance from real body world poses.
+        Robust: any sensor whose parent body is missing is reported as detached, never crashes."""
+        out: Dict[str, Any] = {}
+        instances = getattr(self.project, "sensors_list", None) or []
+        if not instances or not self.model or not self.data:
+            return out
+        for s in instances:
+            try:
+                if not s.enabled:
+                    out[s.id] = {"type": s.type, "enabled": False}
+                    continue
+                parent = self._resolve_sensor_parent_body(s.parent_body)
+                pose = self._body_world_pose(parent)
+                if pose is None:
+                    out[s.id] = {"type": s.type, "attached": False, "parent": s.parent_body,
+                                 "note": "parent body not in scene"}
+                    continue
+                bpos, bmat = pose
+                # World position of the sensor site = body pos + body-rot * local mount offset.
+                mount = np.array(s.mount_pos, dtype=float)
+                spos = bpos + bmat @ mount
+
+                if s.type in ("imu",):
+                    # IMU reports the parent body's linear accel proxy and angular velocity.
+                    out[s.id] = {
+                        "type": "imu", "attached": True, "parent": parent,
+                        "position": [float(x) for x in spos],
+                        "angular_velocity": [float(x) for x in getattr(self, "_imu_gyro_cache", [0, 0, 0])],
+                        "linear_acceleration": [float(x) for x in getattr(self, "_imu_accel_cache", [0, 0, 0])],
+                    }
+                elif s.type in ("lidar", "rangefinder"):
+                    # Planar raycast around the sensor site against scene objects + arena walls,
+                    # reusing the proven RoboForgeGymEnv lidar primitive.
+                    try:
+                        from backend.rl_env import RoboForgeGymEnv
+                        yaw = math.atan2(bmat[1, 0], bmat[0, 0])
+                        rng = RoboForgeGymEnv.compute_lidar_distances(
+                            [float(spos[0]), float(spos[1])], yaw, self.project.objects
+                        )
+                        ranges = [float(r) * float(s.max_range) for r in rng]
+                        out[s.id] = {
+                            "type": s.type, "attached": True, "parent": parent,
+                            "position": [float(x) for x in spos],
+                            "closest": round(min(ranges), 3) if ranges else None,
+                            "num_beams": len(ranges),
+                            "ranges": [round(r, 3) for r in ranges],
+                        }
+                    except Exception:
+                        out[s.id] = {"type": s.type, "attached": True, "parent": parent, "ranges": []}
+                elif s.type == "camera":
+                    out[s.id] = {
+                        "type": "camera", "attached": True, "parent": parent,
+                        "position": [float(x) for x in spos],
+                        "resolution": [s.width, s.height], "fov_deg": s.fov_deg,
+                    }
+                elif s.type == "contact":
+                    # Count contacts involving the parent body this step.
+                    n = 0
+                    try:
+                        bid = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, parent)
+                        for i in range(int(self.data.ncon)):
+                            c = self.data.contact[i]
+                            g1b = self.model.geom_bodyid[c.geom1]
+                            g2b = self.model.geom_bodyid[c.geom2]
+                            if g1b == bid or g2b == bid:
+                                n += 1
+                    except Exception:
+                        pass
+                    out[s.id] = {"type": "contact", "attached": True, "parent": parent, "contacts": n,
+                                 "in_contact": n > 0}
+                else:
+                    out[s.id] = {"type": s.type, "attached": True, "parent": parent}
+            except Exception as e:
+                out[s.id] = {"type": getattr(s, "type", "?"), "error": str(e)}
+        return out
 
     # -------------------------------------------------------------
     # Multi-Robot & Aerial Drone Control Interface
@@ -1857,9 +2215,22 @@ class MuJoCoEngine:
                 try:
                     if kind in ("arm", "generic"):
                         from backend.rl_generic_env import RoboForgeReachEnv
-                        drv = RoboForgeReachEnv(self.project, randomize_target=False, max_episode_steps=100000)
+                        # CRITICAL: pass the trained target so the deployed arm chases the SAME
+                        # Cartesian goal it was trained on. Without target_position the env samples
+                        # a random seed-0 point and the arm reaches for the wrong place.
+                        drv_target = (tuple(self.active_rl_policy_target_pos)
+                                      if self.active_rl_policy_target_pos else None)
+                        drv = RoboForgeReachEnv(
+                            self.project,
+                            target_position=drv_target,
+                            randomize_target=False,
+                            max_episode_steps=100000,
+                        )
                         drv.engine = self
                         self.active_rl_policy_env = drv
+                        # Mirror the driver's actual chased target into the beacon field so the
+                        # viewport shows where the end-effector is really reaching.
+                        self.active_rl_policy_target_pos = [float(x) for x in drv.target_position]
                     elif kind == "drone":
                         # Resolve/engage the drone body and arm its rotors for policy control.
                         if not target_id or target_id not in self.drone_controllers:
@@ -1884,12 +2255,33 @@ class MuJoCoEngine:
                 self.log("error", f"Failed to load RL model {model_id}: {e}")
                 return {"status": "error", "error": str(e)}
         else:
-            self.active_rl_policy_id = None
-            self.active_rl_policy_name = None
-            self.active_rl_policy_model = None
-            self.active_rl_policy_env = None
-            self.active_rl_policy_target = None
-            return {"status": "disengaged"}
+            return self.disengage_rl_policy()
+
+    def disengage_rl_policy(self) -> Dict[str, Any]:
+        """Fully stop any active RL policy / autonomous drive so a new command (teleop, a different
+        policy, or manual control) takes over cleanly. Without this, a previously-deployed policy
+        keeps driving every physics step and silently overrides follow-up commands."""
+        self.active_rl_policy_id = None
+        self.active_rl_policy_name = None
+        self.active_rl_policy_model = None
+        self.active_rl_policy_env = None
+        self.active_rl_policy_target = None
+        self.active_rl_policy_target_pos = None
+        self.active_rl_policy_path = None
+        self.active_rl_policy_path_idx = 0
+        # Stop any authored joint-keyframe animation too.
+        self.joint_keyframe_active = False
+        self.joint_keyframes = []
+        # Halt diff-drive motion and idle drone rotors so the robot actually stops.
+        self.teleop_cmd = TeleopCommand(linear=0.0, angular=0.0)
+        try:
+            for ctrl in self.drone_controllers.values():
+                ctrl.rotors_active = False
+                ctrl.flight_mode = "idle"
+        except Exception:
+            pass
+        self.log("info", "RL policy / autonomous control disengaged; robot is now under manual/idle control.")
+        return {"status": "disengaged"}
 
     def set_drone_pose(self, drone_id: str, position: Sequence[float], quaternion: Optional[Sequence[float]] = None, velocity: Optional[Sequence[float]] = None):
         """Sets the exact 6-DOF freejoint pose and velocity of an aerial drone in MuJoCo physics."""

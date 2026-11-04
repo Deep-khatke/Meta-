@@ -22,6 +22,21 @@ The workspace is designed with intelligent space allocation: **the 3D simulation
 
 ---
 
+## ⚡ Headline Capabilities
+
+> Design a robot → command it in plain English → train it with real RL → prove it → deploy the trained brain to a real ROS 2 robot. All in the browser, all on live MuJoCo physics.
+
+- **🗣️ Natural-language control** — talk to the scene: *"drive in a square"*, *"go to the red box"*, *"spawn a warehouse"*. The agent plans and executes on real physics (no scripting, no coordinates).
+- **🏗️ One-prompt missions** — *"build a warehouse and make the rover patrol it"* generates the environment, plans a **collision-free A\* patrol loop**, loads it into the visual **Mission Planner**, and drives it.
+- **👁️ Robot vision** — the onboard camera feeds a vision-language model: ask *"what do you see?"* or *"go to the red box"* and it finds the target by sight.
+- **🧠 Live swarm reinforcement learning** — PPO trains **8 rovers in parallel**, rendered live as translucent "ghosts" that are the *actual* environments the policy learns from — watch them explore, fail, and converge ("watch it learn," Isaac-Lab style).
+- **📊 Robustness scorecard** — score any trained policy across **domain-randomized worlds** (friction, mass, gravity, sensor noise) vs a clean baseline — research-grade sim-to-real evidence.
+- **📦 Deploy to real robots** — export a trained policy to **ONNX + a ready-to-run ROS 2 node** (subscribes `/scan`, `/odom`; publishes `/cmd_vel`).
+- **🔌 Real ROS 2 interoperability** — a built-in **rosbridge v2 server** (`ws://localhost:9090`) streams `/odom`, `/scan`, `/imu`, `/tf`, `/clock` and accepts `/cmd_vel`, `/goal_pose` — connect Foxglove, roslibpy, or a real ROS 2 graph.
+- **🚁 Genuine quadcopter flight** — drones fly on **real per-rotor thrust physics** (lift and attitude emerge from 4 independent rotors), with a 3D waypoint flight-follower and the same Mission Planner.
+
+---
+
 ## 🌟 Key Features
 
 ### 1. 🤖 Robot Modeling & Control Studio

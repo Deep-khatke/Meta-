@@ -30,8 +30,15 @@ class RoboForgeGymEnv(gym.Env):
         goal_reward: float = 100.0,
         seed: Optional[int] = None,
         custom_reward_code: Optional[str] = None,
+        domain_randomize: bool = False,
     ):
         super().__init__()
+        # Domain randomization: perturb physics each episode + add sensor noise, so a trained
+        # policy is robust to real-world variation (sim-to-real). Observation noise std is set
+        # per-episode in reset(); physics are perturbed against baseline values captured lazily.
+        self.domain_randomize = domain_randomize
+        self._obs_noise_std = 0.0
+        self._dr_baseline = None
 
         # Copy or build default project
         if project is not None:
@@ -204,9 +211,35 @@ class RoboForgeGymEnv(gym.Env):
         obs[15] = ry / 5.0
         return obs
 
+    def _apply_domain_randomization(self):
+        """Perturb MuJoCo physics (friction, body mass, gravity) within realistic ranges and pick
+        a per-episode observation-noise level. Captures baseline on first call so perturbations
+        are always relative to the original model, not compounding."""
+        m = self.engine.model
+        if m is None:
+            return
+        try:
+            if self._dr_baseline is None:
+                self._dr_baseline = {
+                    "geom_friction": m.geom_friction.copy(),
+                    "body_mass": m.body_mass.copy(),
+                    "gravity": m.opt.gravity.copy(),
+                }
+            b = self._dr_baseline
+            # Friction: 60%–160% of nominal (floor/tire variation).
+            m.geom_friction[:] = b["geom_friction"] * float(np.random.uniform(0.6, 1.6))
+            # Mass: 80%–130% per body (payload / build tolerance).
+            m.body_mass[:] = b["body_mass"] * np.random.uniform(0.8, 1.3, size=b["body_mass"].shape)
+            # Gravity: ±3% (slope / calibration).
+            m.opt.gravity[:] = b["gravity"] * float(np.random.uniform(0.97, 1.03))
+            # Sensor/observation noise std for this episode.
+            self._obs_noise_std = float(np.random.uniform(0.01, 0.06))
+        except Exception:
+            self._obs_noise_std = 0.0
+
     def _get_obs(self) -> np.ndarray:
         state = self.engine.get_state()
-        return self.compute_observation(
+        obs = self.compute_observation(
             robot_pos=state.robot.position,
             robot_quat=state.robot.quaternion,
             linear_speed=state.robot.linear_speed,
@@ -216,6 +249,9 @@ class RoboForgeGymEnv(gym.Env):
             max_linear_velocity=self.robot_cfg.max_linear_velocity,
             max_angular_velocity=self.robot_cfg.max_angular_velocity,
         )
+        if self._obs_noise_std > 0.0:
+            obs = (obs + np.random.normal(0.0, self._obs_noise_std, size=obs.shape)).astype(np.float32)
+        return obs
 
     def _check_collision(self) -> bool:
         """Inspects MuJoCo contacts for robot-obstacle and robot-ground penetration."""
@@ -377,6 +413,8 @@ class RoboForgeGymEnv(gym.Env):
 
         # Reset simulation engine to initial state
         self.engine.reset()
+        if self.domain_randomize:
+            self._apply_domain_randomization()
 
         state = self.engine.get_state()
         r_pos = state.robot.position

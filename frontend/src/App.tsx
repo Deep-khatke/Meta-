@@ -14,6 +14,7 @@ import {
 import { Toolbar } from './components/Toolbar';
 import { ScenePanel } from './components/ScenePanel';
 import { Viewport3D } from './components/Viewport3D';
+import { MissionPlanner, PlacementMode } from './components/MissionPlanner';
 import { PropertiesPanel } from './components/PropertiesPanel';
 import { BottomPanel, TrajectoryPoint } from './components/BottomPanel';
 import { AssetLibraryPanel } from './components/AssetLibraryPanel';
@@ -652,7 +653,7 @@ export const AppContent: React.FC = () => {
   };
 
   // Scene Object Actions
-  const handleAddObstacle = async (type: 'box' | 'sphere' | 'cylinder') => {
+  const handleAddObstacle = async (type: 'box' | 'sphere' | 'cylinder', at?: [number, number]) => {
     const count = (project?.objects.length || 0) + 1;
     let size: number[] = [0.25, 0.25, 0.25];
     let color = '#e06c75';
@@ -668,8 +669,8 @@ export const AppContent: React.FC = () => {
       name = `Cylinder ${count}`;
     }
 
-    const posX = 1.0 + ((count % 3) * 0.7);
-    const posY = ((count % 4) - 1.5) * 0.7;
+    const posX = at ? at[0] : 1.0 + ((count % 3) * 0.7);
+    const posY = at ? at[1] : ((count % 4) - 1.5) * 0.7;
     const posZ = type === 'cylinder' ? 0.35 : (type === 'sphere' ? 0.25 : 0.25);
 
     try {
@@ -680,7 +681,7 @@ export const AppContent: React.FC = () => {
         rotation: [0, 0, 0],
         size,
         color,
-        is_static: false,
+        is_static: !!at, // obstacles placed in the Mission Planner stay put
         mass: 1.5,
       });
 
@@ -743,6 +744,35 @@ export const AppContent: React.FC = () => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleUndo, handleRedo]);
+
+  // ---------------- Mission Planner ----------------
+  const [missionOpen, setMissionOpen] = useState<boolean>(false);
+  const [missionWaypoints, setMissionWaypoints] = useState<Array<[number, number]>>([]);
+  const [missionMode, setMissionMode] = useState<PlacementMode>(null);
+  const [missionLoop, setMissionLoop] = useState<boolean>(true);
+
+  const handleMissionGroundClick = (x: number, y: number) => {
+    if (missionMode === 'waypoint') {
+      setMissionWaypoints((w) => [...w, [x, y]]);
+    } else if (missionMode === 'box' || missionMode === 'cylinder' || missionMode === 'sphere') {
+      handleAddObstacle(missionMode, [x, y]);
+    } else if (missionMode === 'delete') {
+      // Remove the nearest waypoint or obstacle within 0.6 m of the click.
+      let best: { kind: 'wp' | 'obj'; idx: number; id?: string; d: number } | null = null;
+      missionWaypoints.forEach(([wx, wy], i) => {
+        const d = Math.hypot(wx - x, wy - y);
+        if (d < 0.6 && (!best || d < best.d)) best = { kind: 'wp', idx: i, d };
+      });
+      (project?.objects || []).forEach((o, i) => {
+        const d = Math.hypot(o.position[0] - x, o.position[1] - y);
+        if (d < 0.6 && (!best || d < best.d)) best = { kind: 'obj', idx: i, id: o.id, d };
+      });
+      const b = best as { kind: 'wp' | 'obj'; idx: number; id?: string; d: number } | null;
+      if (!b) { showToast('Nothing close to that spot to delete.'); return; }
+      if (b.kind === 'wp') setMissionWaypoints((w) => w.filter((_, k) => k !== b.idx));
+      else if (b.id) handleDeleteObject(b.id);
+    }
+  };
 
   const handleUpdateObject = async (updated: SceneObject) => {
     try {
@@ -1106,7 +1136,40 @@ export const AppContent: React.FC = () => {
             onUpdateTarget={setTargetPosition}
             autoDriveEnabled={autoDriveEnabled}
             onToggleAutoDrive={handleToggleAutoDrive}
+            placementMode={missionOpen ? missionMode : null}
+            onGroundClick={handleMissionGroundClick}
+            missionWaypoints={missionOpen || missionWaypoints.length ? missionWaypoints : undefined}
+            missionLoop={missionLoop}
           />
+          {!missionOpen && (
+            <button
+              onClick={() => setMissionOpen(true)}
+              title="Open Mission Planner: click to place waypoints & obstacles, then train or run"
+              style={{
+                position: 'absolute', bottom: 16, right: 16, zIndex: 30, padding: '9px 14px',
+                fontSize: 12.5, fontWeight: 700, color: '#fff', borderRadius: 10, cursor: 'pointer',
+                border: '1px solid rgba(96,165,250,0.7)', background: 'linear-gradient(90deg,#2563eb,#7c3aed)',
+                boxShadow: '0 6px 20px rgba(37,99,235,0.45)',
+              }}
+            >
+              🧭 Mission Planner
+            </button>
+          )}
+          {missionOpen && project && (
+            <MissionPlanner
+              project={project}
+              simState={simState}
+              waypoints={missionWaypoints}
+              setWaypoints={setMissionWaypoints}
+              mode={missionMode}
+              setMode={setMissionMode}
+              loop={missionLoop}
+              setLoop={setMissionLoop}
+              onShowToast={showToast}
+              onClose={() => { setMissionOpen(false); setMissionMode(null); }}
+              onDeleteObstacle={handleDeleteObject}
+            />
+          )}
         </div>
 
         {/* Right Priority Panel: Robot Studio Workbench when active, otherwise Object/Robot Inspector */}
@@ -1172,6 +1235,13 @@ export const AppContent: React.FC = () => {
           } catch {}
         }}
         onSelectTarget={setTargetPosition}
+        onMissionWaypoints={(wps, lp) => {
+          setMissionWaypoints(wps);
+          setMissionLoop(lp);
+          setMissionMode(null);
+          setMissionOpen(true);
+          showToast(`Loaded ${wps.length}-waypoint mission into the planner.`);
+        }}
         onSetTrail={setTrajectoryTrail}
         activeLiveRun={latestLiveRun}
         targetPosition={targetPosition}

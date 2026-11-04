@@ -27,6 +27,21 @@ export const ROS2StudioPanel: React.FC<ROS2StudioPanelProps> = ({
   simState,
   project = null
 }) => {
+  // --- Real rosbridge v2 server status (external ROS clients) ---
+  const [bridge, setBridge] = useState<any>(null);
+  useEffect(() => {
+    let alive = true;
+    const poll = async () => {
+      try {
+        const r = await fetch('/api/ros2/bridge/status');
+        if (r.ok && alive) setBridge(await r.json());
+      } catch { if (alive) setBridge(null); }
+    };
+    poll();
+    const t = setInterval(poll, 2000);
+    return () => { alive = false; clearInterval(t); };
+  }, []);
+
   const [subTab, setSubTab] = useState<'cli' | 'arm' | 'nav2' | 'topics' | 'teleop' | 'tf' | 'bags' | 'swarm'>('cli');
 
   // --- CLI Terminal State ---
@@ -35,7 +50,7 @@ export const ROS2StudioPanel: React.FC<ROS2StudioPanelProps> = ({
     {
       cmd: 'ros2 doctor',
       exitCode: 0,
-      output: 'RoboForge ROS 2 Middleware Bridge: HEALTHY\nActive Domain ID: 0 | Bridge Node: /roboforge_physics_bridge [OK]\nDDS Transport: WebSocket Binary Interop (ws://127.0.0.1:8000/ws) [ONLINE]',
+      output: 'Built-in ROS 2 CLI emulator (answers from the live simulation; no ROS install needed).\nFor real ROS tools, connect to the rosbridge server: ws://localhost:9090 (status bar above).',
       time: new Date().toLocaleTimeString(),
     }
   ]);
@@ -94,38 +109,26 @@ export const ROS2StudioPanel: React.FC<ROS2StudioPanelProps> = ({
   const [swarmSpacing, setSwarmSpacing] = useState<number>(1.2);
   const [swarmStatus, setSwarmStatus] = useState<SwarmStatusResponse | null>(null);
 
-  // --- Discover Arm Joints Dynamically ---
+  // --- Discover Arm Joints Dynamically (from REAL scene data only) ---
   const activeArmJoints = useMemo(() => {
-    // 1. Check generic_robot joints from project model
+    // 1. Real articulated robot joints from the project model (the authoritative source).
     if (project?.generic_robot?.joints && project.generic_robot.joints.length > 0) {
-      return project.generic_robot.joints.map((j) => ({
-        name: j.name,
-        type: j.type,
-        lower: j.limit?.lower ?? -3.14,
-        upper: j.limit?.upper ?? 3.14,
-        current: simState?.joint_positions?.[j.name] ?? 0.0,
-      }));
+      return project.generic_robot.joints
+        .filter((j) => j.type !== 'fixed')
+        .map((j) => ({
+          name: j.name,
+          type: j.type,
+          lower: j.limit?.lower ?? -3.14,
+          upper: j.limit?.upper ?? 3.14,
+          current: simState?.joint_positions?.[j.name] ?? 0.0,
+        }));
     }
-    // 2. Check joints in active simulation state
-    if (simState?.joint_positions && Object.keys(simState.joint_positions).length > 0) {
-      return Object.entries(simState.joint_positions).map(([name, val]) => ({
-        name,
-        type: 'revolute',
-        lower: -3.14,
-        upper: 3.14,
-        current: val,
-      }));
-    }
-    // 3. Fallback standard 6-axis manipulator (KR-6 / Universal Arm)
-    return [
-      { name: 'joint_1_yaw', type: 'revolute', lower: -3.14, upper: 3.14, current: 0.0 },
-      { name: 'joint_2_shoulder', type: 'revolute', lower: -2.35, upper: 2.35, current: 0.0 },
-      { name: 'joint_3_elbow', type: 'revolute', lower: -2.60, upper: 2.60, current: 0.0 },
-      { name: 'joint_4_wrist_pitch', type: 'revolute', lower: -3.14, upper: 3.14, current: 0.0 },
-      { name: 'joint_5_wrist_roll', type: 'revolute', lower: -3.14, upper: 3.14, current: 0.0 },
-      { name: 'joint_6_gripper', type: 'prismatic', lower: 0.0, upper: 0.08, current: 0.0 },
-    ];
+    // 2. No articulated robot in the scene -> NO joints. Never fabricate phantom joints
+    //    (the old hardcoded 6-axis fallback showed joints even on an empty scene).
+    return [] as Array<{ name: string; type: string; lower: number; upper: number; current: number }>;
   }, [project?.generic_robot?.joints, simState?.joint_positions]);
+
+  const hasArm = activeArmJoints.length > 0;
 
   // Sync initial targets
   useEffect(() => {
@@ -440,6 +443,34 @@ export const ROS2StudioPanel: React.FC<ROS2StudioPanelProps> = ({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', color: 'var(--text-primary)', fontSize: 12 }}>
+      {/* Real rosbridge connection status */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '6px 12px',
+        borderBottom: '1px solid var(--border-subtle)',
+        background: bridge?.running ? 'rgba(34,197,94,0.08)' : 'rgba(239,68,68,0.08)',
+      }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700 }}>
+          <span style={{ width: 8, height: 8, borderRadius: 4, background: bridge?.running ? '#22c55e' : '#ef4444' }} />
+          rosbridge {bridge?.running ? 'LIVE' : 'OFFLINE'}
+        </span>
+        {bridge?.running ? (
+          <>
+            <code style={{ background: 'rgba(0,0,0,0.3)', padding: '2px 6px', borderRadius: 4 }}>{bridge.url}</code>
+            <button
+              onClick={() => { navigator.clipboard?.writeText(bridge.url); onShowToast('Copied rosbridge URL'); }}
+              style={{ fontSize: 10.5, padding: '2px 8px', borderRadius: 4, border: '1px solid var(--border-subtle)', background: 'transparent', color: 'var(--text-secondary)', cursor: 'pointer' }}
+            >Copy</button>
+            <span style={{ color: 'var(--text-secondary)' }}>Clients: <b style={{ color: '#e5e7eb' }}>{bridge.clients}</b></span>
+            <span style={{ color: 'var(--text-secondary)' }}>/cmd_vel received: <b style={{ color: '#e5e7eb' }}>{bridge.cmd_vel_received}</b></span>
+            <span style={{ color: 'var(--text-secondary)' }}>Subscribed: <b style={{ color: '#e5e7eb' }}>{(bridge.subscriptions || []).join(', ') || 'none'}</b></span>
+            <span style={{ color: 'var(--text-muted)', fontSize: 10.5 }}>
+              Foxglove: Open connection → Rosbridge → {bridge.url} · Python: roslibpy.Ros('localhost', {bridge.port})
+            </span>
+          </>
+        ) : (
+          <span style={{ color: '#fca5a5' }}>{bridge?.error || 'Backend not reachable.'}</span>
+        )}
+      </div>
       {/* Top Banner / Sub-tab Selector */}
       <div style={{
         display: 'flex',
@@ -788,6 +819,16 @@ export const ROS2StudioPanel: React.FC<ROS2StudioPanelProps> = ({
 
               {/* Individual Joint Sliders */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10, flex: 1, overflowY: 'auto' }}>
+                {!hasArm && (
+                  <div style={{
+                    padding: '20px 16px', textAlign: 'center', color: 'var(--text-muted)',
+                    border: '1px dashed var(--border-subtle)', borderRadius: 6, fontSize: 12, lineHeight: 1.6,
+                  }}>
+                    No articulated robot in the scene.<br />
+                    Import a URDF or ask the assistant to <strong>"spawn a 4 joint arm"</strong>,
+                    then its real joints will appear here.
+                  </div>
+                )}
                 {activeArmJoints.map((j) => {
                   const targetVal = jointTargets[j.name] ?? j.current;
                   const degVal = ((targetVal * 180) / Math.PI).toFixed(1);

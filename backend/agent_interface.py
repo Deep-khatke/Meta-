@@ -14,7 +14,7 @@ from backend.project_manager import ProjectManager
 from backend.scene_validator import validate_scene, SceneValidationReport
 from backend.motion_planning import (
     plan_collision_free_path, PathPlanningRequest,
-    ContinuousTrajectoryController, TrajectoryExecutionState
+    ContinuousTrajectoryController, DroneWaypointController, TrajectoryExecutionState
 )
 from backend.synthetic_data import SyntheticDataGenerator, BoundingBox2D
 from backend.experiment_models import (
@@ -80,6 +80,8 @@ class AgentSimulationInterface:
         self.engine = engine
         self.em = experiment_manager
         self.active_trajectory_controller: Optional[ContinuousTrajectoryController] = None
+        self.active_drone_controller: Optional[DroneWaypointController] = None
+        self.active_drone_id: Optional[str] = None
         self.trajectory_state = TrajectoryExecutionState(trajectory_id="idle")
 
     def inspect_environment(self) -> EnvironmentInspectionResult:
@@ -253,6 +255,116 @@ class AgentSimulationInterface:
         self.trajectory_state.status = "cancelled"
         self.trajectory_state.status_message = "Cancelled by agent request"
         self.engine.set_teleop(0.0, 0.0)
+        return True
+
+    def execute_waypoint_path(
+        self,
+        waypoints: List[List[float]],
+        loop: bool = False,
+        max_laps: int = 3,
+        shape: str = "path",
+    ) -> TrajectoryExecutionState:
+        """Drives the rover along an ARBITRARY ordered waypoint list using the same proven
+        ContinuousTrajectoryController that powers goal navigation. No A* here — the caller
+        supplies the exact geometry (any shape). Set loop=True for closed shapes so it cycles."""
+        if not waypoints or len(waypoints) < 2:
+            self.trajectory_state = TrajectoryExecutionState(
+                trajectory_id=f"traj_{int(time.time())}",
+                status="failed",
+                status_message="A path needs at least 2 waypoints.",
+            )
+            return self.trajectory_state
+
+        st = self.engine.get_state()
+        rx = st.robot.position[0] if (st and st.robot) else 0.0
+        ry = st.robot.position[1] if (st and st.robot) else 0.0
+
+        cur_proj = self.pm.get_current()
+        p_robot = getattr(cur_proj, "robot", None)
+        v_max = getattr(p_robot, "max_linear_velocity", 1.0) if p_robot else 1.0
+        w_max = getattr(p_robot, "max_angular_velocity", 2.0) if p_robot else 2.0
+
+        clean = [[float(p[0]), float(p[1])] for p in waypoints if len(p) >= 2]
+
+        self.active_trajectory_controller = ContinuousTrajectoryController(
+            waypoints=clean,
+            v_max=v_max,
+            w_max=w_max,
+            loop=loop,
+            max_laps=max_laps,
+        )
+
+        traj_id = f"traj_{int(time.time())}"
+        self.trajectory_state = TrajectoryExecutionState(
+            trajectory_id=traj_id,
+            status="running",
+            start_pos=[rx, ry],
+            goal_pos=clean[-1],
+            waypoints=clean,
+            current_waypoint_index=0,
+            total_waypoints=len(clean),
+            distance_to_goal=0.0,
+            progress_pct=0.0,
+            status_message=f"Driving {shape} ({'looping' if loop else 'once'}), {len(clean)} waypoints",
+        )
+
+        if self.engine.status != "running":
+            self.engine.play()
+
+        return self.trajectory_state
+
+    def execute_drone_waypoint_path(
+        self,
+        waypoints: List[List[float]],
+        drone_id: Optional[str] = None,
+        loop: bool = False,
+        max_laps: int = 3,
+        shape: str = "flight path",
+    ) -> TrajectoryExecutionState:
+        """Fly the drone through an ordered list of 3D [x, y, z] waypoints. Mirrors the rover
+        follower: it advances the drone's PD-autopilot target each tick (the app.py loop drives it)
+        and the real flight dynamics carry the drone. 2D waypoints get a default cruise altitude."""
+        if not waypoints or len(waypoints) < 1:
+            self.trajectory_state = TrajectoryExecutionState(
+                trajectory_id=f"traj_{int(time.time())}", status="failed",
+                status_message="A flight path needs at least 1 waypoint.")
+            return self.trajectory_state
+
+        ctrl = self.engine._find_drone_controller(drone_id or "drone")
+        if ctrl is None:
+            self.trajectory_state = TrajectoryExecutionState(
+                trajectory_id=f"traj_{int(time.time())}", status="failed",
+                status_message="No drone in the scene to fly. Add a drone first.")
+            return self.trajectory_state
+
+        clean = [[float(p[0]), float(p[1]), float(p[2]) if len(p) >= 3 else 1.2] for p in waypoints]
+        # Stop the rover follower if it was running; one autonomous follower at a time.
+        self.active_trajectory_controller = None
+        self.active_drone_controller = DroneWaypointController(
+            waypoints=clean, loop=loop and len(clean) >= 3, max_laps=max_laps)
+        self.active_drone_id = ctrl.drone_id
+
+        # Arm the drone: take off toward the first waypoint's altitude so it leaves the ground.
+        ctrl.rotors_active = True
+        ctrl.flight_mode = "waypoint"
+        ctrl.fly_to(clean[0])
+        if self.engine.status != "running":
+            self.engine.play()
+
+        self.trajectory_state = TrajectoryExecutionState(
+            trajectory_id=f"traj_{int(time.time())}", status="running",
+            start_pos=[ctrl.current_position[0], ctrl.current_position[1]],
+            goal_pos=[clean[-1][0], clean[-1][1]],
+            waypoints=[[p[0], p[1]] for p in clean],
+            current_waypoint_index=0, total_waypoints=len(clean), progress_pct=0.0,
+            status_message=f"Flying {shape} ({'looping' if loop else 'once'}), {len(clean)} waypoints")
+        return self.trajectory_state
+
+    def cancel_drone_trajectory(self) -> bool:
+        self.active_drone_controller = None
+        ctrl = self.engine._find_drone_controller(self.active_drone_id or "drone")
+        if ctrl is not None:
+            ctrl.hover()
         return True
 
     def save_physics_snapshot(self, name: Optional[str] = None) -> SimulationSnapshot:

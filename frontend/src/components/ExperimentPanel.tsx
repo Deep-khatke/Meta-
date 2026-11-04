@@ -3,7 +3,7 @@ import {
   Play, Copy, Layers, Target, Clock, ShieldAlert,
   ArrowRight, CheckCircle2, XCircle, AlertCircle, RefreshCw, BarChart2,
   GitCompare, ExternalLink, Eye, Sparkles, BrainCircuit, Sliders, Plus, Settings2, Save, X,
-  Bot, Award, Zap, Lightbulb, CheckSquare, StopCircle, CornerDownRight
+  Bot, Award, Zap, Lightbulb, CheckSquare, StopCircle, CornerDownRight, Download
 } from 'lucide-react';
 import {
   ExperimentConfig, ExperimentRunResult, RunSummary, RunComparison, Project,
@@ -124,6 +124,22 @@ def compute_reward(state, action, info):
   const [benchmarkResult, setBenchmarkResult] = useState<EvaluationSuiteResult | null>(null);
   const [isEvaluating, setIsEvaluating] = useState<boolean>(false);
   const [selectedEvalModelId, setSelectedEvalModelId] = useState<string>('');
+  const [robustness, setRobustness] = useState<any | null>(null);
+  const [robustnessBusy, setRobustnessBusy] = useState<string | null>(null);
+
+  const handleRobustness = async (modelId: string) => {
+    setRobustnessBusy(modelId);
+    onShowToast('Evaluating robustness across randomized worlds…');
+    try {
+      const res = await fetch(`/api/rl/models/${modelId}/robustness`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ episodes: 16, compare_baseline: true }),
+      });
+      if (!res.ok) throw new Error('Robustness evaluation failed');
+      setRobustness(await res.json());
+    } catch (e: any) { onShowToast(e.message || 'Robustness failed'); }
+    finally { setRobustnessBusy(null); }
+  };
 
   // AI Assistant State
   const [aiPrompt, setAiPrompt] = useState<string>('Create a tight slalom challenge with 3 tall cylinders and evaluate PPO vs APF');
@@ -181,6 +197,10 @@ def compute_reward(state, action, info):
     loadScenariosList();
     loadRunsList();
     loadRLModelsList();
+    // Policies trained from chat / viewport live training finish outside this panel, so poll
+    // the saved-model list to show newly trained PPO policies without a manual reload.
+    const t = setInterval(() => { loadRLModelsList(); }, 5000);
+    return () => clearInterval(t);
   }, []);
 
   // Poll RL training job status
@@ -973,12 +993,88 @@ def compute_reward(state, action, info):
                       <Award size={11} />
                       <span>Benchmark</span>
                     </button>
+                    <button
+                      className="rf-btn"
+                      onClick={() => {
+                        const url = `/api/rl/models/${m.model_id}/export`;
+                        const a = document.createElement('a');
+                        a.href = url; a.download = `${m.model_id}_policy_package.zip`;
+                        document.body.appendChild(a); a.click(); a.remove();
+                        onShowToast('Exporting ONNX + ROS 2 node package…');
+                      }}
+                      style={{ fontSize: 10, padding: '3px 8px' }}
+                      title="Download a portable package (ONNX policy + ROS 2 node + README) to run this policy on a real robot"
+                    >
+                      <Download size={11} />
+                      <span>Export</span>
+                    </button>
+                    <button
+                      className="rf-btn"
+                      onClick={() => handleRobustness(m.model_id)}
+                      disabled={robustnessBusy === m.model_id}
+                      style={{ fontSize: 10, padding: '3px 8px' }}
+                      title="Evaluate reliability across domain-randomized worlds (friction, mass, gravity, sensor noise) vs clean baseline"
+                    >
+                      <Zap size={11} />
+                      <span>{robustnessBusy === m.model_id ? 'Scoring…' : 'Robustness'}</span>
+                    </button>
                   </div>
                 </div>
               ))}
             </div>
           )}
         </div>
+        {robustness && (
+          <div
+            onClick={() => setRobustness(null)}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          >
+            <div onClick={(e) => e.stopPropagation()} style={{ width: 460, maxWidth: '92vw', background: 'var(--bg-panel, #11141a)', border: '1px solid rgba(168,85,247,0.5)', borderRadius: 12, padding: 18, color: '#e2e8f0' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                <span style={{ fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Zap size={15} color="#c084fc" /> Robustness Scorecard — {robustness.model_name}
+                </span>
+                <button onClick={() => setRobustness(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}><X size={16} /></button>
+              </div>
+              <div style={{ textAlign: 'center', margin: '8px 0 14px' }}>
+                <div style={{ fontSize: 40, fontWeight: 900, color: robustness.robustness_score >= 70 ? '#22c55e' : robustness.robustness_score >= 40 ? '#f59e0b' : '#ef4444' }}>
+                  {robustness.robustness_score}<span style={{ fontSize: 16, color: '#64748b' }}>/100</span>
+                </div>
+                <div style={{ fontSize: 11.5, color: '#94a3b8', marginTop: 2 }}>{robustness.verdict}</div>
+              </div>
+              <table style={{ width: '100%', fontSize: 11.5, borderCollapse: 'collapse' }}>
+                <thead><tr style={{ color: '#94a3b8' }}>
+                  <th style={{ textAlign: 'left', padding: '4px 6px' }}>Metric</th>
+                  <th style={{ textAlign: 'right', padding: '4px 6px' }}>Randomized</th>
+                  <th style={{ textAlign: 'right', padding: '4px 6px' }}>Clean</th>
+                </tr></thead>
+                <tbody>
+                  {[
+                    ['Success rate', (v: any) => `${Math.round((v?.success_rate ?? 0) * 100)}%`],
+                    ['Collision rate', (v: any) => `${Math.round((v?.collision_rate ?? 0) * 100)}%`],
+                    ['Mean time to goal', (v: any) => v?.mean_time_to_goal != null ? `${v.mean_time_to_goal}s` : '—'],
+                    ['Mean final distance', (v: any) => `${v?.mean_final_distance ?? '—'} m`],
+                    ['Mean reward', (v: any) => `${v?.mean_reward ?? '—'}`],
+                  ].map(([label, fmt]: any, i) => (
+                    <tr key={i} style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                      <td style={{ padding: '4px 6px' }}>{label}</td>
+                      <td style={{ textAlign: 'right', padding: '4px 6px', fontWeight: 700 }}>{fmt(robustness.randomized)}</td>
+                      <td style={{ textAlign: 'right', padding: '4px 6px', color: '#94a3b8' }}>{robustness.baseline_clean ? fmt(robustness.baseline_clean) : '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {robustness.success_retention_pct != null && (
+                <div style={{ marginTop: 10, fontSize: 11.5 }}>
+                  Success retention under randomization: <b style={{ color: '#22c55e' }}>{robustness.success_retention_pct}%</b> of clean performance
+                </div>
+              )}
+              <div style={{ marginTop: 10, fontSize: 10.5, color: '#64748b' }}>
+                Over {robustness.episodes} episodes each. Randomized: friction {robustness.randomization?.friction}, mass {robustness.randomization?.mass}, gravity {robustness.randomization?.gravity}, sensor noise {robustness.randomization?.sensor_noise_std}.
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   };

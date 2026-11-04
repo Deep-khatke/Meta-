@@ -274,7 +274,13 @@ export interface SimulationState {
   rl_training_status?: string;
   rl_training_model_name?: string;
   rl_training_percent?: number;
+  /** Parallel swarm ghost rovers during live training: [x, y, yaw, status(0 trying,1 goal,2 crash,3 timeout)] */
+  rl_ghosts?: Array<[number, number, number, number]>;
+  rl_swarm_success?: number;
+  rl_swarm_size?: number;
   rl_target_position?: [number, number, number] | null;
+  rl_policy_kind?: string | null;
+  sensor_readings?: Record<string, any>;
 }
 
 export interface LogMessage {

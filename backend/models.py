@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import List, Dict, Optional, Literal
+from typing import List, Dict, Optional, Literal, Any
 from pydantic import BaseModel, Field, field_validator
 import uuid
 
@@ -181,6 +181,32 @@ class SensorSettings(BaseModel):
     camera: CameraConfig = Field(default_factory=CameraConfig)
     encoders: EncoderConfig = Field(default_factory=EncoderConfig)
 
+
+# --- Attachable Sensor Instances (Isaac-Lab-style) ---
+# A sensor is a typed device attached to a named body frame (the rover "robot", a drone id, or an
+# articulated-robot link) with a local mount offset, plus type-specific params. Each instance is
+# read every physics step and its reading streamed back in SimulationState.sensor_readings.
+class SensorInstance(BaseModel):
+    id: str
+    name: str = "Sensor"
+    type: Literal["lidar", "imu", "camera", "contact", "rangefinder"] = "imu"
+    parent_body: str = Field(
+        default="robot",
+        description="Body/link to attach to: 'robot' (diff-drive chassis), a drone/object id, "
+                    "or an articulated-robot link name.",
+    )
+    mount_pos: List[float] = Field(default_factory=lambda: [0.0, 0.0, 0.05])
+    mount_rpy: List[float] = Field(default_factory=lambda: [0.0, 0.0, 0.0])
+    enabled: bool = True
+    # Type-specific params (only the relevant ones are used per type).
+    num_beams: int = Field(default=16, ge=4, le=128)
+    fov_deg: float = Field(default=360.0, ge=10.0, le=360.0)
+    max_range: float = Field(default=8.0, ge=0.3, le=50.0)
+    min_range: float = Field(default=0.05, ge=0.01, le=1.0)
+    noise_std: float = Field(default=0.0, ge=0.0, le=0.5)
+    width: int = Field(default=320, ge=64, le=1920)
+    height: int = Field(default=240, ge=64, le=1080)
+
 class URDFImportResult(BaseModel):
     status: Literal["success", "warning", "error"]
     robot: Optional[GenericRobotModel] = None
@@ -234,6 +260,10 @@ class Project(BaseModel):
     )
     generic_robot: Optional[GenericRobotModel] = None
     sensors: SensorSettings = Field(default_factory=SensorSettings)
+    sensors_list: List[SensorInstance] = Field(
+        default_factory=list,
+        description="Attachable sensor instances (Isaac-Lab-style), each mounted to a named body.",
+    )
     objects: List[SceneObject] = Field(default_factory=list)
     settings: SimulationSettings = Field(default_factory=SimulationSettings)
 
@@ -317,6 +347,11 @@ class SimulationState(BaseModel):
     lidar_angles: List[float] = Field(default_factory=list)
     imu_linear_acceleration: Optional[List[float]] = Field(default_factory=lambda: [0.0, 0.0, 0.0])
     imu_angular_velocity: Optional[List[float]] = Field(default_factory=lambda: [0.0, 0.0, 0.0])
+
+    # Per-instance attachable-sensor readings, keyed by sensor id. Each value is a dict with the
+    # sensor's live measurement (e.g. {"type":"imu","accel":[...],"gyro":[...]} or
+    # {"type":"lidar","closest":1.2,"ranges":[...]}).
+    sensor_readings: Dict[str, Dict[str, Any]] = Field(default_factory=dict)
     
     # Generic Joint Telemetry (Positions, Velocities, Torques)
     joint_positions: Dict[str, float] = Field(default_factory=dict)
@@ -338,7 +373,19 @@ class SimulationState(BaseModel):
     rl_training_model_name: Optional[str] = None
     rl_training_percent: float = 0.0  # 0..100 live progress within the active training job
     rl_target_position: Optional[List[float]] = None  # authoritative goal of the active policy
-
+    rl_policy_kind: Optional[str] = None  # "rover" | "arm" | "generic" | "drone" when a policy is active
+    # Live episodic-learning telemetry (Isaac-style "watch it learn"): the last episode's outcome,
+    # the consecutive-success streak, and best reward so far -- streamed so the UI can show the
+    # fail->retry->improve->succeed narrative.
+    rl_training_last_outcome: Optional[str] = None   # "success" | "crash" | "timeout"
+    rl_training_success_streak: int = 0
+    rl_training_best_reward: float = 0.0
+    rl_training_attempts: int = 0
+    # Parallel "swarm" ghost rovers during live training: [x, y, yaw, status]
+    # status: 0 = trying, 1 = reached goal, 2 = crashed
+    rl_ghosts: List[List[float]] = Field(default_factory=list)
+    rl_swarm_success: int = 0
+    rl_swarm_size: int = 0
 
 class LogMessage(BaseModel):
     timestamp: float

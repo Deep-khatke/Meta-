@@ -58,6 +58,7 @@ class AIReasoningService:
         self.pm = proj_manager or project_manager or ProjectManager()
         self.engine = engine
         self.sim_tools = simulation_tools
+        self.agent_interface = None  # set by get_ai_reasoning_service; drives waypoint paths
 
     def get_provider_status(self) -> Dict[str, Any]:
         """Inspects environment and reports configured provider and model truthfully."""
@@ -81,6 +82,8 @@ class AIReasoningService:
             "set_wheel_geometry",
             "teleport_robot",
             "add_robot",
+            "spawn_arm",
+            "play_joint_keyframes",
             "add_drone",
             "control_drone",
             "train_drone_policy",
@@ -92,6 +95,10 @@ class AIReasoningService:
             "configure_imu",
             "configure_camera",
             "configure_wheel_encoders",
+            "add_sensor",
+            "configure_sensor",
+            "remove_sensor",
+            "read_sensors",
             "capture_camera_frame",
             "get_lidar_scan",
             "get_imu_telemetry",
@@ -105,11 +112,13 @@ class AIReasoningService:
             # 5. Navigation, Planning & Motion Control
             "set_target_position",
             "set_target_radius",
+            "drive_path",
             "tune_apf_controller",
             "execute_teleop_cmd",
             "plan_and_execute_trajectory",
             "start_autodrive",
             "stop_autodrive",
+            "stop_robot",
             # 6. Reinforcement Learning (PPO) Studio
             "set_custom_reward_script",
             "get_custom_reward_script",
@@ -160,6 +169,60 @@ class AIReasoningService:
                 "fallback_available": True,
                 "allows_arbitrary_code": False,
                 "status_message": "Operating in deterministic physics heuristic mode (AI_PROVIDER=deterministic).",
+                "tools_available": tools,
+            }
+
+        # 1a. OpenAI-compatible custom endpoint (e.g. OpenRouter / NVIDIA NIM) as PRIMARY.
+        if pref in ("openai_compat", "openrouter", "nvidia", "custom"):
+            base = os.getenv("OPENAI_COMPAT_BASE_URL", "").strip()
+            key = os.getenv("OPENAI_COMPAT_API_KEY", "").strip()
+            model = os.getenv("OPENAI_COMPAT_MODEL", "").strip()
+            if base and key and model:
+                return {
+                    "active_provider": f"OpenRouter ({model})",
+                    "model": model,
+                    "provider_type": "openai_compat",
+                    "endpoint": base,
+                    "is_available": True,
+                    "has_credentials": True,
+                    "offline_mode": False,
+                    "fallback_available": True,  # falls back to Ollama then deterministic
+                    "allows_arbitrary_code": False,
+                    "tools_available": tools,
+                }
+            logger.warning("AI_PROVIDER=%s but OPENAI_COMPAT_* env not fully set; falling through.", pref)
+
+        # 1b. Explicit Ollama override: force local Ollama and NEVER touch any cloud provider,
+        # even if a stale cloud key is present in the environment.
+        if pref == "ollama":
+            try:
+                ollama = OllamaReasoningProvider()
+                if ollama.is_available():
+                    return {
+                        "active_provider": f"Ollama ({ollama.model})",
+                        "model": ollama.model,
+                        "provider_type": "ollama",
+                        "is_available": True,
+                        "has_credentials": True,
+                        "offline_mode": True,
+                        "endpoint": ollama.base_url,
+                        "available_models": ollama.available_models,
+                        "fallback_available": True,
+                        "allows_arbitrary_code": False,
+                        "tools_available": tools,
+                    }
+            except Exception as e:
+                logger.warning("AI_PROVIDER=ollama set but Ollama unavailable (%s). Using deterministic engine.", e)
+            return {
+                "active_provider": "DeterministicRoboticsHeuristicEngine-v1",
+                "model": "deterministic-robotics-v1",
+                "provider_type": "deterministic_rule_engine",
+                "is_available": True,
+                "has_credentials": False,
+                "offline_mode": True,
+                "fallback_available": True,
+                "allows_arbitrary_code": False,
+                "status_message": "AI_PROVIDER=ollama requested but no local Ollama model reachable. Operating in deterministic mode.",
                 "tools_available": tools,
             }
 
@@ -224,6 +287,67 @@ class AIReasoningService:
             "tools_available": tools,
         }
 
+    def _compact_scene_summary(self, context: Dict[str, Any]) -> str:
+        """A tight, high-signal natural-language summary of the live scene for the model.
+
+        Replaces dumping the full raw-JSON context every call (token-heavy and unfocused). This
+        gives the model exactly what it needs to make good tool decisions: the active robot and
+        its joint names (so it can wave/drive the RIGHT joints), the objects present, sim status,
+        and any active policy -- in a few lines instead of a kilobyte of JSON.
+        """
+        proj = self.pm.get_current()
+        lines: List[str] = []
+
+        # Robot(s)
+        gr = getattr(proj, "generic_robot", None)
+        rob = getattr(proj, "robot", None)
+        if gr is not None and getattr(gr, "joints", None):
+            joint_names = [j.name for j in gr.joints if (j.type != "fixed")]
+            lines.append(
+                f"ACTIVE ROBOT: articulated '{gr.name}' "
+                f"({'fixed-base arm' if getattr(gr, 'is_fixed_base', True) else 'mobile base'}), "
+                f"actuated joints = {joint_names}."
+            )
+        elif rob is not None and getattr(proj, "robot_active", True):
+            lines.append(f"ACTIVE ROBOT: differential-drive rover '{rob.name}' (WASD-driveable, trainable for navigation).")
+        else:
+            lines.append("ACTIVE ROBOT: none (empty workspace).")
+
+        # Objects (drones/boxes/etc.)
+        objs = getattr(proj, "objects", []) or []
+        if objs:
+            desc = []
+            for o in objs[:12]:
+                tag = "drone" if ("drone" in o.name.lower() or o.id.startswith("drone") or "quad" in o.name.lower()) else o.type
+                desc.append(f"{o.name}[{tag}] id={o.id}")
+            lines.append(f"OBJECTS ({len(objs)}): " + ", ".join(desc))
+        else:
+            lines.append("OBJECTS: none.")
+
+        # Sensors
+        slist = getattr(proj, "sensors_list", None) or []
+        if slist:
+            lines.append("ATTACHED SENSORS: " + ", ".join(f"{s.type} on {s.parent_body}(id={s.id})" for s in slist))
+
+        # Live sim status + active policy
+        try:
+            st = self.engine.get_state() if getattr(self, "engine", None) is not None else None
+        except Exception:
+            st = None
+        if st is not None:
+            lines.append(f"SIM: status={st.status}, t={st.sim_time:.1f}s.")
+            if getattr(st, "rl_policy_kind", None):
+                lines.append(f"ACTIVE POLICY: a '{st.rl_policy_kind}' RL policy is currently driving the robot.")
+
+        # Physics
+        try:
+            g = proj.settings.gravity
+            lines.append(f"PHYSICS: gravity z={g[2]} m/s^2.")
+        except Exception:
+            pass
+
+        return "\n".join(lines)
+
     def gather_simulation_context(self) -> Dict[str, Any]:
         """Collects authoritative, un-simulated state from the active project and engine."""
         proj = self.pm.get_current()
@@ -265,6 +389,16 @@ class AIReasoningService:
                     "encoders_enabled": proj.sensors.encoders.enabled
                 }
             },
+            "generic_robot": (
+                {
+                    "name": proj.generic_robot.name,
+                    "is_fixed_base": proj.generic_robot.is_fixed_base,
+                    "joints": [
+                        {"name": j.name, "type": j.type} for j in proj.generic_robot.joints
+                    ],
+                }
+                if getattr(proj, "generic_robot", None) is not None else None
+            ),
             "environment": {
                 "total_obstacles": len(proj.objects),
                 "obstacles": [
@@ -297,8 +431,30 @@ class AIReasoningService:
         proj = self.pm.get_current()
         rob = proj.robot
         sens = proj.sensors
+        gr = getattr(proj, "generic_robot", None)
+        if rob is None:
+            # Articulated / empty workspace: report the generic robot (if any) instead of
+            # dereferencing a non-existent diff-drive rover config.
+            return {
+                "robot_name": (gr.name if gr is not None else "none"),
+                "robot_type": ("articulated" if gr is not None else "none"),
+                "joints": ([{"name": j.name, "type": j.type} for j in gr.joints] if gr is not None else []),
+                "joint_count": (len(gr.joints) if gr is not None else 0),
+                "wheel_radius": None,
+                "wheel_base": None,
+                "max_linear_velocity": None,
+                "max_angular_velocity": None,
+                "actuator_mode": ("position_joints" if gr is not None else "none"),
+                "sensors": {
+                    "lidar": {"enabled": sens.lidar.enabled, "range": sens.lidar.max_range, "rays": sens.lidar.num_beams},
+                    "imu": {"enabled": sens.imu.enabled},
+                    "wheel_encoders": {"enabled": sens.encoders.enabled},
+                    "camera": {"enabled": sens.camera.enabled}
+                }
+            }
         return {
             "robot_name": rob.name,
+            "robot_type": "differential_drive",
             "wheel_radius": rob.wheel_radius,
             "wheel_base": rob.wheel_base,
             "max_linear_velocity": rob.max_linear_velocity,
@@ -398,7 +554,10 @@ class AIReasoningService:
                 self.engine.project = proj
                 self.engine.rebuild_model(preserve_state=True)
                 if hasattr(self.engine, "command_drone_takeoff"):
-                    self.engine.command_drone_takeoff(drone_id, altitude=safe_pos[2])
+                    # Always lift the new drone to a visible hover so it's airborne and active,
+                    # not a stationary object on the ground.
+                    _hover_alt = max(1.2, float(safe_pos[2]))
+                    self.engine.command_drone_takeoff(drone_id, altitude=_hover_alt)
             except Exception as e:
                 logger.warning("Engine rebuild error on add_drone: %s", e)
 
@@ -562,61 +721,277 @@ class AIReasoningService:
 
     def tool_add_robot(
         self,
-        name: str = "ForgeBot-DD2",
+        name: str = "ForgeBot-DD1",
         position: Optional[List[float]] = None,
         color: str = "#06b6d4",
         mass: float = 4.5,
         robot_type: str = "differential_drive"
     ) -> Dict[str, Any]:
-        """Tool: Directly synthesizes, validates, and deploys an additional differential drive robot into the live scene."""
-        proj = self.pm.get_current()
-        if not position or len(position) != 3:
-            existing_robots = [o for o in proj.objects if "robot" in o.name.lower() or o.id.startswith("robot") or "forgebot" in o.name.lower()]
-            count = len(existing_robots)
-            offset_x = 1.2 + (count * 0.8)
-            offset_y = 0.55 if (count % 2 == 1) else -0.55
-            position = [round(offset_x, 2), round(offset_y, 2), 0.07]
+        """Tool: Spawns a REAL driveable differential-drive rover as the scene's primary robot.
 
+        A driveable rover in this engine is `project.robot` (a RobotConfig with wheels + motors)
+        with `robot_active=True` -- that is what emits the chassis, wheel joints, and the
+        left_motor/right_motor actuators so WASD teleop and navigation RL actually work. (A plain
+        box object has no motors and cannot be driven or trained as a rover.)
+        """
+        from backend.models import RobotConfig
+        proj = self.pm.get_current()
+
+        # Spawn pose: default at origin so the rover sits on the ground, driveable.
+        if not position or len(position) != 3:
+            position = [0.0, 0.0, 0.07]
         px = max(self.ARENA_X_MIN + 0.5, min(self.ARENA_X_MAX - 0.5, float(position[0])))
         py = max(self.ARENA_Y_MIN + 0.5, min(self.ARENA_Y_MAX - 0.5, float(position[1])))
         pz = max(0.04, min(1.0, float(position[2])))
         safe_pos = [round(px, 3), round(py, 3), round(pz, 3)]
 
-        robot_id = f"robot_{uuid.uuid4().hex[:6]}"
-        robot_obj = SceneObject(
-            id=robot_id,
-            name=name or f"ForgeBot-DD{len(proj.objects) + 2}",
-            type="box",
-            position=safe_pos,
-            rotation=[0.0, 0.0, 0.0],
-            size=[0.18, 0.12, 0.08],
-            color=color,
-            is_static=False,
-            mass=float(mass) if mass > 0 else 4.5
-        )
-
-        # Remove previous entity with identical name if updating
-        proj.objects = [o for o in proj.objects if o.name != robot_obj.name]
-        proj.objects.append(robot_obj)
+        # Activate the built-in diff-drive robot (reuse existing config if present so we don't
+        # clobber user tuning; otherwise create a sensible default).
+        existing = getattr(proj, "robot", None)
+        if existing is not None:
+            existing.name = name or existing.name
+            existing.initial_position = safe_pos
+            proj.robot = existing
+        else:
+            proj.robot = RobotConfig(
+                id="robot_main",
+                name=name or "ForgeBot-DD1",
+                initial_position=safe_pos,
+                initial_yaw=0.0,
+                wheel_radius=0.06,
+                wheel_base=0.28,
+                max_linear_velocity=1.5,
+                max_angular_velocity=3.0,
+            )
+        proj.robot_active = True
         self.pm.update_project(proj)
         if hasattr(self, "engine") and self.engine is not None:
             try:
                 self.engine.project = proj
-                self.engine.rebuild_model(preserve_state=True)
+                self.engine.rebuild_model(preserve_state=False)
             except Exception as e:
                 logger.warning("Engine rebuild error on add_robot: %s", e)
 
-        logger.info("Successfully deployed secondary robot entity '%s' (id: %s) at %s", robot_obj.name, robot_id, safe_pos)
+        logger.info("Activated driveable diff-drive rover '%s' at %s.", proj.robot.name, safe_pos)
         return {
             "action": "add_robot",
             "status": "success",
-            "robot_id": robot_id,
-            "name": robot_obj.name,
-            "type": robot_type,
+            "robot_id": proj.robot.id,
+            "name": proj.robot.name,
+            "type": "differential_drive",
             "position": safe_pos,
-            "mass": robot_obj.mass,
-            "color": color,
-            "details": f"Deployed {robot_obj.name} (Differential Drive Rover) at [{safe_pos[0]}, {safe_pos[1]}, {safe_pos[2]}]."
+            "driveable": True,
+            "details": (
+                f"Spawned driveable differential-drive rover '{proj.robot.name}' at "
+                f"[{safe_pos[0]}, {safe_pos[1]}, {safe_pos[2]}]. You can now drive it with WASD/arrow "
+                f"keys, or train a navigation PPO policy on it."
+            ),
+        }
+
+    def tool_spawn_arm(
+        self,
+        joints: int = 4,
+        name: Optional[str] = None,
+        preset: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Tool: Spawns an articulated arm/manipulator and sets it as the scene's active
+        generic (articulated) robot, then rebuilds the live physics model so it appears in 3D.
+
+        This is the ONLY correct way to add an arm from chat -- `add_robot` only makes a
+        diff-drive rover, so arm requests must route here.
+        """
+        from backend.models import GenericRobotModel, LinkModel, JointModel, JointLimit, LinkGeom, LinkInertial
+        from backend.project_manager import get_kr6_arm_robot, get_scara_arm_robot
+
+        preset = (preset or "").lower().strip()
+        robot: Optional[GenericRobotModel] = None
+
+        if preset in ("kr6", "kuka", "industrial", "6", "6dof", "6-axis"):
+            robot = get_kr6_arm_robot()
+        elif preset in ("scara", "3", "3dof"):
+            robot = get_scara_arm_robot()
+        else:
+            # Build a clean N-joint serial arm (default 4) whose links actually CONNECT joint to
+            # joint so it reads as a real articulated arm (not floating primitives). Geometry rule:
+            # link i is a segment that spans the full distance from joint i to joint i+1, centered
+            # at the midpoint, so there are no gaps. All limits are in radians.
+            try:
+                n = int(joints)
+            except Exception:
+                n = 4
+            n = max(2, min(6, n))
+
+            # Per-segment lengths (slightly shrinking toward the tip) and the base pedestal height.
+            base_h = 0.12
+            seg_lengths = [round(0.34 * (0.85 ** i), 4) for i in range(n)]
+            palette = ["#2b6cb0", "#dd6b20", "#2b6cb0", "#dd6b20", "#2b6cb0", "#dd6b20"]
+
+            # Base pedestal: a short wide cylinder sitting on the ground.
+            links: List[LinkModel] = [
+                LinkModel(
+                    name="base_link",
+                    visual=LinkGeom(type="cylinder", size=[0.12, base_h * 0.5], origin_pos=[0, 0, base_h * 0.5], color="#2d3748"),
+                    collision=LinkGeom(type="cylinder", size=[0.12, base_h * 0.5], origin_pos=[0, 0, base_h * 0.5], color="#2d3748"),
+                    inertial=LinkInertial(mass=5.0, origin_pos=[0, 0, base_h * 0.5], ixx=0.05, iyy=0.05, izz=0.08),
+                )
+            ]
+            joints_list: List[JointModel] = []
+            parent = "base_link"
+            for i in range(n):
+                child = f"link_{i+1}"
+                is_last = (i == n - 1)
+                seg = seg_lengths[i]
+                radius = max(0.035, 0.05 - i * 0.004)
+                color = palette[i % len(palette)]
+
+                if is_last:
+                    # End-effector: a flat "palm" plus two fingers via fixed joints, so it reads
+                    # as a real 2-finger gripper instead of a plain floating box.
+                    links.append(LinkModel(
+                        name=child,
+                        visual=LinkGeom(type="box", size=[0.055, 0.02, 0.03], origin_pos=[0, 0, 0.03], color="#0f766e"),
+                        collision=LinkGeom(type="box", size=[0.055, 0.02, 0.03], origin_pos=[0, 0, 0.03], color="#0f766e"),
+                        inertial=LinkInertial(mass=0.3, origin_pos=[0, 0, 0.03], ixx=0.001, iyy=0.001, izz=0.001),
+                    ))
+                    # Two finger links sticking forward from the palm (fixed joints, so no actuator).
+                    for fi, fy in ((1, 0.035), (2, -0.035)):
+                        fname = f"{child}_finger_{fi}"
+                        links.append(LinkModel(
+                            name=fname,
+                            visual=LinkGeom(type="box", size=[0.012, 0.012, 0.045], origin_pos=[0, 0, 0.045], color="#10b981"),
+                            collision=LinkGeom(type="box", size=[0.012, 0.012, 0.045], origin_pos=[0, 0, 0.045], color="#10b981"),
+                            inertial=LinkInertial(mass=0.05, origin_pos=[0, 0, 0.045], ixx=0.0002, iyy=0.0002, izz=0.0001),
+                        ))
+                        joints_list.append(JointModel(
+                            name=f"{fname}_fixed",
+                            type="fixed",
+                            parent_link=child,
+                            child_link=fname,
+                            origin_pos=[0.0, round(fy, 4), 0.055],
+                            axis=[0.0, 0.0, 1.0],
+                        ))
+                else:
+                    # A segment cylinder that spans from THIS joint (z=0 in the link frame) up to
+                    # the NEXT joint (z=seg). Centered at seg/2 with half-length seg/2 -> no gap.
+                    links.append(LinkModel(
+                        name=child,
+                        visual=LinkGeom(type="cylinder", size=[radius, seg * 0.5], origin_pos=[0, 0, seg * 0.5], color=color),
+                        collision=LinkGeom(type="cylinder", size=[radius, seg * 0.5], origin_pos=[0, 0, seg * 0.5], color=color),
+                        inertial=LinkInertial(mass=max(0.4, 1.4 - i * 0.25), origin_pos=[0, 0, seg * 0.5],
+                                              ixx=0.012, iyy=0.012, izz=0.006),
+                    ))
+
+                # Joint i connects parent to child. The FIRST joint sits on top of the base
+                # pedestal; every later joint sits at the far end of the previous segment, so the
+                # chain is continuous with no floating gaps.
+                origin_z = base_h if i == 0 else seg_lengths[i - 1]
+                # Alternate yaw / pitch so the arm has a natural reachable workspace.
+                axis = [0.0, 0.0, 1.0] if i % 2 == 0 else [0.0, 1.0, 0.0]
+                joints_list.append(JointModel(
+                    name=(f"joint_{i+1}" if i > 0 else "shoulder"),
+                    type="revolute",
+                    parent_link=parent,
+                    child_link=child,
+                    origin_pos=[0.0, 0.0, round(origin_z, 4)],
+                    axis=axis,
+                    limit=JointLimit(lower=-3.14, upper=3.14, effort=10.0, velocity=2.0),
+                ))
+                parent = child
+
+            robot = GenericRobotModel(
+                name=name or f"{n}_joint_arm",
+                root_link="base_link",
+                base_position=[0.0, 0.0, 0.0],
+                base_rpy=[0.0, 0.0, 0.0],
+                is_fixed_base=True,
+                links=links,
+                joints=joints_list,
+            )
+
+        if name:
+            robot.name = name
+
+        proj = self.pm.get_current()
+        proj.generic_robot = robot
+        self.pm.update_project(proj)
+        if hasattr(self, "engine") and self.engine is not None:
+            try:
+                self.engine.project = proj
+                self.engine.rebuild_model(preserve_state=False)
+            except Exception as e:
+                logger.warning("Engine rebuild error on spawn_arm: %s", e)
+
+        n_joints = len(robot.joints)
+        logger.info("Spawned articulated arm '%s' with %d joints as active generic_robot.", robot.name, n_joints)
+        return {
+            "action": "spawn_arm",
+            "status": "success",
+            "name": robot.name,
+            "joint_count": n_joints,
+            "joints": [j.name for j in robot.joints],
+            "is_fixed_base": robot.is_fixed_base,
+            "details": f"Spawned articulated arm '{robot.name}' with {n_joints} joints into the scene. It is now the active robot and you can drive its joints or train a reach policy on it.",
+        }
+
+    def tool_play_joint_keyframes(
+        self,
+        keyframes: Optional[List[Dict[str, Any]]] = None,
+        loop: bool = False,
+        motion: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Tool: Plays a sequence of joint poses (keyframes) on the active articulated arm so it
+        performs an authored motion (e.g. a wave). Accepts explicit keyframes, or a named motion
+        ('wave', 'home', 'reach') which is auto-generated from the current arm's joints."""
+        proj = self.pm.get_current()
+        gr = getattr(proj, "generic_robot", None)
+        if not gr or not gr.joints:
+            return {"action": "play_joint_keyframes", "status": "error",
+                    "details": "No articulated arm in the scene. Spawn or import an arm first."}
+
+        jnames = [j.name for j in gr.joints]
+
+        # Auto-author a named motion if no explicit keyframes were supplied.
+        if not keyframes:
+            m = (motion or "wave").lower().strip()
+            j = jnames  # convenience
+            def pose(**kw):
+                return {j[int(k[1:]) - 1]: v for k, v in kw.items() if int(k[1:]) - 1 < len(j)}
+            if m in ("home", "rest", "zero"):
+                keyframes = [{"targets": {name: 0.0 for name in jnames}, "duration": 1.2}]
+            elif m in ("reach", "extend"):
+                keyframes = [
+                    {"targets": pose(j1=0.0, j2=-0.6, j3=0.9), "duration": 1.2},
+                    {"targets": pose(j1=0.5, j2=-0.3, j3=0.5), "duration": 1.2},
+                ]
+            else:  # wave (default)
+                # Raise the arm into a greeting pose, oscillate the last joint (the "hand"), rest.
+                raise_pose = {}
+                if len(j) >= 1: raise_pose[j[0]] = 0.3
+                if len(j) >= 2: raise_pose[j[1]] = -0.9
+                if len(j) >= 3: raise_pose[j[2]] = 1.2
+                last = j[-1]
+                keyframes = [
+                    {"targets": raise_pose, "duration": 1.0},
+                    {"targets": {last: 0.6}, "duration": 0.45},
+                    {"targets": {last: -0.6}, "duration": 0.45},
+                    {"targets": {last: 0.6}, "duration": 0.45},
+                    {"targets": {last: -0.6}, "duration": 0.45},
+                    {"targets": {name: 0.0 for name in jnames}, "duration": 1.0},
+                ]
+
+        if not hasattr(self, "engine") or self.engine is None:
+            return {"action": "play_joint_keyframes", "status": "error", "details": "Engine not available."}
+
+        res = self.engine.start_joint_keyframes(keyframes, loop=bool(loop))
+        if res.get("status") != "ok":
+            return {"action": "play_joint_keyframes", "status": "error", "details": res.get("message", "Could not start motion.")}
+        return {
+            "action": "play_joint_keyframes",
+            "status": "success",
+            "keyframes": res.get("keyframes"),
+            "loop": res.get("loop"),
+            "motion": (motion or "wave") if not keyframes else "custom",
+            "details": f"Playing {res.get('keyframes')} keyframe(s) on '{gr.name}'. The arm is now performing the motion in the live viewport.",
         }
 
     def tool_generate_obstacle_course(
@@ -859,6 +1234,93 @@ class AIReasoningService:
             "target_position": target_pos,
             "obstacles": [{"name": o.name, "position": o.position, "type": o.type} for o in new_obstacles],
             "details": f"Procedurally synthesized full '{env_key}' environment with {len(new_obstacles)} validated obstacles and grounded navigation target."
+        }
+
+    def tool_build_mission(
+        self,
+        description: str = "",
+        env_type: Optional[str] = None,
+        train: bool = False,
+        patrol_points: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Tool: ONE command that builds a full mission end-to-end — synthesize an environment,
+        plan a COLLISION-FREE patrol route around it (A*), load it as a drivable path, and
+        optionally train the rover to run it. Use for requests like "build a warehouse and make
+        the rover patrol it", "create a maze and have the robot learn to run it", etc.
+
+        - description: the user's words (used to infer the environment and whether to train).
+        - env_type: maze | warehouse | racing_track | tunnel | multi_room | drone_course (inferred
+          from description if omitted).
+        - train: True to train a PPO policy on the route (watch it learn), else just drive it.
+        - patrol_points: how many loop corners to visit (default 4).
+        """
+        import math as _m
+        from backend.motion_planning import GridAStarPlanner
+        d = (description or "").lower()
+        if env_type is None:
+            for k in ("warehouse", "maze", "racing", "tunnel", "multi", "room", "drone"):
+                if k in d:
+                    env_type = {"racing": "racing_track", "multi": "multi_room", "room": "multi_room"}.get(k, k)
+                    break
+            env_type = env_type or "warehouse"
+        if train is False:
+            train = any(w in d for w in ["train", "learn", "ppo", "teach", "reinforcement"])
+
+        # 1) Build the environment.
+        env_res = self.tool_synthesize_environment(env_type=env_type, clear_existing=True)
+        proj = self.pm.get_current()
+
+        # 2) Plan a collision-free patrol loop: a ring of corner points joined by A* so the full
+        #    path weaves around the obstacles. Try several radii (small first — the free space is
+        #    usually near the center) and keep the largest ring that yields a fully free loop.
+        n = max(3, int(patrol_points or 4))
+        planner = GridAStarPlanner(proj, resolution=0.15, robot_radius=0.3)
+        route: List[List[float]] = []
+        corners: List[List[float]] = []
+        for radius in (1.1, 1.4, 1.7, 2.0):
+            ring = [[round(radius * _m.cos(2 * _m.pi * i / n), 2),
+                     round(radius * _m.sin(2 * _m.pi * i / n), 2)] for i in range(n)]
+            cand: List[List[float]] = []
+            ok = True
+            loop_pts = ring + [ring[0]]
+            for a, b in zip(loop_pts, loop_pts[1:]):
+                seg = planner.plan(start=(a[0], a[1]), goal=(b[0], b[1]), smooth=True)
+                if not seg.success or len(seg.path) < 2:
+                    ok = False
+                    break
+                cand.extend(seg.path[:-1])  # drop duplicate junctions
+            if ok and len(cand) >= 3:
+                route, corners = cand, ring  # keep going; prefer the largest free ring
+        if len(route) < 3:
+            # Nothing free as a loop — fall back to a safe small square near the center.
+            route = [[0.8, 0.8], [-0.8, 0.8], [-0.8, -0.8], [0.8, -0.8]]
+
+        # 3) Load the route into the live trajectory follower (or train on it).
+        started = None
+        ai = getattr(self, "agent_interface", None)
+        if train:
+            from backend.rl_training_manager import training_manager
+            started = training_manager.start_live_interactive_rover_training(
+                engine=self.engine, robot_identifier="robot", total_episodes=4,
+                task_description="patrol the environment", waypoints=route, loop=True)
+        elif ai is not None:
+            ai.execute_waypoint_path(waypoints=route, loop=True, max_laps=3, shape=f"{env_type} patrol")
+
+        return {
+            "action": "build_mission",
+            "status": "success",
+            "env_type": env_type,
+            "obstacle_count": env_res.get("obstacle_count", 0),
+            "mission_waypoints": route,          # consumed by the UI to populate the Mission Planner
+            "mission_loop": True,
+            "trained": bool(train),
+            "job_id": (started or {}).get("job_id") if isinstance(started, dict) else None,
+            "details": (
+                f"Built a '{env_type}' environment ({env_res.get('obstacle_count', 0)} obstacles) and planned a "
+                f"collision-free {len(route)}-waypoint patrol loop around it. "
+                + ("Training the rover to run it now — watch the swarm learn." if train
+                   else "The rover is driving the patrol route now. Open the Mission Planner to edit it.")
+            ),
         }
 
     def tool_clear_scene(self) -> Dict[str, Any]:
@@ -1196,14 +1658,21 @@ class AIReasoningService:
         if hasattr(self, "engine") and self.engine is not None:
             try:
                 if cmd == "reset":
+                    # Reset also clears any active autonomous policy so the scene truly resets.
+                    if hasattr(self.engine, "disengage_rl_policy"):
+                        self.engine.disengage_rl_policy()
                     self.engine.reset()
-                    details = "Simulation reset to initial state."
+                    details = "Simulation reset to initial state (autonomous control cleared)."
                 elif cmd in ("play", "start", "run", "resume"):
                     self.engine.play()
                     details = "Simulation playback running."
-                elif cmd in ("pause", "stop"):
+                elif cmd in ("pause", "stop", "halt"):
+                    # "Stop the robot" means stop AUTONOMOUS control, not just freeze physics, so a
+                    # follow-up command isn't instantly overridden by the still-active policy.
+                    if hasattr(self.engine, "disengage_rl_policy"):
+                        self.engine.disengage_rl_policy()
                     self.engine.pause()
-                    details = "Simulation paused."
+                    details = "Robot stopped: autonomous policy disengaged and simulation paused."
                 elif cmd == "step":
                     self.engine.step()
                     details = "Simulation stepped forward."
@@ -1215,6 +1684,25 @@ class AIReasoningService:
             "status": "success",
             "command": cmd,
             "details": details
+        }
+
+    def tool_stop_robot(self) -> Dict[str, Any]:
+        """Tool: Stops the robot's autonomous control (RL policy / autodrive / keyframe motion) and
+        halts it, WITHOUT pausing physics — so the user can immediately issue a new command that
+        actually takes effect in the viewport."""
+        if hasattr(self, "engine") and self.engine is not None:
+            try:
+                if hasattr(self.engine, "disengage_rl_policy"):
+                    self.engine.disengage_rl_policy()
+                # Keep physics running so the next command is visible immediately.
+                if self.engine.status != "running":
+                    self.engine.play()
+            except Exception as e:
+                return {"action": "stop_robot", "status": "error", "details": f"Engine error: {e}"}
+        return {
+            "action": "stop_robot",
+            "status": "success",
+            "details": "Stopped autonomous control. The robot is idle and ready for a new command (teleop, a new policy, or a different task).",
         }
 
     def tool_configure_sensors(
@@ -1257,6 +1745,155 @@ class AIReasoningService:
             "status": "success",
             "details": " & ".join(details) or "Sensors configured."
         }
+
+    def tool_add_sensor(
+        self,
+        type: str = "imu",
+        parent_body: str = "robot",
+        name: Optional[str] = None,
+        mount_pos: Optional[List[float]] = None,
+        num_beams: Optional[int] = None,
+        max_range: Optional[float] = None,
+    ) -> Dict[str, Any]:
+        """Tool: Attaches a new sensor (imu/lidar/camera/contact) to a named body (the rover
+        'robot', a drone/object id, or an articulated-robot link) and rebuilds the live model."""
+        import uuid as _uuid
+        from backend.models import SensorInstance
+        proj = self.pm.get_current()
+        stype = (type or "imu").lower().strip()
+        if stype not in ("lidar", "imu", "camera", "contact", "rangefinder"):
+            return {"action": "add_sensor", "status": "error", "details": f"Unknown sensor type '{stype}'."}
+
+        # Resolve a friendly parent reference ("the drone", "arm tip") to a real body id/name.
+        parent = self._resolve_sensor_parent(parent_body, proj)
+        defaults = {"lidar": [0.1, 0.0, 0.1], "rangefinder": [0.1, 0.0, 0.1],
+                    "imu": [0.0, 0.0, 0.05], "camera": [0.12, 0.0, 0.08], "contact": [0.0, 0.0, 0.0]}
+        s = SensorInstance(
+            id=f"sensor_{_uuid.uuid4().hex[:6]}",
+            name=name or f"{stype.capitalize()} on {parent}",
+            type=stype,  # type: ignore
+            parent_body=parent,
+            mount_pos=mount_pos or defaults.get(stype, [0.0, 0.0, 0.05]),
+        )
+        if num_beams is not None: s.num_beams = int(num_beams)
+        if max_range is not None: s.max_range = float(max_range)
+        if not hasattr(proj, "sensors_list") or proj.sensors_list is None:
+            proj.sensors_list = []
+        proj.sensors_list.append(s)
+        self.pm.update_project(proj)
+        if hasattr(self, "engine") and self.engine is not None:
+            try:
+                self.engine.project = proj
+                self.engine.rebuild_model(preserve_state=True)
+            except Exception as e:
+                logger.warning("Engine rebuild error on add_sensor: %s", e)
+        return {
+            "action": "add_sensor", "status": "success", "sensor_id": s.id, "type": stype,
+            "parent_body": parent,
+            "details": f"Attached a {stype.upper()} sensor '{s.name}' to '{parent}'. Its live readings now stream in the Sensors panel and can be read via chat.",
+        }
+
+    def _resolve_sensor_parent(self, parent: str, proj) -> str:
+        """Map a loose parent reference to a real body: 'robot', an object id, or an arm link."""
+        p = (parent or "robot").strip().lower()
+        if p in ("robot", "rover", "chassis", "base", "the robot", "the rover"):
+            return "robot"
+        # Drone / object references
+        for o in proj.objects:
+            if p == o.id.lower() or p in o.name.lower() or (("drone" in p or "quad" in p) and ("drone" in o.name.lower() or "quad" in o.name.lower())):
+                return o.id
+        # Arm link references
+        gr = getattr(proj, "generic_robot", None)
+        if gr is not None:
+            for l in gr.links:
+                if p == l.name.lower() or p in l.name.lower():
+                    return l.name
+            if "tip" in p or "end" in p or "gripper" in p or "hand" in p:
+                return gr.links[-1].name if gr.links else "robot"
+            if "arm" in p or "manipulat" in p:
+                return gr.root_link
+        return parent or "robot"
+
+    def tool_configure_sensor(
+        self,
+        sensor_id: Optional[str] = None,
+        enabled: Optional[bool] = None,
+        num_beams: Optional[int] = None,
+        max_range: Optional[float] = None,
+        fov_deg: Optional[float] = None,
+        mount_pos: Optional[List[float]] = None,
+        parent_body: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Tool: Edits an attached sensor's parameters (enable, beams, range, fov, mount, parent)."""
+        proj = self.pm.get_current()
+        lst = getattr(proj, "sensors_list", None) or []
+        if not lst:
+            return {"action": "configure_sensor", "status": "error", "details": "No attached sensors to configure."}
+        # Default to the most recently added sensor if no id given.
+        s = next((x for x in lst if x.id == sensor_id), None) if sensor_id else lst[-1]
+        if s is None:
+            return {"action": "configure_sensor", "status": "error", "details": f"Sensor '{sensor_id}' not found."}
+        changes = []
+        if enabled is not None: s.enabled = bool(enabled); changes.append(f"enabled={s.enabled}")
+        if num_beams is not None: s.num_beams = max(4, min(128, int(num_beams))); changes.append(f"beams={s.num_beams}")
+        if max_range is not None: s.max_range = max(0.3, min(50.0, float(max_range))); changes.append(f"range={s.max_range}m")
+        if fov_deg is not None: s.fov_deg = max(10.0, min(360.0, float(fov_deg))); changes.append(f"fov={s.fov_deg}")
+        if mount_pos is not None: s.mount_pos = list(mount_pos); changes.append("mount")
+        if parent_body is not None: s.parent_body = self._resolve_sensor_parent(parent_body, proj); changes.append(f"parent={s.parent_body}")
+        self.pm.update_project(proj)
+        if hasattr(self, "engine") and self.engine is not None:
+            try:
+                self.engine.project = proj
+                self.engine.rebuild_model(preserve_state=True)
+            except Exception:
+                pass
+        return {"action": "configure_sensor", "status": "success", "sensor_id": s.id,
+                "details": f"Updated sensor '{s.name}': {', '.join(changes) or 'no changes'}."}
+
+    def tool_remove_sensor(self, sensor_id: Optional[str] = None) -> Dict[str, Any]:
+        """Tool: Removes an attached sensor (by id, or the most recently added if none given)."""
+        proj = self.pm.get_current()
+        lst = getattr(proj, "sensors_list", None) or []
+        if not lst:
+            return {"action": "remove_sensor", "status": "not_found", "details": "No attached sensors."}
+        target = sensor_id or lst[-1].id
+        proj.sensors_list = [x for x in lst if x.id != target]
+        self.pm.update_project(proj)
+        if hasattr(self, "engine") and self.engine is not None:
+            try:
+                self.engine.project = proj
+                self.engine.rebuild_model(preserve_state=True)
+            except Exception:
+                pass
+        return {"action": "remove_sensor", "status": "success", "details": f"Removed sensor '{target}'."}
+
+    def tool_read_sensors(self, sensor_id: Optional[str] = None) -> Dict[str, Any]:
+        """Tool: Reads the current live measurement of attached sensors (all, or one by id)."""
+        if not hasattr(self, "engine") or self.engine is None:
+            return {"action": "read_sensors", "status": "error", "details": "Engine not available."}
+        readings = self.engine.get_state().sensor_readings or {}
+        if sensor_id:
+            readings = {sensor_id: readings.get(sensor_id, {"note": "not found"})}
+        if not readings:
+            return {"action": "read_sensors", "status": "success", "readings": {},
+                    "details": "No attached sensors. Add one with add_sensor (e.g. attach an IMU to the drone)."}
+        # Build a short human summary.
+        parts = []
+        for sid, r in readings.items():
+            t = r.get("type", "?")
+            if t == "imu":
+                la = r.get("linear_acceleration", [0, 0, 0])
+                parts.append(f"{sid} (IMU): accel≈[{la[0]:.2f},{la[1]:.2f},{la[2]:.2f}] m/s²")
+            elif t in ("lidar", "rangefinder"):
+                parts.append(f"{sid} ({t}): closest {r.get('closest')}m over {r.get('num_beams')} beams")
+            elif t == "contact":
+                parts.append(f"{sid} (contact): {'IN CONTACT' if r.get('in_contact') else 'clear'} ({r.get('contacts',0)})")
+            elif t == "camera":
+                parts.append(f"{sid} (camera): {r.get('resolution')} @ {r.get('fov_deg')}°")
+            else:
+                parts.append(f"{sid}: {t}")
+        return {"action": "read_sensors", "status": "success", "readings": readings,
+                "details": "Live sensor readings — " + "; ".join(parts)}
 
     # -------------------------------------------------------------
     # Category 1: Scene & Obstacle Geometry
@@ -1663,6 +2300,129 @@ class AIReasoningService:
             "details": " & ".join(details) or "Wheel encoders configured."
         }
 
+    def _capture_vision_frame(self, width: int = 384, height: int = 288) -> Optional[str]:
+        """Return a base64 data-URL of the robot camera view, or None. Used to feed the
+        vision-language model so it can literally SEE the scene."""
+        if not hasattr(self, "engine") or self.engine is None or getattr(self.engine, "model", None) is None:
+            return None
+        try:
+            cam = None
+            try:
+                import mujoco as _mj
+                if _mj.mj_name2id(self.engine.model, _mj.mjtObj.mjOBJ_CAMERA, "robot_camera") >= 0:
+                    cam = "robot_camera"
+            except Exception:
+                cam = None
+            frame = self.engine.capture_camera_frame(width=width, height=height, camera_name=cam)
+            return frame.get("image_data_url")
+        except Exception as e:
+            logger.warning("Vision frame capture failed: %s", e)
+            return None
+
+    @staticmethod
+    def _wants_vision(prompt: str) -> bool:
+        p = (prompt or "").lower()
+        kws = ["see", "look", "camera", "vision", "in front", "what is there", "what's there",
+               "describe the scene", "what do you", "visible", "spot the", "identify", "recognize",
+               "find the", "go to the", "drive to the", "navigate to the", "approach the",
+               "head to the", "nearest", "closest"]
+        return any(k in p for k in kws)
+
+    def tool_vision_locate(self, description: str = "", drive: bool = True) -> Dict[str, Any]:
+        """Tool: Find a described object in the scene BY SIGHT and (optionally) drive the rover to
+        it — no coordinates needed. Matches the description ('red box', 'the blue cylinder', 'nearest
+        obstacle') against real scene objects by color + shape + proximity, then navigates there via
+        the collision-free planner. Use for 'drive to the red box', 'go to the nearest obstacle'."""
+        proj = self.pm.get_current()
+        objs = [o for o in proj.objects if not (o.name.lower().startswith(("forgebot", "drone")) or o.id.startswith(("robot", "drone")))]
+        if not objs:
+            return {"action": "vision_locate", "status": "not_found", "details": "No objects in the scene to locate."}
+
+        rpos = [0.0, 0.0]
+        try:
+            st = self.engine.get_state()
+            rpos = [st.robot.position[0], st.robot.position[1]]
+        except Exception:
+            pass
+
+        d = (description or "").lower()
+        _COLORS = {"red": "#ef", "green": "#1", "blue": "#3", "yellow": "#f5", "purple": "#8b",
+                   "orange": "#f59", "cyan": "#06", "teal": "#1a", "pink": "#ff"}
+        _SHAPES = ["box", "cube", "sphere", "ball", "cylinder", "pillar", "wall", "rack", "pallet", "pylon"]
+
+        def score(o):
+            s = 0.0
+            nm = (o.name or "").lower()
+            col = (o.color or "").lower()
+            for cword, cprefix in _COLORS.items():
+                if cword in d:
+                    # crude color-name -> hex-prefix match (and some names carry the color word)
+                    if col.startswith(cprefix) or cword in nm:
+                        s += 3.0
+                    else:
+                        s -= 0.5
+            for shp in _SHAPES:
+                if shp in d and (shp in nm or shp in (o.type or "").lower()
+                                 or (shp in ("cube",) and o.type == "box")
+                                 or (shp in ("ball",) and o.type == "sphere")):
+                    s += 2.0
+            if nm and nm in d:
+                s += 2.0
+            dist = ((o.position[0] - rpos[0]) ** 2 + (o.position[1] - rpos[1]) ** 2) ** 0.5
+            if any(w in d for w in ["nearest", "closest"]):
+                s += max(0.0, 5.0 - dist)
+            s -= dist * 0.05  # mild tiebreak toward nearer objects
+            return s
+
+        best = max(objs, key=score)
+        tx, ty = float(best.position[0]), float(best.position[1])
+        # Stop a little short so the rover parks in front of (not inside) the object.
+        import math as _m
+        dx, dy = tx - rpos[0], ty - rpos[1]
+        dist = _m.hypot(dx, dy) or 1.0
+        # Stand off well clear of the object's footprint + robot radius so the planner's inflated
+        # obstacle doesn't reject the goal.
+        obj_r = 0.3
+        try:
+            if best.type == "box":
+                obj_r = _m.hypot(best.size[0], best.size[1]) if len(best.size) >= 2 else 0.3
+            elif best.size:
+                obj_r = float(best.size[0])
+        except Exception:
+            pass
+        standoff = obj_r + 0.45
+        approach = max(0.0, dist - standoff)
+        gx, gy = rpos[0] + dx / dist * approach, rpos[1] + dy / dist * approach
+
+        drove = False
+        ai = getattr(self, "agent_interface", None)
+        if drive and ai is not None:
+            try:
+                self.engine.disengage_rl_policy()
+            except Exception:
+                pass
+            try:
+                stt = ai.execute_motion_trajectory(target_pos=[gx, gy, 0.0])
+                drove = getattr(stt, "status", "") == "running"
+                if not drove:
+                    # Planner rejected the goal (e.g. tight space) — fall back to a direct
+                    # waypoint drive straight to the approach point.
+                    ai.execute_waypoint_path(waypoints=[[rpos[0], rpos[1]], [gx, gy]], loop=False, shape="approach")
+                    drove = True
+            except Exception as e:
+                logger.warning("vision_locate drive failed: %s", e)
+        return {
+            "action": "vision_locate",
+            "status": "success",
+            "target_name": best.name,
+            "target_type": best.type,
+            "target_color": best.color,
+            "target_position": [round(tx, 2), round(ty, 2)],
+            "drove": drove,
+            "details": (f"Located '{best.name}' ({best.color} {best.type}) at ({tx:.2f}, {ty:.2f})."
+                        + (" Driving there now, stopping just in front." if drove else "")),
+        }
+
     def tool_capture_camera_frame(
         self,
         width: int = 320,
@@ -1940,7 +2700,7 @@ class AIReasoningService:
         """Tool: Plans collision-free path with A* grid planner and initiates continuous trajectory execution."""
         from backend.motion_planning import GridAStarPlanner
         proj = self.pm.get_current()
-        start = proj.robot.initial_position[:2]
+        start = proj.robot.initial_position[:2] if proj.robot is not None else [0.0, 0.0]
         if hasattr(self, "engine") and self.engine is not None and self.engine.model is not None:
             try:
                 st = self.engine.get_state()
@@ -1962,6 +2722,110 @@ class AIReasoningService:
             "details": f"Planned A* trajectory ({len(res.path)} waypoints, {res.path_length:.2f}m length) to [{goal[0]}, {goal[1]}]."
         }
 
+    def tool_drive_path(
+        self,
+        shape: str = "",
+        size: float = 1.6,
+        waypoints: Optional[List[List[float]]] = None,
+        center: Optional[List[float]] = None,
+        laps: int = 3,
+        loop: Optional[bool] = None,
+    ) -> Dict[str, Any]:
+        """Tool: Drive the rover along ANY shape or path — square, triangle, pentagon/N-gon,
+        circle, figure-8, star, zig-zag, spiral, wave, straight line, or an explicit waypoint
+        list. This is geometry-based path-following (a proven PD waypoint controller), NOT RL, so
+        it works for any shape without training. Params:
+          - shape: natural-language shape name/description (e.g. 'square', 'drive in a triangle',
+            'figure 8', '7-sided polygon', 'star'). Ignored if `waypoints` is given.
+          - size: approximate radius / half-extent in meters (default 1.6).
+          - waypoints: OPTIONAL explicit [[x,y],...] path to follow verbatim (overrides shape).
+          - center: OPTIONAL [x,y] center; defaults to the rover's current position.
+          - laps: how many times to repeat a closed shape (default 3).
+          - loop: force looping on/off; by default closed shapes (circle/square/...) loop and open
+            paths (line/zig-zag/spiral) run once.
+        """
+        from backend.path_shapes import generate_path
+
+        if self.agent_interface is None:
+            return {"action": "drive_path", "status": "error",
+                    "details": "Trajectory executor unavailable (agent interface not wired)."}
+
+        # Center on the rover's current pose unless an explicit center was given.
+        _center = center
+        if _center is None and hasattr(self, "engine") and self.engine is not None:
+            try:
+                st = self.engine.get_state()
+                _center = [st.robot.position[0], st.robot.position[1]]
+            except Exception:
+                _center = [0.0, 0.0]
+
+        try:
+            bound = float(getattr(self.pm.get_current().settings, "world_boundaries", [6.0])[0])
+        except Exception:
+            bound = 6.0
+
+        plan = generate_path(
+            description=shape or "",
+            center=_center,
+            size=size,
+            points=waypoints,
+            arena_bound=abs(bound) if bound else 6.0,
+            closed=loop,
+        )
+        wps = plan["waypoints"]
+        if not wps or len(wps) < 2:
+            return {"action": "drive_path", "status": "error",
+                    "details": "Could not generate a drivable path for that request."}
+
+        state = self.agent_interface.execute_waypoint_path(
+            waypoints=wps,
+            loop=plan["loop"],
+            max_laps=max(1, int(laps)),
+            shape=plan["shape"],
+        )
+        return {
+            "action": "drive_path",
+            "status": "success" if state.status == "running" else state.status,
+            "shape": plan["shape"],
+            "looping": plan["loop"],
+            "waypoint_count": len(wps),
+            "details": (
+                f"Driving the rover in a {plan['shape']} "
+                f"({'looping ' + str(laps) + ' laps' if plan['loop'] else 'one pass'}, "
+                f"{len(wps)} waypoints). Watch it trace the path live in the viewport."
+            ),
+        }
+
+    def tool_drone_path(self, shape: str = "", size: float = 1.6, altitude: float = 1.5,
+                        waypoints: Optional[List[List[float]]] = None, laps: int = 3,
+                        loop: Optional[bool] = None) -> Dict[str, Any]:
+        """Tool: Fly the DRONE along any shape/path (circle, square, figure-8, waypoints) at a
+        given altitude using the genuine per-rotor flight physics. No RL — direct flight."""
+        from backend.path_shapes import generate_path
+        if self.agent_interface is None or self.engine is None:
+            return {"action": "drone_path", "status": "error", "details": "Flight executor unavailable."}
+        fc = self.engine._find_drone_controller("drone")
+        if fc is None:
+            return {"action": "drone_path", "status": "error", "details": "No drone in the scene. Add a drone first."}
+        center = [fc.current_position[0], fc.current_position[1]]
+        try:
+            bound = float(getattr(self.pm.get_current().settings, "world_boundaries", [6.0])[0])
+        except Exception:
+            bound = 6.0
+        plan = generate_path(description=shape or "circle", center=center, size=size,
+                             points=waypoints, arena_bound=abs(bound) if bound else 6.0, closed=loop)
+        wps3d = [[p[0], p[1], altitude] for p in plan["waypoints"]]
+        if len(wps3d) < 2:
+            return {"action": "drone_path", "status": "error", "details": "Could not generate a flight path."}
+        state = self.agent_interface.execute_drone_waypoint_path(
+            waypoints=wps3d, loop=plan["loop"], max_laps=max(1, int(laps)), shape=plan["shape"])
+        return {
+            "action": "drone_path",
+            "status": "success" if state.status == "running" else state.status,
+            "shape": plan["shape"], "altitude": altitude, "waypoint_count": len(wps3d),
+            "details": f"Drone flying a {plan['shape']} at {altitude}m ({len(wps3d)} waypoints).",
+        }
+
     def tool_start_autodrive(self) -> Dict[str, Any]:
         """Tool: Engages autonomous goal-seeking navigation loop towards active target."""
         if hasattr(self, "engine") and self.engine is not None:
@@ -1979,13 +2843,17 @@ class AIReasoningService:
         """Tool: Disengages autonomous navigation and brakes the robot."""
         if hasattr(self, "engine") and self.engine is not None:
             try:
+                # Disengage any active RL policy / autonomous control so it stops driving, then
+                # brake. (Just zeroing teleop is not enough -- the policy would keep overriding.)
+                if hasattr(self.engine, "disengage_rl_policy"):
+                    self.engine.disengage_rl_policy()
                 self.engine.set_teleop(0.0, 0.0)
             except Exception:
                 pass
         return {
             "action": "stop_autodrive",
             "status": "success",
-            "details": "Autonomous navigation disengaged. Robot wheels braked."
+            "details": "Autonomous navigation disengaged and robot braked. It's ready for a new command.",
         }
 
     # -------------------------------------------------------------
@@ -2142,31 +3010,57 @@ class AIReasoningService:
             return {"action": "evaluate_rl_policy", "status": "error", "details": str(e)}
 
     def tool_deploy_rl_policy(self, model_id: Optional[str] = None) -> Dict[str, Any]:
-        """Tool: Deploys trained PPO policy to drive the live MuJoCo robot in the viewport."""
+        """Tool: Deploys a trained PPO policy to drive the live MuJoCo robot in the viewport.
+        With no model_id, deploys the most recently COMPLETED policy. If a training job is still
+        running, it reports that (live-interactive training auto-deploys itself on completion)."""
+        # If a live training job is still in progress, don't deploy a stale model -- explain.
+        try:
+            active_jobs = [j for j in training_manager.list_jobs() if j.status in ("queued", "training")]
+        except Exception:
+            active_jobs = []
+        if active_jobs and not model_id:
+            if getattr(self.engine, "rl_training_active", False):
+                return {
+                    "action": "deploy_rl_policy", "status": "training_in_progress",
+                    "details": ("Training is still running. Live-interactive training automatically "
+                                "deploys the policy to the robot the moment it finishes — you don't "
+                                "need a separate deploy step. Watch the viewport; it's already "
+                                "rolling the in-progress policy live and will drive autonomously on "
+                                "completion."),
+                }
+
         if not model_id:
+            # Most recent COMPLETED model (list is sorted newest-first).
             models = training_manager.list_models()
             if models:
                 model_id = models[0].model_id
 
         if not model_id:
-            return {"action": "deploy_rl_policy", "status": "not_found", "details": "No trained policy model found to deploy."}
+            return {"action": "deploy_rl_policy", "status": "not_found",
+                    "details": "No trained policy model found to deploy. Train one first."}
 
         if hasattr(self, "engine") and self.engine is not None and hasattr(self.engine, "set_active_rl_policy"):
             res = self.engine.set_active_rl_policy(model_id)
+            if self.engine.status != "running":
+                self.engine.play()
             if res.get("status") == "success":
+                kind = res.get("robot_kind", "robot")
                 return {
                     "action": "deploy_rl_policy",
                     "status": "success",
                     "model_id": model_id,
                     "name": res.get("name", model_id),
-                    "details": f"Trained PPO Policy '{res.get('name', model_id)}' successfully deployed to live robot. Neural policy inference is now driving the robot towards navigation beacons with active collision avoidance in the 3D viewport."
+                    "robot_kind": kind,
+                    "details": f"Deployed PPO policy '{res.get('name', model_id)}' ({kind}). Neural inference is now driving the {kind} live in the 3D viewport.",
                 }
+            return {"action": "deploy_rl_policy", "status": "error", "model_id": model_id,
+                    "details": f"Could not engage policy '{model_id}': {res.get('error', 'unknown error')}."}
 
         return {
             "action": "deploy_rl_policy",
             "status": "success",
             "model_id": model_id,
-            "details": f"PPO Policy checkpoint '{model_id}' deployed to live robot controller."
+            "details": f"PPO Policy checkpoint '{model_id}' deployed to live robot controller.",
         }
 
     def tool_train_drone_live_interactive(
@@ -2247,12 +3141,50 @@ class AIReasoningService:
             )
         }
 
+    def _infer_rover_reward_from_text(self, text: str) -> Optional[str]:
+        """Delegates to the shared inference in rl_training_manager so chat and REST stay in sync."""
+        try:
+            from backend.rl_training_manager import infer_rover_reward_from_text as _infer
+            return _infer(text)
+        except Exception:
+            return None
+
     def tool_train_rover_live_interactive(
         self,
         robot_identifier: str = "robot",
-        total_episodes: int = 4
+        total_episodes: int = 4,
+        task_description: str = "",
+        reward_code: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Tool: Initiates real-time visual Isaac Lab RL policy training where the ground rover learns obstacle avoidance & goal navigation (exploration, collision, oversteering retry, sensor fusion, convergence, and stores PPO checkpoint)."""
+        """Tool: Train the ground rover to perform ANY user-requested behavior via live, visual
+        Isaac-style PPO RL (watch it explore, fail, retry, and improve in the 3D viewport).
+
+        This is NOT limited to a fixed set of tasks. Translate the user's request into a reward:
+
+        - task_description: short human phrase of what the rover should learn, e.g. "drive in a
+          circle", "figure-8", "patrol between two points", "spin in place", "zig-zag", or
+          "reach the goal". This is shown on the training HUD.
+        - reward_code: OPTIONAL Python snippet defining `compute_reward(state, action, info)` that
+          returns a float reward (or a (reward, done) tuple). Provide this for ANY behavior other
+          than plain goal-navigation. Available inputs:
+            * action: numpy array [linear, angular], each in [-1, 1] (normalized velocities).
+              action[0] = forward/back, action[1] = turn left/right.
+            * state: has state.robot.position [x,y,z], state.robot.quaternion [w,x,y,z],
+              state.robot.linear_velocity, state.robot.angular_velocity.
+            * info: dict with 'distance_to_goal', 'is_collision', 'robot_position', 'step'.
+          Use `import math` / numpy via `np` if needed. Keep it simple and dense (reward every
+          step toward the behavior). Example for a circle (steady forward speed + steady turn):
+            def compute_reward(state, action, info):
+                lin = float(action[0]); ang = float(action[1])
+                r = 2.0 - 3.0*(lin-0.6)**2 - 3.0*(abs(ang)-0.5)**2
+                if lin < 0.2: r -= 1.0
+                if info.get('is_collision'): return (r - 10.0, True)
+                return r
+          If the user just wants goal navigation, omit reward_code (leave it null).
+
+        The policy trains with real PPO against this reward and is auto-deployed when the behavior
+        converges, so the rover keeps performing it live.
+        """
         if not hasattr(self, "engine") or self.engine is None:
             return {
                 "action": "train_rover_live_interactive",
@@ -2260,26 +3192,36 @@ class AIReasoningService:
                 "details": "Simulation engine is not initialized."
             }
 
+        # If the caller described a behavior but didn't supply reward_code, infer one so the
+        # rover learns the requested task even without an LLM-generated reward.
+        if (not reward_code or not str(reward_code).strip()) and task_description:
+            reward_code = self._infer_rover_reward_from_text(task_description)
+
         res = training_manager.start_live_interactive_rover_training(
             engine=self.engine,
             robot_identifier=robot_identifier,
-            total_episodes=total_episodes
+            total_episodes=total_episodes,
+            task_description=task_description,
+            reward_code=reward_code,
         )
 
+        _task_label = (task_description or "goal navigation").strip()
         return {
             "action": "train_rover_live_interactive",
             "status": res.get("status", "started"),
             "job_id": res.get("job_id"),
             "robot_name": res.get("robot_name", robot_identifier),
+            "task": _task_label,
             "total_episodes": total_episodes,
             "details": (
-                f"🤖 Live PPO navigation training started on the rover (real RL on MuJoCo physics).\n\n"
-                f"• Task: autonomous obstacle avoidance and goal navigation using the robot's LiDAR observations.\n"
+                f"🤖 Live PPO training started on the rover for task: '{_task_label}' (real RL on MuJoCo physics).\n\n"
                 f"• What you'll see: real PPO learning in chunks; between chunks the current policy drives the "
                 f"rover live in the viewport -- authentic in-progress behavior that improves with training.\n"
-                f"• Honest metrics: measured reward and success rate stream to the RL panel each chunk.\n"
-                f"• On completion the checkpoint is saved to models/rl/{res.get('job_id', 'ppo_rover_live')}.zip "
-                f"and appears in the Experiments tab, ready to run in the viewport."
+                f"• The rover learns the exact behavior you asked for from a reward function"
+                f"{' generated for this task' if reward_code else ''}.\n"
+                f"• Honest metrics: measured reward and consistency stream to the RL panel each chunk.\n"
+                f"• On convergence the checkpoint is saved to models/rl/{res.get('job_id', 'ppo_rover_live')}.zip "
+                f"and the policy auto-deploys so the rover keeps performing the behavior."
             )
         }
 
@@ -2688,6 +3630,27 @@ class AIReasoningService:
         params = params or {}
         tool_name = str(tool_name).lower().strip()
 
+        # --- Auto-disengage stale autonomous control before a NEW drive/teleop/policy command. ---
+        # A previously-deployed RL policy keeps driving every physics step, which silently
+        # overrides follow-up commands ("now do X instead" appeared to do nothing in the viewport).
+        # Before executing a command that takes manual/new control of the robot, stop the old
+        # policy so the new command is actually visible. (Deploying a NEW policy is handled by its
+        # own set_active_rl_policy, so we don't disengage for those.)
+        _takeover_tools = {
+            "execute_teleop_cmd", "teleop", "drive", "move_robot",
+            "plan_and_execute_trajectory", "control_secondary_robot",
+            "drive_path", "drive_shape", "follow_path", "follow_waypoints", "trace_shape", "drive_in_shape",
+            "drone_path", "fly_path", "fly_shape",
+            "control_drone", "play_joint_keyframes", "animate_joints",
+            "start_autodrive",
+        }
+        if tool_name in _takeover_tools and hasattr(self, "engine") and self.engine is not None:
+            if getattr(self.engine, "active_rl_policy_model", None) is not None:
+                try:
+                    self.engine.disengage_rl_policy()
+                except Exception:
+                    pass
+
         # --- Guardrail: the AI may never delete the user's active robot. ---
         # Block any tool that would remove the imported/primary robot via an explicit
         # robot-removal alias or an identifier pointing at a protected entity.
@@ -2746,6 +3709,13 @@ class AIReasoningService:
                     complexity=params.get("complexity", "medium"),
                     clear_existing=params.get("clear_existing", True)
                 )
+            elif tool_name in ("build_mission", "create_mission", "setup_mission", "build_and_patrol", "mission"):
+                return self.tool_build_mission(
+                    description=str(params.get("description") or params.get("prompt") or ""),
+                    env_type=params.get("env_type") or params.get("type"),
+                    train=bool(params.get("train", False)),
+                    patrol_points=params.get("patrol_points") or params.get("points"),
+                )
             elif tool_name in ("scatter_random_clutter", "scatter_clutter", "random_clutter", "clutter"):
                 return self.tool_scatter_random_clutter(
                     count=params.get("count", 5),
@@ -2789,6 +3759,18 @@ class AIReasoningService:
                 return self.tool_teleport_robot(
                     position=params.get("position", [0.0, 0.0, 0.07]),
                     yaw=params.get("yaw")
+                )
+            elif tool_name in ("spawn_arm", "add_arm", "create_arm", "spawn_manipulator", "add_manipulator", "spawn_articulated_robot", "add_articulated_robot"):
+                return self.tool_spawn_arm(
+                    joints=params.get("joints", params.get("joint_count", params.get("num_joints", 4))),
+                    name=params.get("name"),
+                    preset=params.get("preset") or params.get("type"),
+                )
+            elif tool_name in ("play_joint_keyframes", "joint_keyframes", "animate_joints", "play_keyframes", "move_joints_sequence", "wave", "arm_motion"):
+                return self.tool_play_joint_keyframes(
+                    keyframes=params.get("keyframes"),
+                    loop=params.get("loop", False),
+                    motion=params.get("motion") or params.get("gesture"),
                 )
             elif tool_name in ("add_robot", "spawn_robot"):
                 return self.tool_add_robot(
@@ -2839,6 +3821,29 @@ class AIReasoningService:
                     max_range=params.get("max_range", params.get("lidar_range")),
                     fov=params.get("fov")
                 )
+            elif tool_name in ("add_sensor", "attach_sensor", "mount_sensor", "create_sensor"):
+                return self.tool_add_sensor(
+                    type=params.get("type", params.get("sensor_type", "imu")),
+                    parent_body=params.get("parent_body") or params.get("parent") or params.get("attach_to") or params.get("body") or "robot",
+                    name=params.get("name"),
+                    mount_pos=params.get("mount_pos") or params.get("position"),
+                    num_beams=params.get("num_beams") or params.get("beams"),
+                    max_range=params.get("max_range") or params.get("range"),
+                )
+            elif tool_name in ("configure_sensor", "edit_sensor", "set_sensor", "update_sensor", "tune_sensor"):
+                return self.tool_configure_sensor(
+                    sensor_id=params.get("sensor_id") or params.get("id"),
+                    enabled=params.get("enabled"),
+                    num_beams=params.get("num_beams") or params.get("beams"),
+                    max_range=params.get("max_range") or params.get("range"),
+                    fov_deg=params.get("fov_deg") or params.get("fov"),
+                    mount_pos=params.get("mount_pos"),
+                    parent_body=params.get("parent_body") or params.get("parent") or params.get("attach_to"),
+                )
+            elif tool_name in ("remove_sensor", "detach_sensor", "delete_sensor"):
+                return self.tool_remove_sensor(sensor_id=params.get("sensor_id") or params.get("id"))
+            elif tool_name in ("read_sensors", "read_sensor", "get_sensor_readings", "sensor_readings", "query_sensors"):
+                return self.tool_read_sensors(sensor_id=params.get("sensor_id") or params.get("id"))
             elif tool_name in ("configure_imu", "set_imu"):
                 return self.tool_configure_imu(
                     enabled=params.get("enabled", params.get("imu_enabled")),
@@ -2865,6 +3870,11 @@ class AIReasoningService:
                     height=params.get("height", 240),
                     render_depth=params.get("render_depth", True),
                     render_segmentation=params.get("render_segmentation", True)
+                )
+            elif tool_name in ("vision_locate", "find_object", "go_to_object", "drive_to_object", "locate_object"):
+                return self.tool_vision_locate(
+                    description=str(params.get("description") or params.get("object") or params.get("target") or ""),
+                    drive=bool(params.get("drive", True)),
                 )
             elif tool_name in ("get_lidar_scan", "read_lidar", "lidar_scan"):
                 return self.tool_get_lidar_scan()
@@ -2930,10 +3940,30 @@ class AIReasoningService:
                     grid_resolution=params.get("grid_resolution", 0.15),
                     robot_radius=params.get("robot_radius", 0.35)
                 )
+            elif tool_name in ("drive_path", "drive_shape", "follow_path", "follow_waypoints", "trace_shape", "drive_in_shape"):
+                return self.tool_drive_path(
+                    shape=str(params.get("shape") or params.get("description") or params.get("task_description") or params.get("task") or ""),
+                    size=float(params.get("size", params.get("radius", 1.6)) or 1.6),
+                    waypoints=params.get("waypoints") or params.get("points"),
+                    center=params.get("center"),
+                    laps=int(params.get("laps", 3) or 3),
+                    loop=params.get("loop"),
+                )
+            elif tool_name in ("drone_path", "fly_path", "fly_shape", "drone_fly_path"):
+                return self.tool_drone_path(
+                    shape=str(params.get("shape") or params.get("description") or ""),
+                    size=float(params.get("size", params.get("radius", 1.6)) or 1.6),
+                    altitude=float(params.get("altitude", 1.5) or 1.5),
+                    waypoints=params.get("waypoints") or params.get("points"),
+                    laps=int(params.get("laps", 3) or 3),
+                    loop=params.get("loop"),
+                )
             elif tool_name in ("start_autodrive", "enable_autodrive", "autodrive_start"):
                 return self.tool_start_autodrive()
             elif tool_name in ("stop_autodrive", "disable_autodrive", "autodrive_stop"):
                 return self.tool_stop_autodrive()
+            elif tool_name in ("stop_robot", "stop", "halt_robot", "stop_policy", "disengage_policy", "stop_current_robot", "idle_robot"):
+                return self.tool_stop_robot()
 
             # 6. Reinforcement Learning (PPO) Studio
             elif tool_name in ("set_custom_reward_script", "set_reward_script", "update_reward_script"):
@@ -2983,7 +4013,9 @@ class AIReasoningService:
             elif tool_name in ("train_rover_live_interactive", "train_rover_live", "rover_training_live", "train_robot_live", "robot_training_live"):
                 return self.tool_train_rover_live_interactive(
                     robot_identifier=str(params.get("robot_identifier", "robot")),
-                    total_episodes=int(params.get("total_episodes", 4))
+                    total_episodes=int(params.get("total_episodes", 4)),
+                    task_description=str(params.get("task_description") or params.get("task") or params.get("behavior") or ""),
+                    reward_code=params.get("reward_code") or params.get("reward_fn") or params.get("custom_reward_code"),
                 )
 
             # 7. Empirical Experimentation & Benchmarking
@@ -3341,11 +4373,17 @@ class AIReasoningService:
         elif is_telemetry_query:
             tools_invoked.append("explain_telemetry")
             telem = self.tool_explain_telemetry()
-            rob = context["robot"]
-            assistant_reply = (
-                f"**Active Robot State:** '{rob['name']}' is initialized at position `[{rob['initial_position'][0]}, {rob['initial_position'][1]}]` "
-                f"with cruise limit `{rob['max_linear_velocity']} m/s`.\n"
-            )
+            rob = context.get("robot") or {}
+            _rname = rob.get("name") or "the active robot"
+            _rpos = rob.get("initial_position") or [0.0, 0.0, 0.0]
+            _rvmax = rob.get("max_linear_velocity")
+            if rob.get("name"):
+                assistant_reply = (
+                    f"**Active Robot State:** '{_rname}' is initialized at position `[{_rpos[0]}, {_rpos[1]}]` "
+                    f"with cruise limit `{_rvmax} m/s`.\n"
+                )
+            else:
+                assistant_reply = "**Active Robot State:** No mobile rover in the scene (articulated/empty workspace).\n"
             if "error" not in telem:
                 assistant_reply += (
                     f"**Measured Simulation Telemetry:** Total Collisions = `{telem['total_collisions']}`, "
@@ -3532,13 +4570,27 @@ class AIReasoningService:
             with httpx.Client(timeout=35.0) as client:
                 res = client.post(url, json=payload)
                 res.raise_for_status()
-                raw_text = res.json().get("message", {}).get("content", "{}")
+                raw_text = res.json().get("message", {}).get("content", "") or ""
                 clean_text = raw_text.strip()
                 if clean_text.startswith("```"):
                     clean_text = re.sub(r"^```[a-zA-Z]*\n?", "", clean_text)
                     clean_text = re.sub(r"\n?```$", "", clean_text)
+                    clean_text = clean_text.strip()
+                # Ollama with format:json occasionally returns an empty string or prose with a
+                # JSON object embedded. Guard both so chat never dies on a bad fallback response.
+                if not clean_text:
+                    logger.warning("Ollama fallback returned empty content; dropping to deterministic reasoning.")
+                    return None
+                try:
+                    parsed = json.loads(clean_text)
+                except json.JSONDecodeError:
+                    m = re.search(r"\{.*\}", clean_text, re.DOTALL)
+                    if not m:
+                        logger.warning("Ollama fallback returned non-JSON content; dropping to deterministic reasoning.")
+                        return None
+                    parsed = json.loads(m.group(0))
                 logger.info("Gemini primary failed; served response from Ollama fallback (%s).", model)
-                return json.loads(clean_text)
+                return parsed
         except Exception as e:
             logger.warning("Ollama fallback request failed: %s", e)
             return None
@@ -3548,7 +4600,8 @@ class AIReasoningService:
         prompt: str,
         context: Dict[str, Any],
         provider_info: Dict[str, Any],
-        chat_history: Optional[List[Dict[str, Any]]] = None
+        chat_history: Optional[List[Dict[str, Any]]] = None,
+        tool_results: Optional[List[Dict[str, Any]]] = None,
     ) -> Optional[Dict[str, Any]]:
         """
         Invokes configured model (Ollama or cloud LLM) to perform genuine robotics reasoning
@@ -3558,8 +4611,9 @@ class AIReasoningService:
         gemini_key = os.getenv("GEMINI_API_KEY")
         openai_key = os.getenv("OPENAI_API_KEY")
         is_ollama = provider_info.get("provider_type") == "ollama"
+        is_compat = provider_info.get("provider_type") == "openai_compat"
 
-        if not gemini_key and not openai_key and not is_ollama:
+        if not gemini_key and not openai_key and not is_ollama and not is_compat:
             return None
 
         system_instruction = (
@@ -3578,6 +4632,11 @@ class AIReasoningService:
             "- 'clear_scene': {}\n"
             "- 'generate_obstacle_course': {pattern: 'slalom'|'chicane'|'corridor'|'random', count: int}\n"
             "- 'synthesize_environment': {env_type: 'maze'|'warehouse'|'drone_course'|'racing_track'|'tunnel'|'multi_room', complexity: 'easy'|'medium'|'hard', clear_existing: bool}\n"
+            "- 'build_mission': {description: str, env_type: str, train: bool, patrol_points: int}\n"
+            "    ONE-SHOT full mission: builds the environment, plans a COLLISION-FREE patrol loop (A*) "
+            "around the obstacles, loads it as the drivable path, and (if train=true) trains the rover to run it. "
+            "PREFER this for requests like 'build a warehouse and make the rover patrol/learn it', 'create a maze and "
+            "have the robot run it'. Set train=true when the user says train/learn. Pass their words as description.\n"
             "- 'scatter_random_clutter': {count: int, radius: float, shapes: ['box', 'cylinder']}\n"
             "- 'set_arena_boundaries': {bounds: [xmin, xmax, ymin, ymax, zmin, zmax], wall_height: float, enable_boundaries: bool}\n"
             "- 'set_ground_plane': {friction: [slide, torsion, roll], grid_size: float}\n"
@@ -3587,6 +4646,8 @@ class AIReasoningService:
             "- 'set_wheel_geometry': {wheel_radius: float, wheel_base: float, wheel_friction: float}\n"
             "- 'teleport_robot': {position: [x,y,z], yaw: float}\n"
             "- 'add_robot': {name: str, position: [x,y,z], color: str, mass: float}\n"
+            "- 'spawn_arm': {joints: int (default 4), name: str, preset: 'kr6'|'scara' (optional)}  -- USE THIS for ANY articulated arm / manipulator / 'N joint arm' request. 'add_robot' only makes a wheeled rover and must NOT be used for arms.\n"
+            "- 'play_joint_keyframes': {motion: 'wave'|'reach'|'home' (auto-generates the motion), OR keyframes: [{targets:{joint_name: angle_rad}, duration: sec}], loop: bool}  -- USE THIS to make an arm MOVE/perform a gesture (e.g. 'make the arm wave hi'). Prefer motion:'wave' for a greeting.\n"
             "- 'add_drone': {name: str, position: [x,y,z], mass: float}\n"
             "- 'control_drone': {command: 'takeoff'|'land'|'hover'|'fly_to', altitude: float, drone_name: str}\n"
             "- 'train_drone_policy': {drone_name: str, task: 'takeoff_and_land'|'hover', timesteps: int}\n"
@@ -3599,8 +4660,16 @@ class AIReasoningService:
             "- 'configure_camera': {enabled: bool, fov: float, width: int, height: int}\n"
             "- 'configure_wheel_encoders': {enabled: bool, ticks_per_rev: int, slip_noise: float}\n"
             "- 'capture_camera_frame': {width: int, height: int, render_depth: bool, render_segmentation: bool}\n"
+            "- 'vision_locate': {description: str, drive: bool}\n"
+            "    SEE-AND-GO: find an object by description ('red box', 'nearest obstacle', 'blue cylinder') and drive the "
+            "rover to it with NO coordinates. PREFER this for 'drive/go to the <color> <object>', 'approach the nearest X'. "
+            "When the user asks what the robot SEES, the live camera image is attached to your input — describe it directly.\n"
             "- 'get_lidar_scan': {}\n"
             "- 'get_imu_telemetry': {}\n"
+            "- 'add_sensor': {type: 'imu'|'lidar'|'camera'|'contact', parent_body: str (e.g. 'robot', a drone/object id, or an arm link name like 'the drone' / 'gripper'/'arm tip'), name: str, num_beams: int, max_range: float}  -- ATTACH a new sensor to ANY body. Use this for 'attach an IMU to the drone', 'put a lidar on the arm tip', etc.\n"
+            "- 'configure_sensor': {sensor_id: str (optional, defaults to last added), enabled: bool, num_beams: int, max_range: float, fov_deg: float, mount_pos: [x,y,z], parent_body: str}  -- edit an attached sensor.\n"
+            "- 'remove_sensor': {sensor_id: str (optional, defaults to last added)}\n"
+            "- 'read_sensors': {sensor_id: str (optional)}  -- READ the current live measurement of attached sensors. Use when the user asks 'what does the lidar/IMU read?'.\n"
             "4. Physics & Simulation Engine:\n"
             "- 'simulation_control': {command: 'reset'|'play'|'pause'|'step'}\n"
             "- 'set_simulation_speed': {multiplier: float}\n"
@@ -3614,8 +4683,16 @@ class AIReasoningService:
             "- 'tune_apf_controller': {k_att: float, k_rep: float, safety_margin: float, k_vortex: float, slowdown_dist: float}\n"
             "- 'execute_teleop_cmd': {linear: float, angular: float}\n"
             "- 'plan_and_execute_trajectory': {target_pos: [x,y], grid_resolution: float, robot_radius: float}\n"
+            "- 'drive_path': {shape: str, size: float, laps: int, waypoints: [[x,y],...], center: [x,y], loop: bool}\n"
+            "    DRIVE THE ROVER IN ANY SHAPE OR PATH without training — square, triangle, pentagon/'N-sided'/'N-gon', "
+            "circle, 'figure 8', star, zig-zag, spiral, wave, straight line, or an explicit waypoint list. This uses a "
+            "geometry path-follower (NOT RL), so prefer it for any 'drive/go/move in a <shape>' or 'trace a <shape>' "
+            "request. Set shape to the user's words (e.g. 'square', 'figure 8', '7-sided polygon'); size is the "
+            "radius/half-extent in meters (~1.0-2.5). Provide waypoints only for a fully custom path. Use RL "
+            "(train_rover_live_interactive) only when the user explicitly wants the robot to LEARN/train a behavior.\n"
             "- 'start_autodrive': {}\n"
             "- 'stop_autodrive': {}\n"
+            "- 'stop_robot': {}  -- USE THIS when the user says to STOP the robot / stop the current policy / 'stop and do X instead'. It disengages the active RL policy & autonomous control so your NEXT command actually takes effect (otherwise the old policy keeps overriding it). When the user says 'stop and now do Y', emit stop_robot FIRST, then the Y action.\n"
             "6. Reinforcement Learning (PPO):\n"
             "- 'start_rl_training': {total_timesteps: int, model_name: str, seed: int}\n"
             "- 'train_drone_policy': {drone_name: str, task: 'takeoff_and_land'|'hover', timesteps: int}\n"
@@ -3624,10 +4701,20 @@ class AIReasoningService:
             "- 'list_rl_models': {}\n"
             "- 'evaluate_rl_policy': {model_id: str, seed: int}\n"
             "- 'deploy_rl_policy': {model_id: str}\n"
+            "  NOTE ON TRAINING→DEPLOY: 'train_rover_live_interactive'/'train_*_live_interactive' AUTO-DEPLOY the policy to the robot the moment training finishes — you do NOT need a separate deploy step for those. For a background 'start_rl_training' job, call 'deploy_rl_policy' with NO model_id to deploy the most recent completed policy. To make a trained robot move, DEPLOY it — do not just call list_rl_models or simulation_play.\n"
             "- 'deploy_drone_policy': {drone_name: str, policy_id: str}\n"
             "- 'train_drone_live_interactive': {drone_identifier: str, target_altitude: float, total_episodes: int}\n"
             "- 'train_arm_live_interactive': {arm_identifier: str, total_episodes: int}\n"
-            "- 'train_rover_live_interactive': {robot_identifier: str, total_episodes: int}\n"
+            "- 'train_rover_live_interactive': {robot_identifier: str, total_episodes: int, task_description: str, reward_code: str}\n"
+            "    TRAIN THE ROVER TO DO ANYTHING (not a fixed menu). Set task_description to the user's behavior "
+            "(e.g. 'drive in a circle', 'figure-8', 'patrol between two points', 'spin in place', 'zig-zag', 'reach the goal'). "
+            "For ANY behavior other than plain goal-navigation, ALSO write reward_code: a Python snippet defining "
+            "compute_reward(state, action, info) that returns a float (or (reward, done)). action=[linear,angular] each in [-1,1] "
+            "(action[0]=forward, action[1]=turn); state.robot.position/.quaternion/.linear_velocity/.angular_velocity; "
+            "info has 'distance_to_goal','is_collision','robot_position','step'. Example circle "
+            "(steady forward speed + steady turn): "
+            "'def compute_reward(state, action, info):\\n    lin=float(action[0]); ang=float(action[1])\\n    r=2.0-3.0*(lin-0.6)**2-3.0*(abs(ang)-0.5)**2\\n    if lin<0.2: r-=1.0\\n    if info.get(\"is_collision\"): return (r-10.0, True)\\n    return r'. "
+            "Omit reward_code only when the user just wants to reach a goal point.\n"
             "7. Benchmarking & Experiments:\n"
             "- 'run_scenario_benchmark': {scenario_id: str, seed: int}\n"
             "- 'run_multitrial_batch': {scenario_id: str, num_trials: int}\n"
@@ -3648,15 +4735,44 @@ class AIReasoningService:
             "- 'restore_scene_snapshot': {snapshot_name: str}\n\n"
             "Output strictly a JSON object with keys:\n"
             "- 'thought': Deep step-by-step reasoning explaining: 1) Intent decomposition, 2) Telemetry grounding, 3) Tool execution plan, 4) Physical validation.\n"
-            "- 'actions': List of tool calls to execute, e.g. [{\"tool\": \"control_drone\", \"params\": {\"command\": \"takeoff\", \"altitude\": 1.5}}] or [] if purely conversational.\n"
+            "- 'actions': List of tool calls to execute THIS step, e.g. [{\"tool\": \"control_drone\", \"params\": {\"command\": \"takeoff\", \"altitude\": 1.5}}] or [] if purely conversational or the task is finished.\n"
+            "- 'complete': boolean. Set true when the user's request is fully satisfied and NO further actions are needed. Set false if you still need to see the result of this step's actions before deciding the next step (you will be called again with the tool results and refreshed scene). This enables multi-step, result-aware execution — use it: e.g. spawn a robot first (complete=false), then on the next turn use its real joint names to animate it (complete=true).\n"
             "- 'reply': Your natural, conversational, beautifully written markdown reply to the user.\n\n"
             "CRITICAL TOOL-CALLING CONSTRAINTS:\n"
-            "1. If the user's prompt is an informational query, question, chat message, joke, trivia, coding question, explanation request, or out-of-context topic (e.g. cooking, history, science, math, general discussion) that does not explicitly ask to change or interact with the simulation workspace, you MUST output 'actions': [] (empty array).\n"
-            "2. NEVER invent metaphoric obstacles, fake objects, or unnecessary tool calls for non-robotics concepts!\n"
-            "3. ONLY call tools when the user explicitly or clearly requests simulation actions, scene changes, sensor configuration, or autonomous research."
+            "1. ACTIONS MUST MATCH WORDS. If your 'reply' says or implies you are doing, spawning, "
+            "adding, moving, removing, clearing, setting, training, deploying, or executing ANYTHING "
+            "in the scene, then 'actions' MUST contain the corresponding tool call(s). Never claim to "
+            "do something while leaving 'actions' empty — that is a critical failure. If you cannot "
+            "map the request to a tool, say so honestly in 'reply' and output 'actions': [].\n"
+            "2. Multi-step requests => emit MULTIPLE actions in order. Example: 'spawn an arm and a box "
+            "and make it wave' => actions: [ {\"tool\":\"spawn_arm\",\"params\":{\"joints\":4}}, "
+            "{\"tool\":\"spawn_obstacle\",\"params\":{\"shape\":\"box\",\"position\":[0.4,0,0.25]}}, "
+            "{\"tool\":\"play_joint_keyframes\",\"params\":{\"keyframes\":[...]}} ].\n"
+            "3. Only for pure information/chat/trivia/coding/off-topic questions that do NOT ask to "
+            "change the scene, output 'actions': [] and just answer conversationally.\n"
+            "4. NEVER invent metaphoric obstacles or fake objects for non-robotics concepts.\n"
+            "5. Prefer real tools over prose. It is always better to DO the action than to describe it."
         )
 
-        user_content = f"User Request: {prompt}\n\nSimulation & Evidence Context:\n{json.dumps(context)}"
+        # Compact, high-signal scene summary (not a raw JSON dump) so the model reasons about the
+        # few facts that matter and spends its tokens on the decision, not on parsing a blob.
+        scene_summary = self._compact_scene_summary(context)
+        user_content = f"User Request: {prompt}\n\nLive Scene:\n{scene_summary}"
+        if tool_results:
+            # Follow-up iteration in the agentic loop: show what the previous actions actually did
+            # so the model can react (use real joint names, recover from failures, decide next step).
+            results_txt = "\n".join(
+                f"- {r.get('action', '?')}: {r.get('status', '?')} — {r.get('details', '')}"
+                for r in tool_results
+            )
+            user_content += (
+                f"\n\nRESULTS of your previous actions:\n{results_txt}\n\n"
+                f"IMPORTANT: Re-read the ORIGINAL user request above and check whether EVERY part "
+                f"of it is now done. The request may have multiple parts (e.g. 'spawn an arm AND "
+                f"make it wave'). If any part remains, emit the next actions to complete it now — "
+                f"and you now know the real scene state (e.g. the actual joint names) from the "
+                f"results. Only set 'complete': true when the ENTIRE original request is satisfied."
+            )
 
         # Build multi-turn conversational messages list
         conversation_messages: List[Dict[str, str]] = [{"role": "system", "content": system_instruction}]
@@ -3669,8 +4785,80 @@ class AIReasoningService:
 
         conversation_messages.append({"role": "user", "content": user_content})
 
+        # VISION: if the request is about seeing/finding objects, attach the robot camera frame so
+        # the vision-language model can literally look at the scene. OpenAI-compatible multimodal
+        # content format; harmless to text-only models (we only add it for compat providers).
+        _vision_url = None
+        if is_compat and self._wants_vision(prompt) and not tool_results:
+            _vision_url = self._capture_vision_frame()
+            if _vision_url:
+                logger.info("Vision: attached robot camera frame to model request (%d chars).", len(_vision_url))
+                conversation_messages[-1] = {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": user_content
+                            + "\n\n[Attached below is the robot's LIVE onboard camera image.]"
+                            + "\nYou CAN see it. In the JSON 'reply', describe plainly what is actually"
+                            + " visible in THIS image — the objects, their colors, shapes and rough"
+                            + " positions (left/center/right, near/far). Do NOT give a generic hardware"
+                            + " or sensor-theory explanation. If the user asked to go to something you"
+                            + " see, also emit a 'vision_locate' action with its description."},
+                        {"type": "image_url", "image_url": {"url": _vision_url}},
+                    ],
+                }
+
         data = None
-        if is_ollama:
+        if is_compat:
+            # OpenAI-compatible endpoint (OpenRouter / NVIDIA NIM). Primary chat model.
+            base = provider_info.get("endpoint") or os.getenv("OPENAI_COMPAT_BASE_URL", "")
+            key = os.getenv("OPENAI_COMPAT_API_KEY", "")
+            model = provider_info.get("model") or os.getenv("OPENAI_COMPAT_MODEL", "")
+            url = base.rstrip("/") + "/chat/completions"
+            headers = {
+                "Authorization": f"Bearer {key}",
+                "Content-Type": "application/json",
+                "HTTP-Referer": "https://roboforge.local",
+                "X-Title": "RoboForge",
+            }
+            payload = {
+                "model": model,
+                "messages": conversation_messages,
+                "response_format": {"type": "json_object"},
+                "temperature": 0.2,
+                # Reasoning models (like Nemotron) spend tokens on a hidden reasoning field; give
+                # ample room so the actual JSON answer is never truncated (truncation -> parse
+                # failure -> we lose the tool actions).
+                "max_tokens": 4096,
+            }
+            try:
+                with httpx.Client(timeout=60.0) as client:
+                    res = client.post(url, json=payload, headers=headers)
+                    res.raise_for_status()
+                    _msg = res.json()["choices"][0]["message"]
+                    raw_text = _msg.get("content") or ""
+                    # Some reasoning models put the answer only in 'reasoning' if content is empty.
+                    if not raw_text and _msg.get("reasoning"):
+                        raw_text = _msg["reasoning"]
+                    clean = raw_text.strip()
+                    if clean.startswith("```"):
+                        clean = re.sub(r"^```[a-zA-Z]*\n?", "", clean)
+                        clean = re.sub(r"\n?```$", "", clean)
+                    try:
+                        data = json.loads(clean)
+                    except Exception:
+                        # Grab the largest {...} block as a fallback.
+                        m = re.search(r'\{.*\}', clean, re.DOTALL)
+                        if m:
+                            data = json.loads(m.group(0))
+                        else:
+                            logger.warning("OpenRouter JSON parse failed; raw head: %s", clean[:300])
+                            data = {"reply": clean, "actions": []}
+            except Exception as e:
+                logger.warning("OpenRouter primary reasoning failed (%s). Attempting Ollama fallback.", e)
+                data = self._ollama_chat_fallback(system_instruction, conversation_messages)
+                if data is None:
+                    return None
+        elif is_ollama:
             endpoint = provider_info.get("endpoint", "http://127.0.0.1:11434")
             model = provider_info.get("model", "qwen2.5:7b")
             url = f"{endpoint}/api/chat"
@@ -3747,11 +4935,19 @@ class AIReasoningService:
                 "temperature": 0.2
             }
             headers = {"Authorization": f"Bearer {openai_key}", "Content-Type": "application/json"}
-            with httpx.Client(timeout=25.0) as client:
-                res = client.post(url, json=payload, headers=headers)
-                res.raise_for_status()
-                raw_text = res.json()["choices"][0]["message"]["content"]
-                data = json.loads(raw_text)
+            try:
+                with httpx.Client(timeout=25.0) as client:
+                    res = client.post(url, json=payload, headers=headers)
+                    res.raise_for_status()
+                    raw_text = res.json()["choices"][0]["message"]["content"]
+                    data = json.loads(raw_text)
+            except Exception as e:
+                # Same resilience as the Gemini path: on quota/429/network error, try local
+                # Ollama, then let the caller drop to the deterministic engine (return None).
+                logger.warning("OpenAI primary reasoning failed (%s). Attempting Ollama fallback.", e)
+                data = self._ollama_chat_fallback(system_instruction, conversation_messages)
+                if data is None:
+                    return None
 
         if isinstance(data, dict):
             reply_text = data.get("reply", "")
@@ -3929,7 +5125,7 @@ class AIReasoningService:
         reply = (
             f"### 🤝 Collaborative Engineering with RoboForge AI\n\n"
             f"I hear you! In this workspace, we have full access to the live MuJoCo physics engine, multi-link kinematics, and autonomous empirical research tools for `{rob_name}`.\n\n"
-            f"- **Current Scene State:** Arena has `{total_obs}` active objects. Robot is positioned at `{context['robot']['initial_position'][:2]}`.\n"
+            f"- **Current Scene State:** Arena has `{total_obs}` active objects. Robot is positioned at `{((context.get('robot') or {}).get('initial_position') or [0, 0])[:2]}`.\n"
             f"- **Available Exploration:** We can brainstorm system architectures, test control policies, design custom multi-body URDF models, or run bounded autonomous research trials.\n\n"
             f"What specific aspect of your robotics project would you like to dive into next? We can explore algorithmic trade-offs, design hardware specs, or test a new scenario in the arena."
         )
@@ -3958,7 +5154,9 @@ class AIReasoningService:
             return acts
 
         # 2b. Procedural Environment Synthesis (Maze, Warehouse, Drone Course, Racing Track, Tunnel, Multi-room)
-        if any(w in p for w in ['maze', 'labyrinth', 'warehouse', 'depot', 'pallet', 'drone course', 'aerial course', 'flight course', 'aerial gates', 'racing track', 'race track', 'circuit', 'speed track', 'tunnel', 'corridor', 'narrow passage', 'multi room', 'multi-room', 'rooms']) and any(w in p for w in ['build', 'create', 'make', 'generate', 'spawn', 'synthesize', 'construct', 'setup']):
+        _env_words = ['maze', 'labyrinth', 'warehouse', 'depot', 'pallet', 'drone course', 'aerial course', 'flight course', 'aerial gates', 'racing track', 'race track', 'circuit', 'speed track', 'tunnel', 'corridor', 'narrow passage', 'multi room', 'multi-room', 'rooms']
+        _build_words = ['build', 'create', 'make', 'generate', 'spawn', 'synthesize', 'construct', 'setup']
+        if any(w in p for w in _env_words) and any(w in p for w in _build_words):
             env_type = "maze"
             if any(w in p for w in ['warehouse', 'depot', 'pallet', 'shelves', 'racks']):
                 env_type = "warehouse"
@@ -3970,6 +5168,11 @@ class AIReasoningService:
                 env_type = "tunnel"
             elif any(w in p for w in ['multi room', 'multi-room', 'rooms']):
                 env_type = "multi_room"
+            # If they also want the rover to patrol / run / learn it -> full one-shot mission.
+            if any(w in p for w in ['patrol', 'run it', 'drive', 'navigate', 'traverse', 'go around', 'train', 'learn', 'explore']):
+                acts.append(('build_mission', {'description': p, 'env_type': env_type,
+                                               'train': any(w in p for w in ['train', 'learn', 'teach', 'ppo'])}))
+                return acts
             acts.append(('synthesize_environment', {'env_type': env_type}))
             return acts
 
@@ -4016,6 +5219,37 @@ class AIReasoningService:
             'train arm to pick', 'train the arm', 'train arm', 'arm pick', 'robotic arm pick'
         ])
 
+        # Vision see-and-go: "drive/go/head to the <color> <object>" / "approach the nearest X".
+        if any(v in p for v in ['go to the', 'drive to the', 'navigate to the', 'head to the', 'approach the', 'move to the', 'drive to a', 'go to a']) \
+           and not any(w in p for w in ['train', 'learn', 'ppo', 'reinforcement', 'teach']) \
+           and not any(s in p for s in ['square', 'triangle', 'circle', 'hexagon', 'pentagon', 'star', 'figure', 'zig']):
+            acts.append(('vision_locate', {'description': p, 'drive': True}))
+            return acts
+
+        # Geometry path-following: "drive/go/move/trace in a <shape>" WITHOUT a train/learn intent.
+        # This routes to the non-RL waypoint follower so any shape works immediately. Only trigger
+        # when the user is NOT explicitly asking to train/learn (those go to RL below).
+        _shape_words = [
+            'square', 'triangle', 'rectangle', 'pentagon', 'hexagon', 'heptagon', 'octagon',
+            'nonagon', 'decagon', 'polygon', 'circle', 'circular', 'figure 8', 'figure-8', 'figure8',
+            'infinity', 'star', 'zig', 'zag', 'zigzag', 'slalom', 'spiral', 'wave', 'sine',
+            'straight line', 'in a line', 'gon', 'sided',
+        ]
+        _drive_verbs = ['drive', 'go', 'move', 'trace', 'follow', 'make it do', 'do a', 'draw', 'travel', 'navigate']
+        _wants_train = any(w in p for w in ['train', 'learn', 'ppo', 'rl ', 'reinforcement', 'policy', 'teach it to'])
+        is_shape_drive = (
+            any(s in p for s in _shape_words)
+            and any(v in p for v in _drive_verbs)
+            and not _wants_train
+        )
+        if is_shape_drive:
+            _size = 1.6
+            m = re.search(r'(\d+(?:\.\d+)?)\s*(?:m|meter|metre)', p)
+            if m:
+                _size = max(0.5, min(3.0, float(m.group(1))))
+            acts.append(('drive_path', {'shape': p, 'size': _size}))
+            return acts
+
         # Mobile Rover Navigation & Obstacle Avoidance
         is_rover_train = (
             any(w in p for w in ['robot', 'rover', 'ground robot', 'mobile robot', 'differential robot', 'car', 'vehicle'])
@@ -4025,12 +5259,49 @@ class AIReasoningService:
             'create a robot and make it train', 'create robot and make it train', 'make a robot and make it train',
             'make the robot train', 'make robot train', 'train the robot', 'train robot', 'train rover',
             'rover train', 'robot train', 'train ground robot', 'robot learning'
-        ])
+        ]) or (
+            # Generic "train it ..." / "train a ppo policy" with no robot word: default to the rover
+            # unless the prompt clearly targets a drone or arm.
+            any(w in p for w in ['train', 'learn', 'ppo', 'reinforcement'])
+            and not any(w in p for w in ['drone', 'quadcopter', 'fly', 'aerial', 'arm', 'pick', 'gripper'])
+        )
 
-        # Drone Hover & Attitude Stabilization
+        # Drone FLIGHT (not training): takeoff / fly to / fly in a shape / hover / land. Must come
+        # BEFORE the drone-training check so "fly"/"takeoff" don't get mis-routed to RL training.
+        _is_drone_ctx = any(w in p for w in ['drone', 'quadcopter', 'uav', 'aerial', 'copter', 'quad'])
+        _wants_train_d = any(w in p for w in ['train', 'learn', 'ppo', 'reinforcement', 'teach'])
+        if _is_drone_ctx and not _wants_train_d:
+            _shape_words_d = ['circle', 'square', 'triangle', 'pentagon', 'hexagon', 'octagon', 'figure 8',
+                              'figure-8', 'star', 'zig', 'spiral', 'polygon', 'gon', 'sided', 'loop', 'orbit']
+            if any(s in p for s in _shape_words_d) and any(v in p for v in ['fly', 'drive', 'trace', 'draw', 'go', 'move', 'do a', 'make']):
+                _size = 1.6
+                import re as _re
+                mm = _re.search(r'(\d+(?:\.\d+)?)\s*(?:m|meter|metre)', p)
+                if mm: _size = max(0.5, min(3.0, float(mm.group(1))))
+                acts.append(('drone_path', {'shape': p, 'size': _size, 'altitude': 1.5}))
+                return acts
+            if any(w in p for w in ['take off', 'takeoff', 'fly up', 'lift off', 'launch']):
+                acts.append(('control_drone', {'command': 'takeoff', 'altitude': 1.5}))
+                return acts
+            if any(w in p for w in ['land', 'touch down', 'come down', 'descend']):
+                acts.append(('control_drone', {'command': 'land'}))
+                return acts
+            if any(w in p for w in ['hover', 'hold position', 'stay']):
+                acts.append(('control_drone', {'command': 'hover', 'altitude': 1.5}))
+                return acts
+            if any(w in p for w in ['fly to', 'go to', 'move to', 'fly over']):
+                import re as _re
+                m = _re.search(r'([+-]?\d+(?:\.\d+)?)\s*,\s*([+-]?\d+(?:\.\d+)?)(?:\s*,\s*([+-]?\d+(?:\.\d+)?))?', p)
+                pos = [float(m.group(1)), float(m.group(2)), float(m.group(3)) if m.group(3) else 1.5] if m else [2.0, 0.0, 1.5]
+                acts.append(('control_drone', {'command': 'fly_to', 'position': pos}))
+                return acts
+            if any(w in p for w in ['fly', 'take flight']):  # generic "make the drone fly"
+                acts.append(('control_drone', {'command': 'takeoff', 'altitude': 1.5}))
+                return acts
+
+        # Drone Hover & Attitude Stabilization (RL TRAINING — only with explicit train/learn)
         is_drone_train = (
-            any(w in p for w in ['drone', 'quadcopter', 'uav', 'aerial', 'copter'])
-            and any(w in p for w in ['train', 'learning', 'fly', 'hover', 'crash', 'attitude', 'curriculum', 'takeoff', 'land'])
+            _is_drone_ctx and _wants_train_d
         ) or any(w in p for w in [
             'train drone', 'drone train', 'train drone live', 'live drone training', 'drone is learning',
             'drone learning', 'create a drone and make it train', 'make drone train'
@@ -4040,7 +5311,7 @@ class AIReasoningService:
             acts.append(('train_arm_live_interactive', {'arm_identifier': 'arm', 'total_episodes': 4}))
             return acts
         elif is_rover_train or (is_live_rl_query and ('robot' in p or 'rover' in p or 'car' in p)):
-            acts.append(('train_rover_live_interactive', {'robot_identifier': 'robot', 'total_episodes': 4}))
+            acts.append(('train_rover_live_interactive', {'robot_identifier': 'robot', 'total_episodes': 4, 'task_description': p}))
             return acts
         elif is_drone_train or (is_live_rl_query and ('drone' in p or 'fly' in p or 'copter' in p)):
             acts.append(('train_drone_live_interactive', {'drone_identifier': 'drone', 'target_altitude': 1.5, 'total_episodes': 4}))
@@ -4259,7 +5530,7 @@ class AIReasoningService:
         if any(w in p for w in ['arm', 'manipulator', 'scara']) and any(w in p for w in ['train', 'pick', 'grasp', 'rl']):
             acts.append(('train_arm_live_interactive', {'arm_identifier': 'arm', 'total_episodes': 4}))
         elif any(w in p for w in ['train robot', 'train rover', 'rover train', 'robot train', 'make robot train', 'make rover train', 'train a ppo', 'train ppo', 'ppo reinforcement', 'reinforcement learning', 'train policy', 'start rl', 'ppo rover', 'rover ppo']):
-            acts.append(('train_rover_live_interactive', {'robot_identifier': 'robot', 'total_episodes': 4}))
+            acts.append(('train_rover_live_interactive', {'robot_identifier': 'robot', 'total_episodes': 4, 'task_description': p}))
         elif any(w in p for w in ['happen live', 'learn then fail', 'learning then fail', 'failing again', 'trying again', 'isac sim', 'isaac sim', 'isaac lab', 'train drone live', 'live drone training', 'drone is learning', 'drone learning']):
             acts.append(('train_drone_live_interactive', {'drone_identifier': 'drone', 'target_altitude': 1.5, 'total_episodes': 4}))
         elif any(w in p for w in ['start rl training', 'train ppo', 'train policy', 'train reinforcement']):
@@ -4334,14 +5605,17 @@ class AIReasoningService:
         Produces both structured visual thought steps and a detailed inner monologue Markdown document.
         """
         p_lower = prompt.lower().strip()
-        rob = context.get("robot", {})
-        rob_name = rob.get("name", "ForgeBot-DD1")
-        rob_pos = rob.get("initial_position", [0.0, 0.0, 0.07])
+        rob = context.get("robot") or {}
+        # On an arm-only / empty scene the rover fields are present but None, so coalesce to
+        # safe defaults (``.get(key, default)`` returns None when the value is explicitly None).
+        gr = context.get("generic_robot") or {}
+        rob_name = rob.get("name") or (gr.get("name") if gr else None) or "the active robot"
+        rob_pos = rob.get("initial_position") or [0.0, 0.0, 0.07]
         env = context.get("environment", {})
         obstacles = env.get("obstacles", [])
         obstacles_count = env.get("total_obstacles", len(obstacles))
         physics = context.get("physics_settings", {})
-        gravity = physics.get("gravity", [0.0, 0.0, -9.81])
+        gravity = physics.get("gravity") or [0.0, 0.0, -9.81]
         drones_in_scene = [o for o in obstacles if "drone" in o.get("name", "").lower()]
 
         # 1. Intent Decomposition Analysis
@@ -4522,7 +5796,7 @@ class AIReasoningService:
             return AIChatResponse(
                 reply=reply,
                 provider=provider_info["active_provider"],
-                is_model_inference=True if provider_info.get("provider_type") in ("ollama", "llm") else False,
+                is_model_inference=True if provider_info.get("provider_type") in ("ollama", "llm", "openai_compat") else False,
                 is_fallback=False,
                 mode=req.mode,
                 thought_steps=[],
@@ -4582,18 +5856,24 @@ class AIReasoningService:
         parsed_actions = self._extract_intent_actions(prompt, prompt_lower, context, req.chat_history)
         actions_to_execute = list(parsed_actions)
 
-        # Check if research mission is requested
-        is_explicit_mission = any(w in prompt_lower for w in ["research mission", "supervised mission", "autonomous mission", "propose a research", "propose research", "supervised research"]) or (req.mode == "supervised" and any(w in prompt_lower for w in ["research", "mission", "investigate", "optimize"]))
-        if is_explicit_mission:
-            is_research_request = True
-            actions_to_execute = []
-        else:
-            is_research_request = any(w in prompt_lower for w in ["research", "mission", "optimize", "investigate", "advantage", "benchmark"]) and not actions_to_execute
+        # Check if a research mission is requested. This routes into the heavyweight rover
+        # navigation research pipeline, so ONLY trigger it on an explicit, unambiguous request
+        # (never for ordinary chat like "spawn an arm" or "hello"), and never when the user
+        # already expressed a concrete scene action.
+        is_explicit_mission = (
+            any(w in prompt_lower for w in [
+                "research mission", "supervised mission", "autonomous mission",
+                "propose a research", "propose research", "supervised research",
+                "run a research", "start a research", "begin a research",
+            ])
+            and not actions_to_execute
+        )
+        is_research_request = is_explicit_mission
         if is_research_request:
             mode = "supervised" if "supervised" in prompt_lower else ("autonomous" if "autonomous" in prompt_lower else req.mode)
             tools_invoked = ["propose_research_mission", "execute_research_mission"]
             active_prov_type = provider_info.get("provider_type")
-            is_model_inference = (active_prov_type in ("ollama", "llm"))
+            is_model_inference = (active_prov_type in ("ollama", "llm", "openai_compat"))
             is_fallback = not is_model_inference
 
             thought_steps = [
@@ -4611,13 +5891,42 @@ class AIReasoningService:
                 )
             ]
 
-            budget = MissionBudget(max_iterations=req.max_iterations, max_experiments=req.max_experiments)
-            mission = research_orchestrator.start_mission(
-                goal_description=prompt,
-                mode=mode,
-                budget=budget,
-                base_scenario_id=req.selected_scenario_id or "scen_slalom_beta"
-            )
+            # The research orchestrator currently assumes a diff-drive rover navigation scenario.
+            # Isolate it so a failure (e.g. on an arm-only scene) degrades to a normal reply
+            # instead of crashing the whole chat with a 500.
+            mission = None
+            mission_error = None
+            try:
+                budget = MissionBudget(max_iterations=req.max_iterations, max_experiments=req.max_experiments)
+                mission = research_orchestrator.start_mission(
+                    goal_description=prompt,
+                    mode=mode,
+                    budget=budget,
+                    base_scenario_id=req.selected_scenario_id or "scen_slalom_beta"
+                )
+            except Exception as _mission_err:
+                logger.warning("Research mission failed (%s); falling back to conversational reply.", _mission_err)
+                mission_error = str(_mission_err)
+
+            if mission is None:
+                # Graceful degradation: don't 500. Explain and let normal reasoning continue.
+                return AIChatResponse(
+                    reply=(
+                        "I couldn't run an autonomous research mission in this scene. The research "
+                        "pipeline is built around the differential-drive navigation benchmark, so it "
+                        "needs a rover scene (not an arm/empty workspace). "
+                        "You can still ask me to spawn objects, train a PPO policy on the current "
+                        "robot, or drive the joints directly."
+                        + (f"\n\n_(internal: {mission_error})_" if mission_error else "")
+                    ),
+                    provider=provider_info["active_provider"],
+                    is_model_inference=False,
+                    is_fallback=True,
+                    mode=req.mode,
+                    thought_steps=thought_steps,
+                    tools_invoked=tools_invoked,
+                    actions_executed=[],
+                )
             mission_dict = mission.model_dump()
             awaiting_approval = False
             approval_plan = None
@@ -4680,11 +5989,27 @@ class AIReasoningService:
             )
 
         # 3. Model Reasoning or Deterministic Pipeline
+        _rob_name = rob.get("name") if isinstance(rob, dict) and rob else None
+        _rob_pos = rob.get("initial_position") if isinstance(rob, dict) and rob else None
+        if _rob_name:
+            _ground_detail = (f"Active robot '{_rob_name}' at "
+                              f"{(_rob_pos[:2] if _rob_pos else 'n/a')} with "
+                              f"{context['environment']['total_obstacles']} workspace obstacles.")
+        else:
+            _gr = context.get("generic_robot") or {}
+            _gr_name = _gr.get("name") if isinstance(_gr, dict) else None
+            if _gr_name:
+                _ground_detail = (f"Active articulated robot '{_gr_name}' "
+                                  f"({len(_gr.get('joints', []))} joints) with "
+                                  f"{context['environment']['total_obstacles']} workspace obstacles.")
+            else:
+                _ground_detail = (f"Empty workspace (no active robot) with "
+                                  f"{context['environment']['total_obstacles']} obstacles.")
         thought_steps: List[AgentThoughtStep] = [
             AgentThoughtStep(
                 step="inspect",
                 title="Scene & Hardware Telemetry Grounding",
-                detail=f"Active robot '{rob['name']}' at {rob['initial_position'][:2]} with {context['environment']['total_obstacles']} workspace obstacles.",
+                detail=_ground_detail,
                 status="success"
             )
         ]
@@ -4697,45 +6022,95 @@ class AIReasoningService:
         is_model_inference = False
         is_fallback = False
 
-        if provider_info["has_credentials"] and provider_info.get("provider_type") in ("ollama", "llm"):
+        if provider_info["has_credentials"] and provider_info.get("provider_type") in ("ollama", "llm", "openai_compat"):
             try:
-                model_reasoning = self._call_model_chat_reasoning(prompt, context, provider_info, req.chat_history)
-                if model_reasoning:
-                    is_model_inference = True
-                    thought_steps.append(AgentThoughtStep(
-                        step="reason",
-                        title=f"{provider_info['active_provider']} Neural Synthesis",
-                        detail=f"Inferred grounded plan from {provider_info.get('model', 'LLM')} with physical scene constraints.",
-                        status="success"
-                    ))
-                    model_actions = model_reasoning.get("actions", [])
-                    if isinstance(model_actions, list) and model_actions:
-                        creative_words = [
-                            "joke", "jokes", "story", "poem", "pun", "riddle", "humor", "laugh", "funny",
-                            "history", "empire", "roman", "scattering", "rayleigh", "why is the sky", "bake", "sourdough"
-                        ]
-                        is_creative_query = any(w in prompt_lower for w in creative_words)
-                        explicit_verbs = [
-                            "spawn", "create", "add", "remove", "delete", "clear", "teleport", "move", "set",
-                            "configure", "start", "stop", "train", "deploy", "fly", "takeoff", "land", "hover", "record",
-                            "build", "construct", "generate", "make", "setup", "assemble", "design", "synthesize", "put"
-                        ]
-                        has_sim_intent = (not is_creative_query) and (
-                            any(w in prompt_lower for w in ["play", "pause", "reset", "step", "autodrive", "slalom", "course", "maze", "track", "warehouse", "corridor", "tunnel", "arena", "room", "environment"])
-                            or (any(v in prompt_lower for v in explicit_verbs) and any(w in prompt_lower for w in ["robot", "drone", "box", "cylinder", "sphere", "obstacle", "target", "speed", "velocity", "lidar", "imu", "camera", "swarm", "policy", "rl", "wall", "gate", "ramp", "rack", "barrier", "chassis", "wheel", "sensor", "physics", "gravity", "maze", "track", "scene", "arena"]))
+                creative_words = [
+                    "joke", "jokes", "story", "poem", "pun", "riddle", "humor", "laugh", "funny",
+                    "history", "empire", "roman", "scattering", "rayleigh", "why is the sky",
+                    "bake", "sourdough",
+                ]
+                is_creative_query = any(w in prompt_lower for w in creative_words)
+
+                # --- AGENTIC LOOP: plan -> execute -> observe -> re-plan ---
+                # The model acts, sees the real tool results + refreshed scene, and decides the
+                # next step, until it declares the task complete (or emits no actions). This makes
+                # it react to reality (real joint names, failures, dependent steps) instead of
+                # firing one blind plan. The cap is only a runaway guard; normal completion is the
+                # model setting 'complete': true. Configurable via AI_AGENT_MAX_STEPS.
+                try:
+                    max_steps = int(os.getenv("AI_AGENT_MAX_STEPS", "8"))
+                except Exception:
+                    max_steps = 8
+                max_steps = max(1, min(max_steps, 12))
+
+                loop_tool_results: List[Dict[str, Any]] = []
+                seen_tools: set = set()
+                step_idx = 0
+                while step_idx < max_steps:
+                    step_idx += 1
+                    model_reasoning = self._call_model_chat_reasoning(
+                        prompt, context, provider_info, req.chat_history,
+                        tool_results=(loop_tool_results if step_idx > 1 else None),
+                    )
+                    # The free tier flakes intermittently (empty/None). Retry once before giving up
+                    # on this step, so a single bad response doesn't abort the whole task.
+                    if not model_reasoning:
+                        model_reasoning = self._call_model_chat_reasoning(
+                            prompt, context, provider_info, req.chat_history,
+                            tool_results=(loop_tool_results if step_idx > 1 else None),
                         )
-                        if has_sim_intent:
-                            for act_spec in model_actions:
-                                if isinstance(act_spec, dict) and "tool" in act_spec:
-                                    actions_to_execute.append((act_spec["tool"], act_spec.get("params", {})))
-                        else:
-                            logger.info("Ignoring LLM actions for non-simulation query: %s", prompt[:60])
+                    if not model_reasoning:
+                        break
+                    is_model_inference = True
+                    if step_idx == 1:
+                        thought_steps.append(AgentThoughtStep(
+                            step="reason",
+                            title=f"{provider_info['active_provider']} Neural Synthesis",
+                            detail=f"Inferred grounded plan from {provider_info.get('model', 'LLM')} with physical scene constraints.",
+                            status="success"
+                        ))
+
+                    model_actions = model_reasoning.get("actions", []) or []
+                    step_specs: List[tuple] = []
+                    if isinstance(model_actions, list) and not is_creative_query:
+                        for act_spec in model_actions:
+                            if isinstance(act_spec, dict) and ("tool" in act_spec or "action" in act_spec):
+                                tool = act_spec.get("tool") or act_spec.get("action")
+                                params = act_spec.get("params") or act_spec.get("parameters") or {}
+                                if tool:
+                                    step_specs.append((str(tool), params if isinstance(params, dict) else {}))
+
+                    # Execute this step's actions and collect real results for the next iteration.
+                    step_results: List[Dict[str, Any]] = []
+                    for t_name, t_params in step_specs:
+                        tool_key = f"{t_name}_{json.dumps(t_params, sort_keys=True)}"
+                        if tool_key in seen_tools:
+                            continue
+                        seen_tools.add(tool_key)
+                        tools_invoked.append(t_name)
+                        act_res = self.execute_tool(t_name, t_params)
+                        actions_executed.append(act_res)
+                        step_results.append(act_res)
+                        thought_steps.append(AgentThoughtStep(
+                            step="execute",
+                            title=f"Tool: {t_name.replace('_', ' ').title()}" + (f" (step {step_idx})" if step_idx > 1 else ""),
+                            detail=act_res.get("details", f"Executed {t_name}."),
+                            status="success" if act_res.get("status") == "success" else "info",
+                        ))
+                    loop_tool_results = step_results
+
+                    # Stop when the model says it's done, emitted no actions, or this was creative.
+                    done = bool(model_reasoning.get("complete", False))
+                    if done or not step_specs or is_creative_query:
+                        break
+                    # Refresh context so the next iteration sees the real post-action scene.
+                    context = self.gather_simulation_context()
             except Exception as e:
                 logger.warning("Live model reasoning error (%s). Engaging deterministic execution.", e)
                 is_fallback = True
 
-        # 4. Execute all collected actions
-        if actions_to_execute:
+        # 4. Execute any residual deterministic-extractor actions ONLY if the model produced none.
+        if actions_to_execute and not actions_executed:
             seen_tools = set()
             for t_name, t_params in actions_to_execute:
                 tool_key = f"{t_name}_{json.dumps(t_params, sort_keys=True)}"
@@ -4769,7 +6144,8 @@ class AIReasoningService:
             )
         else:
             # Pure Q&A / conceptual fallback
-            if any(w in prompt_lower for w in ["capabilities", "sensors", "sensor", "lidar", "imu", "camera", "actuator", "hardware"]):
+            _visual_q = any(w in prompt_lower for w in ["see", "look", "in front", "visible", "what is there", "what's there", "describe the scene", "what do you"])
+            if not _visual_q and any(w in prompt_lower for w in ["capabilities", "sensors", "sensor", "lidar", "imu", "camera", "actuator", "hardware"]):
                 tools_invoked.append("inspect_robot_capabilities")
                 caps = self.tool_inspect_robot_capabilities()
                 observed_facts = caps
@@ -4824,24 +6200,23 @@ class AIReasoningService:
         if not is_model_inference:
             is_fallback = True
 
-        # Synthesize deep, transparent, human-grade agent thinking (matching Antigravity / o1 / Claude 3.7)
-        deep_steps, thought_process = self._synthesize_deep_agent_thinking(
-            prompt=prompt,
-            context=context,
-            actions_to_execute=actions_to_execute,
-            actions_executed=actions_executed,
-            model_thought=model_reasoning.get("thought") if model_reasoning else None,
-            provider_info=provider_info
-        )
-        # Preserve semantically-meaningful conceptual steps (ideation, inspection, diagnosis)
-        # produced by the Q&A/collaborative branches instead of discarding them when the generic
-        # deep-thinking steps are synthesized.
-        preserved_markers = ("ideation", "collaborative", "inspection", "diagnosis", "hardware")
-        preserved_steps = [
-            s for s in thought_steps
-            if any(m in (s.title or "").lower() for m in preserved_markers)
-        ]
-        thought_steps = deep_steps + preserved_steps
+        # Honest reasoning trace: only the model's own stated reasoning (if any) plus the tools that
+        # actually ran and their real results. No templated "monologue" text.
+        _lines: List[str] = []
+        _mt = (model_reasoning.get("thought") if model_reasoning else None) or ""
+        if isinstance(_mt, str) and _mt.strip():
+            _lines.append(f"**Model reasoning ({provider_info.get('model', 'LLM')}):**")
+            _lines.append(_mt.strip())
+        elif not is_model_inference:
+            _lines.append("_AI model unavailable — used the built-in command parser._")
+        if actions_executed:
+            _lines.append("")
+            _lines.append("**Actions executed:**")
+            for a in actions_executed:
+                _lines.append(f"- `{a.get('action', '?')}` → **{a.get('status', '?')}**: {str(a.get('details', ''))[:200]}")
+        thought_process = "\n".join(_lines) if _lines else None
+        preserved_markers = ("ideation", "collaborative", "inspection", "diagnosis", "hardware", "tool:", "neural synthesis")
+        thought_steps = [s for s in thought_steps if any(m in (s.title or "").lower() for m in preserved_markers)] or thought_steps
 
         return AIChatResponse(
             reply=reply,
@@ -4860,7 +6235,7 @@ class AIReasoningService:
         """Handles supervisor approval or rejection of a paused experiment plan."""
         provider_info = self.get_provider_status()
         active_prov_type = provider_info.get("provider_type")
-        is_model_inference = (active_prov_type in ("ollama", "llm"))
+        is_model_inference = (active_prov_type in ("ollama", "llm", "openai_compat"))
         thought_steps: List[AgentThoughtStep] = []
         tools_invoked: List[str] = ["execute_research_mission"]
 
@@ -4942,9 +6317,11 @@ class AIReasoningService:
 # Global singleton instance
 ai_reasoning_service = AIReasoningService()
 
-def get_ai_reasoning_service(proj_manager: Optional[ProjectManager] = None, engine: Optional[Any] = None) -> AIReasoningService:
+def get_ai_reasoning_service(proj_manager: Optional[ProjectManager] = None, engine: Optional[Any] = None, agent_interface: Optional[Any] = None) -> AIReasoningService:
     if proj_manager:
         ai_reasoning_service.pm = proj_manager
     if engine is not None:
         ai_reasoning_service.engine = engine
+    if agent_interface is not None:
+        ai_reasoning_service.agent_interface = agent_interface
     return ai_reasoning_service

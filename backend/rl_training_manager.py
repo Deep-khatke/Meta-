@@ -32,6 +32,187 @@ MODELS_DIR = Path("models/rl")
 MODELS_DIR.mkdir(parents=True, exist_ok=True)
 REGISTRY_FILE = MODELS_DIR / "registry.json"
 
+# Number of parallel environments / ghost rovers in live "swarm" training (Isaac Lab style).
+SWARM_SIZE = max(1, int(os.getenv("RF_SWARM_SIZE", "8")))
+
+
+def _make_rover_env(project_dict: Dict[str, Any], tgt: List[float], reward_code: Optional[str], seed: int,
+                    domain_randomize: bool = False):
+    """Module-level (picklable) env factory so PPO can train N rovers in parallel subprocesses."""
+    from backend.models import Project as _P
+    from backend.rl_env import RoboForgeGymEnv as _E
+    return _E(project=_P(**project_dict), target_position=tuple(tgt), randomize_training=False,
+              distance_threshold=0.9, max_episode_steps=300, custom_reward_code=reward_code, seed=seed,
+              domain_randomize=domain_randomize)
+
+
+def infer_rover_reward_from_text(text: str) -> Optional[str]:
+    """Best-effort mapping from a natural-language behavior phrase to a dense reward snippet.
+    Used as a deterministic fallback when no explicit reward_code is supplied (e.g. LLM outage),
+    so the rover can learn common behaviors without the model. Returns None for plain
+    goal-navigation. The LLM path can express arbitrary behaviors beyond these presets.
+
+    Reward snippet contract: defines compute_reward(state, action, info) -> float or (float,bool).
+    action[0]=forward/back in [-1,1], action[1]=turn in [-1,1]; info has 'is_collision','step'.
+    """
+    t = (text or "").lower()
+    if any(w in t for w in ["circle", "circular", "loop", "round and round", "orbit", "ring"]):
+        return (
+            "def compute_reward(state, action, info):\n"
+            "    lin=float(action[0]); ang=float(action[1])\n"
+            "    # A real circle = steady FORWARD speed AND a firm, steady TURN held together.\n"
+            "    # Target a moderate cruise with a STRONG turn so the loop is tight and visible.\n"
+            "    # Turn error is weighted heavily so the policy can't settle for a lazy arc.\n"
+            "    tgt_lin=0.45; tgt_turn=0.8\n"
+            "    r = 2.0 - 2.0*(lin-tgt_lin)**2 - 6.0*(abs(ang)-tgt_turn)**2\n"
+            "    if lin < 0.15: r -= 1.0\n"       
+            "    if abs(ang) < 0.4: r -= 1.0\n"   
+            "    if info.get('is_collision'): return (r-10.0, True)\n"
+            "    return r\n"
+        )
+    if any(w in t for w in ["spin", "rotate in place", "turn in place", "pirouette", "twirl"]):
+        return (
+            "def compute_reward(state, action, info):\n"
+            "    lin=float(action[0]); ang=float(action[1])\n"
+            "    r=3.0*abs(ang)-2.0*abs(lin)\n"
+            "    if info.get('is_collision'): return (r-10.0, True)\n"
+            "    return r\n"
+        )
+    if any(w in t for w in ["straight", "forward line", "drive forward", "go forward", "race", "sprint", "fast as"]):
+        return (
+            "def compute_reward(state, action, info):\n"
+            "    lin=float(action[0]); ang=float(action[1])\n"
+            "    r=3.0*lin-1.5*abs(ang)\n"
+            "    if info.get('is_collision'): return (r-10.0, True)\n"
+            "    return r\n"
+        )
+    if any(w in t for w in ["zig", "zag", "zig-zag", "zigzag", "weave", "slalom", "snake"]):
+        return (
+            "def compute_reward(state, action, info):\n"
+            "    import math\n"
+            "    lin=float(action[0]); ang=float(action[1])\n"
+            "    phase=math.sin(info.get('step',0)*0.3)\n"
+            "    r=2.0*lin + 2.0*(ang*phase)\n"
+            "    if lin<0.1: r-=0.5\n"
+            "    if info.get('is_collision'): return (r-10.0, True)\n"
+            "    return r\n"
+        )
+    return None
+
+
+def build_path_follow_reward(waypoints: List[List[float]], closed: bool = True) -> str:
+    """Generate a GENERAL path-following reward for ANY shape. The policy is rewarded for
+    advancing along the given waypoint path and for staying close to it. Because any shape
+    (square, triangle, N-gon, figure-8, star, zig-zag, spiral, custom points) is just a
+    waypoint list, this one reward lets PPO learn to drive ANY shape — no per-shape reward.
+
+    The reward is stateful across steps (tracks the nearest path index reached so far), so it
+    genuinely rewards making progress around the path rather than a single instantaneous pose.
+    Progress state is kept on the compiled function object so it survives between env steps and
+    resets at the start of each episode (info['step']==0).
+    """
+    pts_literal = "[" + ",".join(f"[{p[0]:.4f},{p[1]:.4f}]" for p in waypoints) + "]"
+    closed_literal = "True" if closed else "False"
+    return (
+        "import math\n"
+        "def compute_reward(state, action, info):\n"
+        f"    _PATH = {pts_literal}\n"
+        f"    _CLOSED = {closed_literal}\n"
+        "    n = len(_PATH)\n"
+        "    rp = info.get('robot_position') or [state.robot.position[0], state.robot.position[1]]\n"
+        "    rx, ry = float(rp[0]), float(rp[1])\n"
+        "    step = int(info.get('step', 0) or 0)\n"
+        "    if step <= 0 or not hasattr(compute_reward, '_prog'):\n"
+        "        compute_reward._prog = 0\n"
+        "        compute_reward._laps = 0\n"
+        "    prog = compute_reward._prog\n"
+        "    best_d = 1e9; best_i = prog\n"
+        "    look = 6\n"
+        "    for k in range(0, look + 1):\n"
+        "        i = prog + k\n"
+        "        if i >= n:\n"
+        "            i = i - n if _CLOSED else n - 1\n"
+        "        dx = _PATH[i][0] - rx; dy = _PATH[i][1] - ry\n"
+        "        d = math.sqrt(dx*dx + dy*dy)\n"
+        "        if d < best_d:\n"
+        "            best_d = d; best_i = i\n"
+        "    advanced = 0\n"
+        "    if best_d < 0.45:\n"
+        "        if best_i >= prog:\n"
+        "            advanced = best_i - prog\n"
+        "        else:\n"
+        "            advanced = (n - prog) + best_i\n"
+        "        compute_reward._prog = best_i\n"
+        "        if _CLOSED and advanced > 0 and best_i < prog:\n"
+        "            compute_reward._laps += 1\n"
+        "    r = 5.0 * advanced + (1.0 - min(1.0, best_d / 1.5)) - 0.02\n"
+        "    if info.get('is_collision'):\n"
+        "        return (r - 10.0, True)\n"
+        "    return r\n"
+    )
+
+
+class SwarmGhostCallback(BaseCallback):
+    """Publishes the LIVE poses of every parallel training env as the on-screen ghosts, and paces
+    training to ~real time. The ghosts you see ARE the N environments PPO is collecting experience
+    from this very update — genuine parallel learners tracing the real task, not a visual mirror.
+    Requires an in-process DummyVecEnv (so member envs' MuJoCo state is readable here).
+    """
+    def __init__(self, manager: "RLTrainingManager", job_id: str, engine: Any, target,
+                 realtime_dt: float = 0.0, verbose: int = 0):
+        super().__init__(verbose)
+        self.manager = manager
+        self.job_id = job_id
+        self.engine = engine
+        self.target = target
+        self.realtime_dt = realtime_dt  # sleep per step so the swarm is watchable (0 = full speed)
+
+    def _member_envs(self):
+        ve = self.training_env
+        # DummyVecEnv exposes .envs; unwrap Monitor/other wrappers to the RoboForgeGymEnv.
+        envs = getattr(ve, "envs", None)
+        if not envs:
+            return []
+        out = []
+        for e in envs:
+            inner = e
+            for _ in range(6):
+                if hasattr(inner, "engine") and hasattr(inner, "target_position"):
+                    break
+                inner = getattr(inner, "env", inner)
+            out.append(inner)
+        return out
+
+    def _on_step(self) -> bool:
+        if self.manager.is_cancelled(self.job_id) or not getattr(self.engine, "rl_training_active", True):
+            return False
+        poses = []
+        succ = 0
+        tx, ty = float(self.target[0]), float(self.target[1])
+        for env in self._member_envs():
+            try:
+                eng = env.engine
+                ad = getattr(eng, "robot_qpos_adr", 0)
+                q = eng.data.qpos
+                w, x, y, z = (float(v) for v in q[ad + 3:ad + 7])
+                yaw = math.atan2(2 * (w * z + x * y), 1 - 2 * (y * y + z * z))
+                px, py = float(q[ad]), float(q[ad + 1])
+                dist = math.hypot(tx - px, ty - py)
+                # status: 0 trying, 1 reached goal (within threshold), 2 crashed/out of bounds
+                st = 1 if dist < 0.9 else (2 if (q[ad + 2] < 0.02 or abs(px) > 14 or abs(py) > 14) else 0)
+                if st == 1:
+                    succ += 1
+                poses.append([round(px, 3), round(py, 3), round(yaw, 3), float(st)])
+            except Exception:
+                continue
+        if poses:
+            self.engine.rl_ghosts = poses
+            self.engine.rl_swarm_size = len(poses)
+            self.engine.rl_swarm_success = succ
+        if self.realtime_dt > 0:
+            time.sleep(self.realtime_dt)
+        return True
+
 
 class RLProgressCallback(BaseCallback):
     """Callback to capture episode statistics and check for cancellation during training."""
@@ -250,14 +431,28 @@ class RLTrainingManager:
 
             notes_str = str(getattr(config, "notes", "") or "")
             hint = f"{config.model_name or ''} {notes_str} {config.robot_kind or ''}".lower()
-            is_drone_hint = any(w in hint for w in ["drone", "takeoff", "flight", "uav", "quad"])
-            is_arm_job = (
-                any(w in hint for w in ["arm", "manipulator", "pick", "kr6", "scara", "delta", "joint"])
-                or (getattr(project, "generic_robot", None) is not None
-                    and len(project.generic_robot.joints) > 0
-                    and getattr(project, "robot", None) is None)
+            # Ground-truth scene facts take priority over keyword guessing. A rover must never be
+            # trained as a drone just because the prompt said "fly"/"takeoff".
+            has_drone_entity = any(
+                ("drone" in (o.name or "").lower() or (o.id or "").startswith("drone") or "quad" in (o.name or "").lower())
+                for o in getattr(project, "objects", []) or []
             )
-            detected_kind = config.robot_kind or detect_robot_kind(project)
+            has_arm = (getattr(project, "generic_robot", None) is not None
+                       and len(project.generic_robot.joints) > 0)
+            has_rover = getattr(project, "robot", None) is not None and getattr(project, "robot_active", True)
+
+            explicit_kind = (config.robot_kind or "").strip().lower()
+            # A drone job requires an actual drone in the scene OR an explicit drone robot_kind.
+            # Keyword hints alone are NOT enough (that caused rovers to "fly off").
+            is_drone_hint = (explicit_kind == "drone") or (has_drone_entity and not has_rover and not has_arm)
+            is_arm_job = (
+                explicit_kind in ("arm", "generic")
+                or (has_arm and not has_rover)
+            )
+            detected_kind = explicit_kind or detect_robot_kind(project)
+            # If there is a real driveable rover and no arm, force the mobile/navigation env.
+            if has_rover and not has_arm and not is_drone_hint:
+                detected_kind = "mobile"
 
             if is_drone_hint or detected_kind == "drone":
                 from backend.rl_env import RoboForgeDroneGymEnv
@@ -1060,9 +1255,20 @@ class RLTrainingManager:
         self,
         engine: Any,
         robot_identifier: str = "robot",
-        total_episodes: int = 4
+        total_episodes: int = 4,
+        task_description: str = "",
+        reward_code: Optional[str] = None,
+        waypoints: Optional[List[List[float]]] = None,
+        loop: bool = True,
+        domain_randomize: bool = False,
     ) -> Dict[str, Any]:
-        """Spawns background live visual Isaac Lab ground rover navigation training curriculum."""
+        """Spawns background live visual Isaac Lab ground rover training curriculum.
+
+        `task_description` is the user's natural-language behavior ("drive in a circle",
+        "figure-8", "patrol between two points", etc.). `reward_code` is an optional compiled
+        reward snippet (def compute_reward(state, action, info)) that encodes that behavior so
+        PPO can learn ANY task — not a fixed predefined menu. When reward_code is omitted the
+        rover learns the default goal-navigation task."""
         if getattr(engine, "rl_training_active", False):
             return {
                 "status": "warning",
@@ -1071,18 +1277,73 @@ class RLTrainingManager:
                 "current_status": engine.rl_training_status
             }
 
+        # Resolve the reward + optional shape path.
+        #  - If the user named a SHAPE (square/triangle/N-gon/figure-8/star/zig-zag/spiral/line/
+        #    custom points), we train the reliable goal-NAVIGATE skill and attach the shape's
+        #    waypoint path. At deploy the "carrot" target walks along the path and the trained
+        #    navigate policy chases it, tracing ANY shape faithfully. This is robust for every
+        #    shape (the policy only needs the navigate skill it actually converges on).
+        #  - An explicit reward_code (LLM) or a simple behavior preset (spin/straight) still
+        #    trains that behavior directly.
+        _shape_plan = None
+        _explicit_reward = bool(reward_code and str(reward_code).strip())
+        # User-drawn mission path (clicked waypoints) takes top priority.
+        if waypoints and len(waypoints) >= 2:
+            _shape_plan = {
+                "waypoints": [[float(p[0]), float(p[1])] for p in waypoints if len(p) >= 2],
+                "loop": bool(loop) and len(waypoints) >= 3,
+                "shape": "custom path",
+            }
+            reward_code = None
+            _explicit_reward = False
+            task_description = task_description or "follow the custom path"
+        # A recognized SHAPE always wins over model-written reward_code: stateless LLM rewards
+        # can't produce corners, while the shape path is traced exactly after training.
+        if task_description and _shape_plan is None:
+            try:
+                from backend.path_shapes import generate_path
+                _center = [0.0, 0.0]
+                try:
+                    _st = engine.get_state()
+                    _center = [_st.robot.position[0], _st.robot.position[1]]
+                except Exception:
+                    pass
+                try:
+                    _bound = float(engine.project.settings.world_boundaries[0])
+                except Exception:
+                    _bound = 6.0
+                _plan = generate_path(description=task_description, center=_center, size=1.8,
+                                      arena_bound=abs(_bound) if _bound else 6.0)
+                # Only treat it as a shape task if the generator recognized a real shape
+                # (not the circle-default fallback for unrelated text).
+                if _plan and _plan.get("waypoints") and len(_plan["waypoints"]) >= 3 \
+                        and _plan.get("shape") not in (None, "circle (default)"):
+                    _shape_plan = _plan
+                    reward_code = None  # train navigate skill; shape traced via path at deploy
+                    _explicit_reward = False
+            except Exception as e:
+                logger.warning("Shape path detection failed, falling back: %s", e)
+
+        # If no shape and no explicit reward, fall back to a simple behavior preset
+        # (spin/straight/zig-zag) — these are single-mode behaviors a stateless reward can learn.
+        if not _explicit_reward and not _shape_plan and task_description:
+            reward_code = infer_rover_reward_from_text(task_description)
+
         if hasattr(engine, "play") and engine.status != "running":
             engine.play()
 
-        # Ensure obstacle and course geometry exist for visual collision feedback
-        if not engine.project.objects:
+        # Ensure obstacle and course geometry exist for visual collision feedback — but only for
+        # the plain navigate task. Behavior AND shape tasks don't want a barrier in the way (it
+        # would interrupt the behavior / break the traced shape).
+        _is_behavior = bool(reward_code and str(reward_code).strip()) or bool(_shape_plan)
+        if not _is_behavior and not engine.project.objects:
             from backend.models import SceneObject
             engine.project.objects.append(SceneObject(
                 id="obstacle_barrier_1",
                 name="Barrier-Alpha",
                 type="box",
-                position=[1.5, 0.0, 0.25],
-                size=[0.1, 0.6, 0.25],
+                position=[0.9, 0.6, 0.25],
+                size=[0.1, 0.4, 0.25],
                 color="#ef4444",
                 is_static=True
             ))
@@ -1093,9 +1354,32 @@ class RLTrainingManager:
 
         job_id = f"ppo_rover_nav_{uuid.uuid4().hex[:6]}"
         engine._live_job_id = job_id
+        # Isaac-style episodic "watch it learn" loop: the rover visibly attempts -> fails -> resets
+        # -> retries -> improves, until it reaches the goal several times in a row (convergence).
+        _tgt = list(getattr(engine, "active_rl_policy_target_pos", None) or [1.6, 0.0, 0.25])
+        # Prefer the clean detected shape name for labels/messages over the raw prompt.
+        if _shape_plan and _shape_plan.get("shape") == "custom path":
+            _desc = f"follow your {len(_shape_plan['waypoints'])}-waypoint path"
+        elif _shape_plan and _shape_plan.get("shape"):
+            _desc = f"drive in a {_shape_plan['shape']}"
+        else:
+            _desc = (task_description or "").strip()
+        _label = f"PPO Rover — {_desc}" if _desc else "PPO Rover Navigation (Live)"
+        # Behavior tasks need more gradient steps to nail precise target velocities; navigate
+        # converges faster on the shaped goal reward.
+        _chunk = 5000 if _is_behavior else 3000
         thread = threading.Thread(
-            target=self._run_live_rover_curriculum,
-            args=(engine, job_id, total_episodes),
+            target=self.run_episodic_live_training,
+            kwargs=dict(
+                engine=engine, job_id=job_id, robot_kind="mobile",
+                target_position=_tgt, success_streak_goal=2,
+                max_wall_seconds=(150.0 if _shape_plan else 300.0), chunk_timesteps=_chunk,
+                label=_label,
+                task_description=_desc,
+                reward_code=reward_code,
+                shape_path=_shape_plan,
+                domain_randomize=domain_randomize,
+            ),
             daemon=True,
         )
         thread.start()
@@ -1489,6 +1773,411 @@ class RLTrainingManager:
         mean_r = sum(rewards) / len(rewards) if rewards else 0.0
         succ = sum(successes) / len(successes) if successes else 0.0
         return mean_r, succ
+
+    def run_episodic_live_training(
+        self,
+        engine: Any,
+        job_id: str,
+        robot_kind: str = "mobile",
+        target_position: Optional[List[float]] = None,
+        success_streak_goal: int = 3,
+        max_wall_seconds: float = 240.0,
+        chunk_timesteps: int = 1500,
+        label: str = "PPO Live (Episodic)",
+        task_description: str = "",
+        reward_code: Optional[str] = None,
+        shape_path: Optional[Dict[str, Any]] = None,
+        domain_randomize: bool = False,
+    ) -> None:
+        """Isaac-style 'watch it learn' loop for the ROVER.
+
+        The robot runs REAL full episodes live in the viewport: start at origin -> attempt to
+        reach the goal -> on crash/timeout it VISIBLY resets and tries again. Between episodes PPO
+        learns from the collected experience, so you watch it fail, retry, and improve. Training
+        continues until the policy reaches the goal `success_streak_goal` times in a row
+        (convergence) or a wall-time safety cap -- NOT a fixed step count. Early episodes use bold
+        exploration so the robot moves decisively (drives, overshoots, crashes) instead of jittering.
+        """
+        import numpy as _np
+        from backend.rl_env import RoboForgeGymEnv
+
+        project = engine.project
+        tgt = list(target_position) if target_position else [2.5, 0.5, 0.25]
+        # For a waypoint path (shape/patrol), train the navigate skill toward the path's FIRST
+        # waypoint — always reachable — so training converges in a couple of attempts instead of
+        # chasing a fixed point that may sit inside a wall. The path-follower drives the full loop
+        # at deploy time.
+        if shape_path and shape_path.get("waypoints"):
+            _w0 = shape_path["waypoints"][0]
+            tgt = [float(_w0[0]), float(_w0[1]), 0.25]
+        start_time = time.time()
+
+        # HUD init
+        engine.rl_training_active = True
+        engine.rl_training_episode = 0
+        engine.rl_training_step = 0
+        engine.rl_training_reward = 0.0
+        engine.rl_training_percent = 0.0
+        engine.rl_training_total_episodes = 0
+        engine.rl_training_model_name = label
+        engine.rl_training_last_outcome = None
+        engine.rl_training_success_streak = 0
+        engine.rl_training_best_reward = -1e9
+        engine.rl_training_attempts = 0
+        engine.rl_training_status = "[INIT] Building PPO agent — the rover will now learn to reach the goal by trial and error"
+        engine.active_rl_policy_target_pos = tgt
+
+        with self._lock:
+            self._jobs[job_id] = RLTrainingStatus(
+                job_id=job_id, model_name=label, status="training",
+                metrics=RLTrainingMetrics(total_timesteps=0),
+            )
+            self._cancel_flags[job_id] = False
+
+        env = None
+        try:
+            # General task-driven reward. `reward_code` (when provided) is a Python snippet that
+            # defines compute_reward(state, action, info) describing ANY behavior the user asked
+            # for (circle, figure-8, patrol, zig-zag, spin, reach a point, etc.). When absent we
+            # fall back to the env's built-in goal-seeking reward ("navigate").
+            _reward_code = reward_code if (reward_code and reward_code.strip()) else None
+
+            # PARALLEL learning: N rovers in ONE in-process vectorized env. These SAME N envs are
+            # what PPO collects experience from AND what we render as the on-screen ghosts — so the
+            # ghosts are genuine parallel learners, not a visual copy. (In-process DummyVecEnv is
+            # required so each member env's live MuJoCo pose is readable for rendering.)
+            from stable_baselines3.common.vec_env import DummyVecEnv
+            from functools import partial as _partial
+            _N = SWARM_SIZE
+            _pdict = project.model_dump()
+            _fns = [_partial(_make_rover_env, _pdict, list(tgt), _reward_code, 1000 + i, domain_randomize) for i in range(_N)]
+            env = DummyVecEnv(_fns)
+            _vec_kind = f"{_N} parallel learners (in-process, rendered as ghosts)"
+            _n_steps = max(64, 2048 // _N)
+            model = PPO("MlpPolicy", env, n_steps=_n_steps, batch_size=min(256, _n_steps * _N),
+                        learning_rate=3e-4, gamma=0.99, ent_coef=0.02, verbose=0)
+            chunk_timesteps = max(chunk_timesteps, _n_steps * _N)
+            logger.info("Swarm training %s: %s", job_id, _vec_kind)
+            engine.rl_swarm_size = _N
+            # The member envs are the ghosts; no separate ghost set.
+            ghosts: List[Any] = []
+
+            # A viewing env bound to the AUTHORITATIVE engine so episodes render in the viewport.
+            view = RoboForgeGymEnv(project, target_position=tuple(tgt), max_episode_steps=400)
+            view.engine = engine
+
+            v_max = project.robot.max_linear_velocity if project.robot else 1.5
+            w_max = project.robot.max_angular_velocity if project.robot else 3.0
+
+            episode = 0
+            total_steps = 0
+            streak = 0
+            _is_general_task = bool(_reward_code)
+            # Behavior tasks (circle/spin/zig-zag/etc.) have no natural "goal reached" event, so we
+            # train for a minimum number of attempts and require the reward to climb and stay high
+            # before declaring mastery — otherwise PPO stops while still undertrained and the robot
+            # barely performs the behavior.
+            _min_attempts = 6 if _is_general_task else 1
+            _reward_history: List[float] = []
+            while True:
+                # Stop conditions: user cancel, convergence (streak), or wall-time safety cap.
+                if self.is_cancelled(job_id):
+                    engine.rl_training_status = "[CANCELLED] Training stopped by user."
+                    break
+                if episode >= _min_attempts and streak >= success_streak_goal:
+                    break
+                if time.time() - start_time > max_wall_seconds:
+                    engine.rl_training_status = f"[TIMEOUT] Reached time cap after {episode} attempts (best reward {engine.rl_training_best_reward:.1f})."
+                    break
+
+                episode += 1
+                engine.rl_training_episode = episode
+                engine.rl_training_attempts = episode
+
+                # 1) LEARN a short burst (real PPO). The N parallel learners render live as the
+                #    on-screen ghosts via the callback — you literally watch the swarm that PPO is
+                #    collecting experience from explore, fail and improve. Paced to be watchable.
+                engine.rl_training_status = f"[LEARNING] Attempt {episode}: {SWARM_SIZE} rovers training the task in parallel…"
+                engine.set_teleop(0.0, 0.0)
+                engine.rl_training_rollout_active = False  # server loop keeps scene live while we think
+                _ghost_cb = SwarmGhostCallback(self, job_id, engine, tgt, realtime_dt=0.004)
+                model.learn(total_timesteps=chunk_timesteps, reset_num_timesteps=(episode == 1),
+                            callback=_ghost_cb)
+                engine.rl_ghosts = []  # clear ghosts between the learning burst and the showcase rollout
+                total_steps += chunk_timesteps
+                engine.rl_training_step = total_steps
+
+                # 2) ATTEMPT live in the authoritative viewport: reset, then drive with the current
+                #    policy until goal / crash / timeout. Early episodes add exploration noise so
+                #    the robot moves boldly and visibly tries.
+                engine.rl_training_rollout_active = True  # trainer now drives; server loop yields
+                engine.reset()
+                engine.active_rl_policy_target_pos = tgt
+                try:
+                    obs = view._get_obs()
+                except Exception:
+                    obs, _ = view.reset()
+                explore = max(0.0, 0.5 * (1.0 - episode / 12.0))  # decays as it learns
+                ep_reward = 0.0
+                outcome = "timeout"
+                max_view_steps = 150  # control decisions per attempt (×8 phys steps, real-time paced)
+                prev_dist = None
+                # For general (reward_code) tasks we score the attempt with the SAME reward the
+                # policy is trained on, so "success" means it actually performs the requested
+                # behavior — not a hardcoded goal check. Grab the env's compiled reward fn.
+                _reward_fn = None
+                if _reward_code:
+                    try:
+                        _rscope: Dict[str, Any] = {"math": math, "np": _np}
+                        exec(_reward_code, _rscope)
+                        _reward_fn = _rscope.get("compute_reward") or _rscope.get("calculate_reward")
+                    except Exception as _rce:
+                        logger.warning("custom reward compile for scoring failed: %s", _rce)
+                _is_general = _reward_fn is not None
+                # Real-time pacing: advance a small batch of physics steps per predict() and
+                # sleep so the rover renders as smooth continuous motion in the viewport instead
+                # of teleporting/streaking (the old tight loop ran ~500 steps in a few ms).
+                _ts = float(getattr(engine.project.settings, "timestep", 0.002) or 0.002)
+                _steps_per_tick = 8          # physics steps advanced per control decision
+                _frame_dt = _ts * _steps_per_tick  # wall-time to sleep so motion is ~real-time
+
+                # --- Ghost swarm: reset all N copies; they attempt alongside the main rover ---
+                g_obs: List[Any] = []
+                g_status: List[int] = []
+                for _g in ghosts:
+                    try:
+                        _o, _ = _g.reset()
+                    except Exception:
+                        _o = _g._get_obs()
+                    g_obs.append(_o)
+                    g_status.append(0)
+
+                def _ghost_pose(_g):
+                    _ad = getattr(_g.engine, "robot_qpos_adr", 0)
+                    _q = _g.engine.data.qpos
+                    _w, _x, _y, _z = (float(v) for v in _q[_ad + 3:_ad + 7])
+                    _yaw = math.atan2(2 * (_w * _z + _x * _y), 1 - 2 * (_y * _y + _z * _z))
+                    return [round(float(_q[_ad]), 3), round(float(_q[_ad + 1]), 3), round(_yaw, 3)]
+
+                def _step_ghosts():
+                    if not ghosts:
+                        return
+                    _live = [i for i, s_ in enumerate(g_status) if s_ == 0]
+                    if _live:
+                        # Stochastic actions: early on the swarm scatters; as PPO learns it converges.
+                        _acts, _ = model.predict(_np.stack([g_obs[i] for i in _live]), deterministic=False)
+                        for _k, i in enumerate(_live):
+                            try:
+                                _o, _r, _term, _trunc, _inf = ghosts[i].step(_acts[_k])
+                                g_obs[i] = _o
+                                if _inf.get("is_success"):
+                                    g_status[i] = 1
+                                elif _inf.get("is_collision") or _term:
+                                    g_status[i] = 2
+                                elif _trunc:
+                                    g_status[i] = 3
+                            except Exception:
+                                g_status[i] = 2
+                    _poses = []
+                    for i, _g in enumerate(ghosts):
+                        try:
+                            _poses.append(_ghost_pose(_g) + [float(g_status[i])])
+                        except Exception:
+                            pass
+                    engine.rl_ghosts = _poses
+                    engine.rl_swarm_success = sum(1 for s_ in g_status if s_ == 1)
+                for _vs in range(max_view_steps):
+                    if self.is_cancelled(job_id) or not engine.rl_training_active:
+                        break
+                    action, _ = model.predict(obs, deterministic=(episode > 4))
+                    a = _np.asarray(action, dtype=_np.float32)
+                    if explore > 0 and episode <= 6:
+                        a = _np.clip(a + _np.random.normal(0, explore, size=a.shape), -1.0, 1.0)
+                    lin = float(a[0]) * v_max
+                    ang = float(a[1]) * w_max
+                    engine.set_teleop(lin, ang)
+                    for _ps in range(_steps_per_tick):
+                        engine.step()
+                    _step_ghosts()
+                    time.sleep(_frame_dt)
+                    try:
+                        obs = view._get_obs()
+                    except Exception:
+                        break
+                    st = engine.get_state()
+                    rp = st.robot.position
+                    dist = ((rp[0] - tgt[0]) ** 2 + (rp[1] - tgt[1]) ** 2) ** 0.5
+                    if _is_general:
+                        # Score with the user's actual task reward.
+                        _info = {
+                            "distance_to_goal": dist,
+                            "is_collision": (rp[2] < 0.02 or abs(rp[0]) > 14 or abs(rp[1]) > 14),
+                            "robot_position": list(rp),
+                            "step": _vs,
+                        }
+                        try:
+                            _r = _reward_fn(st, _np.asarray([float(a[0]), float(a[1])], dtype=_np.float32), _info)
+                            if isinstance(_r, (tuple, list)):
+                                ep_reward += float(_r[0])
+                            else:
+                                ep_reward += float(_r)
+                        except Exception:
+                            pass
+                    else:
+                        # Navigate task: progress-shaped reward toward the goal.
+                        if prev_dist is not None:
+                            ep_reward += (prev_dist - dist) * 10.0
+                    prev_dist = dist
+                    # Hard goal check only applies to the navigate task.
+                    if not _is_general and dist < 0.9:
+                        outcome = "success"
+                        ep_reward += 100.0
+                        break
+                    # Crash / out of bounds (position-based, robust) — applies to all tasks.
+                    if rp[2] < 0.02 or abs(rp[0]) > 14 or abs(rp[1]) > 14:
+                        outcome = "crash"
+                        ep_reward -= 20.0
+                        break
+
+                # Let the rest of the swarm finish its attempt (main rover already done).
+                _extra = 0
+                while ghosts and any(s_ == 0 for s_ in g_status) and _extra < 120:
+                    if self.is_cancelled(job_id) or not engine.rl_training_active:
+                        break
+                    _step_ghosts()
+                    time.sleep(_frame_dt)
+                    _extra += 1
+
+                # 3) Update streak + HUD telemetry for the "watch it learn" narrative.
+                engine.set_teleop(0.0, 0.0)
+                engine.rl_training_rollout_active = False  # hand stepping back to the server loop
+                engine.rl_training_last_outcome = outcome
+                engine.rl_training_reward = round(ep_reward, 1)
+                _prev_best = engine.rl_training_best_reward
+                if ep_reward > engine.rl_training_best_reward:
+                    engine.rl_training_best_reward = round(ep_reward, 1)
+
+                if _is_general:
+                    # General behavior task: no "goal" event. Track reward history; an attempt is
+                    # "good" once the policy has had time to learn (min attempts) and this attempt
+                    # scores in the upper band of what it has achieved so far (climbed and held).
+                    _reward_history.append(ep_reward)
+                    _seen_max = max(_reward_history)
+                    _band = 0.8 * _seen_max if _seen_max > 0 else None
+                    _good = (
+                        outcome != "crash"
+                        and ep_reward > 0.0
+                        and _band is not None
+                        and ep_reward >= _band
+                        and episode >= _min_attempts  # give PPO time to actually learn first
+                    )
+                    if _good:
+                        streak += 1
+                        outcome = "success"
+                    else:
+                        streak = 0
+                else:
+                    # Navigate task: success is reaching the goal.
+                    if outcome == "success":
+                        streak += 1
+                    else:
+                        streak = 0
+                engine.rl_training_success_streak = streak
+                engine.rl_training_percent = round(100.0 * streak / max(1, success_streak_goal), 1)
+                if outcome == "success":
+                    icon = "MASTERED BEHAVIOR" if _is_general else "REACHED GOAL"
+                elif outcome == "crash":
+                    icon = "CRASHED"
+                else:
+                    icon = "improving" if _is_general else "ran out of time"
+                engine.rl_training_status = (
+                    f"[ATTEMPT {episode}] {icon} — reward {ep_reward:.1f}, "
+                    f"consistency {streak}/{success_streak_goal}"
+                    + (f" · swarm {engine.rl_swarm_success}/{len(ghosts)} reached goal" if ghosts and not _is_general else "")
+                )
+                with self._lock:
+                    if job_id in self._jobs:
+                        self._jobs[job_id].metrics = RLTrainingMetrics(
+                            timestep=total_steps, total_timesteps=total_steps,
+                            percent_complete=engine.rl_training_percent, episodes=episode,
+                            mean_reward=round(ep_reward, 2), success_rate=round(min(1.0, streak / max(1, success_streak_goal)), 3),
+                            elapsed_seconds=round(time.time() - start_time, 1),
+                        )
+
+            # Converged (or stopped). Save + auto-deploy so the mastered policy keeps driving.
+            converged = streak >= success_streak_goal
+            checkpoint_path = str(MODELS_DIR / f"{job_id}.zip")
+            model.save(checkpoint_path)
+            self._loaded_models[job_id] = model
+            meta = RLModelMetadata(
+                model_id=job_id, name=label, checkpoint_path=checkpoint_path,
+                timesteps_trained=total_steps, training_duration_seconds=round(time.time() - start_time, 2),
+                success_rate=round(min(1.0, streak / max(1, success_streak_goal)), 3), collision_rate=0.0,
+                mean_reward=round(engine.rl_training_best_reward, 2),
+                hyperparameters={"learning_rate": 3e-4, "n_steps": 512, "batch_size": 64, "gamma": 0.99},
+                scenario_id="episodic_live", robot_kind="mobile",
+                target_position=tgt,
+            )
+            with open(MODELS_DIR / f"{job_id}.json", "w", encoding="utf-8") as f:
+                json.dump(meta.model_dump(), f, indent=2)
+            self._save_registry()
+
+            # Auto-deploy the trained policy to keep driving the rover live.
+            engine.active_rl_policy_id = job_id
+            engine.active_rl_policy_name = label
+            engine.active_rl_policy_model = model
+            engine.active_rl_policy_kind = "rover"
+            engine.active_rl_policy_target_pos = tgt
+            # If this was a SHAPE task, attach the waypoint path so the deployed navigate policy
+            # traces the shape via the carrot-follower (works for ANY shape).
+            if shape_path and shape_path.get("waypoints"):
+                engine.active_rl_policy_path = [[float(p[0]), float(p[1])] for p in shape_path["waypoints"]]
+                engine.active_rl_policy_path_idx = 0
+                engine.active_rl_policy_path_closed = bool(shape_path.get("loop", True))
+            else:
+                engine.active_rl_policy_path = None
+            engine.rl_training_active = False
+            engine.rl_training_rollout_active = True  # restore default; policy now driven by server loop
+            engine.rl_training_percent = 100.0 if converged else engine.rl_training_percent
+            _behavior = (task_description or "").strip() or "the goal"
+            _mastered_what = (("follow your custom path" if shape_path.get("shape") == "custom path"
+                               else f"drive in a {shape_path['shape']}") if shape_path and shape_path.get("shape")
+                              else (f"{_behavior}" if _reward_code else "reach the goal"))
+            engine.rl_training_status = (
+                f"[MASTERED] The rover learned to {_mastered_what} ({success_streak_goal} good runs in a row) "
+                f"after {episode} attempts! Policy deployed and now driving autonomously."
+                if converged else
+                f"[STOPPED] Training ended after {episode} attempts. Best reward {engine.rl_training_best_reward:.1f}. Policy deployed."
+            )
+            with self._lock:
+                if job_id in self._jobs:
+                    self._jobs[job_id].status = "completed"
+                    self._jobs[job_id].checkpoint_path = checkpoint_path
+                    self._jobs[job_id].metrics.percent_complete = 100.0
+            logger.info("Episodic live training %s done: converged=%s, %d attempts.", job_id, converged, episode)
+        except Exception as e:
+            logger.exception("Episodic live training %s failed: %s", job_id, e)
+            engine.rl_training_active = False
+            engine.rl_training_rollout_active = True
+            engine.rl_training_status = f"[ERROR] {e}"
+            with self._lock:
+                if job_id in self._jobs:
+                    self._jobs[job_id].status = "failed"
+                    self._jobs[job_id].error = str(e)
+        finally:
+            engine.rl_ghosts = []
+            engine.rl_swarm_success = 0
+            engine.rl_swarm_size = 0
+            for _g in (locals().get("ghosts") or []):
+                try:
+                    _g.close()
+                except Exception:
+                    pass
+            if env is not None:
+                try:
+                    env.close()
+                except Exception:
+                    pass
 
     def _rollout_policy_in_scene(self, engine: Any, model: PPO, kind: str,
                                  target_position: Optional[List[float]], steps: int = 120) -> None:

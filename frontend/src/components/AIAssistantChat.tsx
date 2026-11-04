@@ -43,6 +43,7 @@ interface AIAssistantChatProps {
   targetPosition?: [number, number, number] | null;
   onProjectLoaded?: () => void;
   onSelectTarget?: (pos: [number, number, number] | null) => void;
+  onMissionWaypoints?: (waypoints: Array<[number, number]>, loop: boolean) => void;
   onSwitchView?: (view: 'metrics' | 'compare' | 'rl_training' | 'benchmark' | 'ai_assistant' | 'hypotheses') => void;
 }
 
@@ -176,6 +177,7 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
   targetPosition,
   onProjectLoaded,
   onSelectTarget,
+  onMissionWaypoints,
   onSwitchView,
 }) => {
   // Mode: autonomous (instant executive actions) vs supervised (asks approval)
@@ -361,6 +363,14 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
       if (res.actions_executed && res.actions_executed.length > 0) {
         if (onProjectLoaded) {
           onProjectLoaded();
+        }
+        // One-shot mission build: push the generated patrol route into the Mission Planner.
+        const mission = res.actions_executed.find((a: any) => a.mission_waypoints && a.mission_waypoints.length);
+        if (mission && onMissionWaypoints) {
+          onMissionWaypoints(
+            (mission as any).mission_waypoints.map((p: any) => [p[0], p[1]]),
+            (mission as any).mission_loop !== false,
+          );
         }
         const actionLabels = res.actions_executed.map((a) => a.action.replace('tool_', '')).join(', ');
         onShowToast(`Executed: ${actionLabels}`);
@@ -931,7 +941,7 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
                             }}
                           >
                             <BrainCircuit size={13} />
-                            <span>Deep Agent Reasoning Monologue</span>
+                            <span>Reasoning &amp; Actions</span>
                           </div>
                           {parseMarkdown(resp.thought_process)}
                         </div>
