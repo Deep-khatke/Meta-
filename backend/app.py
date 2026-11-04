@@ -279,6 +279,17 @@ async def simulation_loop():
                         logger.exception("Error in active live experiment step: %s", ex)
                 elif agent_interface.active_trajectory_controller and (time.time() - engine.last_teleop_time > 0.35):
                     try:
+                        # Guard: a ground trajectory needs an active rover with a valid freejoint.
+                        # Without it (e.g. empty/drone-only scene) the qpos slice is short and
+                        # quat_to_yaw would crash every tick — cancel the orphaned controller.
+                        _adr = getattr(engine, "robot_qpos_adr", None)
+                        _has_rover = (engine.project.robot is not None and getattr(engine.project, "robot_active", True)
+                                      and _adr is not None and len(engine.data.qpos) >= _adr + 7)
+                        if not _has_rover:
+                            agent_interface.active_trajectory_controller = None
+                            agent_interface.trajectory_state.status = "failed"
+                            agent_interface.trajectory_state.status_message = "No active rover to drive the path."
+                            raise RuntimeError("no-rover-for-trajectory")
                         r_pos = np.array(engine.data.qpos[engine.robot_qpos_adr:engine.robot_qpos_adr + 2])
                         r_quat = [float(x) for x in engine.data.qpos[engine.robot_qpos_adr + 3:engine.robot_qpos_adr + 7]]
                         ryaw = quat_to_yaw(r_quat)
@@ -326,7 +337,8 @@ async def simulation_loop():
                             agent_interface.trajectory_state.distance_to_goal = round(math.sqrt((final_pt[0] - r_pos[0])**2 + (final_pt[1] - r_pos[1])**2), 3)
                             engine.set_teleop(cmd_v, cmd_w)
                     except Exception as e:
-                        logger.exception("Error in continuous trajectory step: %s", e)
+                        if "no-rover-for-trajectory" not in str(e):
+                            logger.exception("Error in continuous trajectory step: %s", e)
                 elif agent_interface.active_drone_controller and (time.time() - engine.last_teleop_time > 0.35):
                     # 3D drone waypoint follower: advance the PD-autopilot target along the path.
                     try:
