@@ -183,8 +183,19 @@ class AIReasoningService:
             key = os.getenv("OPENAI_COMPAT_API_KEY", "").strip()
             model = os.getenv("OPENAI_COMPAT_MODEL", "").strip()
             if base and key and model:
+                # Label the provider from the endpoint so the UI reports the real backend
+                # (Meta Model API / OpenRouter / NVIDIA NIM) instead of a hardcoded name.
+                _b = base.lower()
+                if "meta.ai" in _b or "meta.com" in _b:
+                    _provider_label = f"Meta Model API ({model})"
+                elif "openrouter" in _b:
+                    _provider_label = f"OpenRouter ({model})"
+                elif "nvidia" in _b or "nim" in _b:
+                    _provider_label = f"NVIDIA NIM ({model})"
+                else:
+                    _provider_label = f"OpenAI-compatible ({model})"
                 return {
-                    "active_provider": f"OpenRouter ({model})",
+                    "active_provider": _provider_label,
                     "model": model,
                     "provider_type": "openai_compat",
                     "endpoint": base,

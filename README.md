@@ -110,10 +110,13 @@ The workspace is designed with intelligent space allocation: **the 3D simulation
 ## 🛠️ Tech Stack
 
 - **Physics Core**: [MuJoCo](https://mujoco.org/) 3.17 (Official Python bindings)
+- **AI Reasoning**: [Meta Model API](https://dev.meta.ai/) — Meta **Muse** models (`muse-spark-1.3`) power the natural-language control, mission planning, and agentic tool-calling layer (OpenAI-compatible)
+- **Reinforcement Learning**: [Stable-Baselines3](https://stable-baselines3.readthedocs.io/) (PPO) on [PyTorch](https://pytorch.org/), with [ONNX](https://onnx.ai/) policy export
 - **Backend API**: [FastAPI](https://fastapi.tiangolo.com/), [Uvicorn](https://www.uvicorn.org/), WebSockets, [Pydantic v2](https://docs.pydantic.dev/)
 - **Mathematics & Kinematics**: [NumPy](https://numpy.org/)
 - **Frontend Framework**: [React 19](https://react.dev/), [TypeScript](https://www.typescriptlang.org/), [Vite](https://vite.dev/)
 - **3D Graphics & Rendering**: [Three.js](https://threejs.org/)
+- **Robotics Interop**: [ROS 2](https://docs.ros.org/) via rosbridge v2
 - **Icons & UI**: [Lucide React](https://lucide.dev/), Vanilla CSS Design Tokens
 - **Testing**: [pytest](https://pytest.org/)
 
