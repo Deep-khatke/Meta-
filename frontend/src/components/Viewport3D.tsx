@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as THREE from 'three';
-import { OrbitControls, TransformControls } from 'three-stdlib';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js';
 import { Project, SimulationState, SceneObject, JointModel } from '../types';
 import {
   Camera, Compass, Crosshair, ArrowUp, ArrowDown, ArrowLeft, ArrowRight,
@@ -64,8 +65,8 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
   // Snapping settings
   const [snapTranslate, setSnapTranslate] = useState<number>(0); // 0 (off), 0.1, 0.5, 1.0
   const [snapRotate, setSnapRotate] = useState<number>(0); // 0 (off), 15, 45, 90 deg
-  const [surfaceSnap, setSurfaceSnap] = useState<boolean>(true); // Ground and stacking surface snapping
-  const [attachmentSnap, setAttachmentSnap] = useState<boolean>(true); // Robot mount & EE flange snapping
+  const [surfaceSnap, setSurfaceSnap] = useState<boolean>(false); // Ground/stacking snap (opt-in)
+  const [attachmentSnap, setAttachmentSnap] = useState<boolean>(false); // Robot mount/EE snap (opt-in)
   const [snapNotification, setSnapNotification] = useState<string | null>(null);
   const [stoppingRl, setStoppingRl] = useState<boolean>(false);
 
@@ -1070,7 +1071,13 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
 
     const transformControls = new TransformControls(camera, renderer.domElement);
     (transformControls as any).size = 0.75;
-    scene.add(transformControls);
+    // three >= 0.169: TransformControls is no longer an Object3D; its visual gizmo must be added
+    // to the scene via getHelper(). Fall back to adding the control directly for older versions.
+    if (typeof (transformControls as any).getHelper === 'function') {
+      scene.add((transformControls as any).getHelper());
+    } else {
+      scene.add(transformControls as any);
+    }
     transformControlsRef.current = transformControls;
 
     // Commit transforms
@@ -1539,7 +1546,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     } else {
       tc.detach();
     }
-  }, [selectedObjectId, transformMode, snapTranslate, snapRotate, sceneInstance, project.objects]);
+  }, [selectedObjectId, transformMode, snapTranslate, snapRotate, sceneInstance]);
 
   // Rebuild scene objects when project changes
   useEffect(() => {
