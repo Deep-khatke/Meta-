@@ -1329,18 +1329,38 @@ class AIReasoningService:
         }
 
     def tool_clear_scene(self) -> Dict[str, Any]:
-        """Tool: Clears all workspace obstacles while preserving active robots."""
+        """Tool: Clears ALL scene objects (obstacles, props, and deployed drones).
+
+        The persistent differential-drive robot (``project.robot``) and any
+        imported URDF/MJCF robot (``project.generic_robot``) are configs that
+        live outside ``objects``, so they are left untouched. Drones, however,
+        are scene objects the user placed, so "clear the scene" removes them —
+        otherwise a drone-only scene would report "cleared" but stay full.
+        """
         proj = self.pm.get_current()
-        preserved = [
-            o for o in proj.objects 
+        cleared_count = len(proj.objects)
+        drone_ids = [
+            o.id for o in proj.objects
             if "drone" in o.name.lower() or o.id.startswith("drone")
-            or "robot" in o.name.lower() or o.id.startswith("robot") or "forgebot" in o.name.lower()
+            or "uav" in o.name.lower() or "quad" in o.name.lower()
         ]
-        cleared_count = len(proj.objects) - len(preserved)
-        proj.objects = preserved
+        proj.objects = []
         self.pm.update_project(proj)
         if hasattr(self, "engine") and self.engine is not None:
             try:
+                # Drop any live drone flight controllers so stale ones don't linger.
+                for did in drone_ids:
+                    for attr in ("cancel_drone_trajectory", "command_drone_land"):
+                        fn = getattr(self.engine, attr, None)
+                        if callable(fn):
+                            try:
+                                fn(did)
+                            except Exception:
+                                pass
+                for ctrl_attr in ("drone_controllers", "_drone_controllers", "drone_flight_controllers", "drone_rotors"):
+                    ctrls = getattr(self.engine, ctrl_attr, None)
+                    if isinstance(ctrls, dict):
+                        ctrls.clear()
                 self.engine.project = proj
                 self.engine.rebuild_model(preserve_state=True)
             except Exception as e:
@@ -1350,7 +1370,7 @@ class AIReasoningService:
             "action": "clear_scene",
             "status": "success",
             "cleared_count": cleared_count,
-            "details": f"Cleared {cleared_count} workspace obstacles. Scene reset."
+            "details": f"Cleared {cleared_count} scene object(s). Scene is now empty."
         }
 
     def tool_spawn_obstacle(

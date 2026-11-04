@@ -2318,6 +2318,37 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
 
         {/* Live Isaac Lab Multi-Robot RL Training Controls */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          {/* Stop Training — shown whenever a live training run is active (incl. chat-initiated),
+              so there is always a visible way to stop it even when no policy is deployed yet and
+              the Mission Planner panel is closed. */}
+          {simState?.rl_training_active && (
+            <button
+              className="rf-btn"
+              onClick={async (e) => {
+                e.stopPropagation();
+                await handleStopRl();
+              }}
+              disabled={stoppingRl}
+              title="Stop the live RL training run"
+              style={{
+                fontSize: 11,
+                padding: '3px 10px',
+                borderRadius: 6,
+                fontWeight: 700,
+                color: '#fff',
+                background: stoppingRl ? 'rgba(248,113,113,0.4)' : 'linear-gradient(90deg, #ef4444, #b91c1c)',
+                border: '1px solid rgba(248,113,113,0.7)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+                cursor: stoppingRl ? 'default' : 'pointer',
+                boxShadow: '0 0 10px rgba(239,68,68,0.3)',
+              }}
+            >
+              <Square size={11} fill="#fff" />
+              <span>{stoppingRl ? 'Stopping…' : 'Stop Training'}</span>
+            </button>
+          )}
           <button
             className="rf-btn"
             style={{

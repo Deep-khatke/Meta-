@@ -47,6 +47,14 @@ export const MissionPlanner: React.FC<Props> = ({
   const hasRover = project.robot != null && project.robot_active !== false;
   const isDrone = hasDrone && !hasRover;
 
+  // A drone is the controlled vehicle, not an obstacle — keep it out of the obstacle list.
+  const isDroneObj = (o: any) =>
+    (o.name || '').toLowerCase().includes('drone') ||
+    (o.id || '').startsWith('drone') ||
+    (o.name || '').toLowerCase().includes('uav') ||
+    (o.name || '').toLowerCase().includes('quad');
+  const obstacleObjs = (project.objects || []).filter((o: any) => !isDroneObj(o));
+
   useEffect(() => { missionList().then(setSaved).catch(() => {}); }, []);
 
   const payload = () => ({
@@ -177,9 +185,9 @@ export const MissionPlanner: React.FC<Props> = ({
 
       {/* Obstacles */}
       <div style={section}>
-        <span style={label}>OBSTACLES ({project.objects.length})</span>
-        {project.objects.length === 0 && <div style={{ color: '#64748b', fontSize: 11 }}>None. Use Box / Cylinder / Sphere above.</div>}
-        {project.objects.map((o) => (
+        <span style={label}>OBSTACLES ({obstacleObjs.length})</span>
+        {obstacleObjs.length === 0 && <div style={{ color: '#64748b', fontSize: 11 }}>None. Use Box / Cylinder / Sphere above.</div>}
+        {obstacleObjs.map((o) => (
           <div key={o.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '2px 0' }}>
             <span style={{ width: 10, height: 10, borderRadius: 2, background: o.color }} />
             <span style={{ flex: 1, fontSize: 11, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{o.name} <span style={{ color: '#64748b' }}>({o.position[0].toFixed(1)}, {o.position[1].toFixed(1)})</span></span>
