@@ -64,6 +64,7 @@ class AIReasoningService:
         self.engine = engine
         self.sim_tools = simulation_tools
         self.agent_interface = None  # set by get_ai_reasoning_service; drives waypoint paths
+        self._last_reasoning_provider = None  # which provider served the most recent chat turn
 
     def get_provider_status(self) -> Dict[str, Any]:
         """Inspects environment and reports configured provider and model truthfully."""
@@ -202,7 +203,8 @@ class AIReasoningService:
                     "is_available": True,
                     "has_credentials": True,
                     "offline_mode": False,
-                    "fallback_available": True,  # falls back to Ollama then deterministic
+                    "fallback_available": True,  # secondary cloud (Nemotron) -> Ollama -> deterministic
+                    "fallback_model": os.getenv("FALLBACK_COMPAT_MODEL", "").strip() or None,
                     "allows_arbitrary_code": False,
                     "tools_available": tools,
                 }
@@ -4631,6 +4633,57 @@ class AIReasoningService:
             logger.warning("Ollama fallback request failed: %s", e)
             return None
 
+    def _compat_chat_once(
+        self,
+        base: str,
+        key: str,
+        model: str,
+        messages: List[Dict[str, Any]],
+        timeout: float = 60.0,
+    ) -> Optional[Dict[str, Any]]:
+        """Single call to ANY OpenAI-compatible chat endpoint (Meta Model API, OpenRouter, etc.).
+
+        Returns the parsed JSON dict on success, or raises on HTTP/transport failure so the
+        caller can decide whether to try the next provider in the chain. Used for BOTH the
+        primary (Meta) and the genuine secondary (Nemotron) so they share identical parsing.
+        """
+        url = base.rstrip("/") + "/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {key}",
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://roboforge.local",
+            "X-Title": "RoboForge",
+        }
+        payload = {
+            "model": model,
+            "messages": messages,
+            "response_format": {"type": "json_object"},
+            "temperature": 0.2,
+            "max_tokens": 4096,
+        }
+        with httpx.Client(timeout=timeout) as client:
+            res = client.post(url, json=payload, headers=headers)
+            res.raise_for_status()
+            _msg = res.json()["choices"][0]["message"]
+            raw_text = _msg.get("content") or ""
+            if not raw_text and _msg.get("reasoning"):
+                raw_text = _msg["reasoning"]
+            clean = raw_text.strip()
+            if clean.startswith("```"):
+                clean = re.sub(r"^```[a-zA-Z]*\n?", "", clean)
+                clean = re.sub(r"\n?```$", "", clean)
+            if not clean:
+                # Empty body is a failure for our purposes — let the caller try the next provider.
+                raise ValueError("empty completion content")
+            try:
+                return json.loads(clean)
+            except Exception:
+                m = re.search(r'\{.*\}', clean, re.DOTALL)
+                if m:
+                    return json.loads(m.group(0))
+                logger.warning("Compat JSON parse failed; raw head: %s", clean[:300])
+                return {"reply": clean, "actions": []}
+
     def _call_model_chat_reasoning(
         self,
         prompt: str,
@@ -4845,53 +4898,50 @@ class AIReasoningService:
 
         data = None
         if is_compat:
-            # OpenAI-compatible endpoint (OpenRouter / NVIDIA NIM). Primary chat model.
+            # Tiered OpenAI-compatible reasoning:
+            #   PRIMARY   : Meta Model API (OPENAI_COMPAT_*)  — muse-spark-1.3
+            #   SECONDARY : a genuine cloud fallback (FALLBACK_COMPAT_*) — e.g. Nemotron via
+            #               OpenRouter — so if Meta is unreachable/rate-limited the agent still
+            #               reasons with a real model, not just keywords.
+            #   then local Ollama, then deterministic (handled by returning None).
             base = provider_info.get("endpoint") or os.getenv("OPENAI_COMPAT_BASE_URL", "")
             key = os.getenv("OPENAI_COMPAT_API_KEY", "")
             model = provider_info.get("model") or os.getenv("OPENAI_COMPAT_MODEL", "")
-            url = base.rstrip("/") + "/chat/completions"
-            headers = {
-                "Authorization": f"Bearer {key}",
-                "Content-Type": "application/json",
-                "HTTP-Referer": "https://roboforge.local",
-                "X-Title": "RoboForge",
-            }
-            payload = {
-                "model": model,
-                "messages": conversation_messages,
-                "response_format": {"type": "json_object"},
-                "temperature": 0.2,
-                # Reasoning models (like Nemotron) spend tokens on a hidden reasoning field; give
-                # ample room so the actual JSON answer is never truncated (truncation -> parse
-                # failure -> we lose the tool actions).
-                "max_tokens": 4096,
-            }
+
+            # Primary: Meta
             try:
-                with httpx.Client(timeout=60.0) as client:
-                    res = client.post(url, json=payload, headers=headers)
-                    res.raise_for_status()
-                    _msg = res.json()["choices"][0]["message"]
-                    raw_text = _msg.get("content") or ""
-                    # Some reasoning models put the answer only in 'reasoning' if content is empty.
-                    if not raw_text and _msg.get("reasoning"):
-                        raw_text = _msg["reasoning"]
-                    clean = raw_text.strip()
-                    if clean.startswith("```"):
-                        clean = re.sub(r"^```[a-zA-Z]*\n?", "", clean)
-                        clean = re.sub(r"\n?```$", "", clean)
-                    try:
-                        data = json.loads(clean)
-                    except Exception:
-                        # Grab the largest {...} block as a fallback.
-                        m = re.search(r'\{.*\}', clean, re.DOTALL)
-                        if m:
-                            data = json.loads(m.group(0))
-                        else:
-                            logger.warning("OpenRouter JSON parse failed; raw head: %s", clean[:300])
-                            data = {"reply": clean, "actions": []}
+                data = self._compat_chat_once(base, key, model, conversation_messages)
+                self._last_reasoning_provider = f"primary:{model}"
             except Exception as e:
-                logger.warning("OpenRouter primary reasoning failed (%s). Attempting Ollama fallback.", e)
+                logger.warning("Primary reasoning (%s @ %s) failed (%s).", model, base, e)
+                data = None
+
+            # Secondary: genuine cloud fallback (Nemotron / OpenRouter) if configured.
+            if data is None:
+                fb_base = os.getenv("FALLBACK_COMPAT_BASE_URL", "").strip()
+                fb_key = os.getenv("FALLBACK_COMPAT_API_KEY", "").strip()
+                fb_model = os.getenv("FALLBACK_COMPAT_MODEL", "").strip()
+                if fb_base and fb_key and fb_model:
+                    try:
+                        logger.info("Falling back to secondary reasoning model %s @ %s.", fb_model, fb_base)
+                        # Vision content is primary-only; secondary may be text-only, so strip any
+                        # image parts to a plain-text message to stay safe.
+                        _msgs = conversation_messages
+                        if _vision_url:
+                            _msgs = [m for m in conversation_messages]
+                            _msgs[-1] = {"role": "user", "content": user_content}
+                        data = self._compat_chat_once(fb_base, fb_key, fb_model, _msgs)
+                        self._last_reasoning_provider = f"fallback:{fb_model}"
+                    except Exception as e2:
+                        logger.warning("Secondary reasoning (%s) failed (%s). Attempting Ollama.", fb_model, e2)
+                        data = None
+
+            # Tertiary: local Ollama, then deterministic (None).
+            if data is None:
+                logger.warning("Cloud reasoning unavailable; attempting local Ollama fallback.")
                 data = self._ollama_chat_fallback(system_instruction, conversation_messages)
+                if data is not None:
+                    self._last_reasoning_provider = "fallback:ollama"
                 if data is None:
                     return None
         elif is_ollama:
