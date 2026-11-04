@@ -5250,6 +5250,26 @@ class AIReasoningService:
             acts.append(('drive_path', {'shape': p, 'size': _size}))
             return acts
 
+        # Direct teleop: simple direction commands ("drive forward", "go back", "turn left",
+        # "stop"). Only when it's not a shape/train request and mentions a drive verb + direction.
+        if not _wants_train and not any(s in p for s in _shape_words):
+            _fwd = any(w in p for w in ['forward', 'ahead', 'straight'])
+            _back = any(w in p for w in ['backward', 'back up', 'reverse', 'go back'])
+            _left = 'left' in p
+            _right = 'right' in p
+            _stopw = any(w in p for w in ['stop', 'halt', 'brake', 'freeze'])
+            _drivew = any(w in p for w in ['drive', 'move', 'go', 'turn', 'steer', 'rotate', 'spin'])
+            if _stopw and _drivew is False and ('robot' in p or 'rover' in p or 'it' in p or p.strip() == 'stop'):
+                acts.append(('stop_robot', {}))
+                return acts
+            if _drivew and (_fwd or _back or _left or _right):
+                lin = 0.8 if _fwd else (-0.8 if _back else 0.0)
+                ang = 1.2 if _left else (-1.2 if _right else 0.0)
+                if lin == 0.0 and ang == 0.0:
+                    lin = 0.8
+                acts.append(('execute_teleop_cmd', {'linear': lin, 'angular': ang}))
+                return acts
+
         # Mobile Rover Navigation & Obstacle Avoidance
         is_rover_train = (
             any(w in p for w in ['robot', 'rover', 'ground robot', 'mobile robot', 'differential robot', 'car', 'vehicle'])
@@ -5349,16 +5369,18 @@ class AIReasoningService:
             'describe', 'tell me about', 'why is', 'why does', 'compare', 'difference between'
         ]) or p.endswith('?')
 
-        # 4. Add secondary robot
+        # 4. Add secondary robot / rover
         is_add_robot = (
             not is_informational_query
             and any(w in p for w in [
                 'another robot', 'another differential robot', 'second robot', 'new robot',
                 'two robots', 'add a robot', 'add robot', 'spawn robot', 'deploy robot',
+                'add a rover', 'add rover', 'spawn rover', 'spawn a rover', 'deploy rover',
+                'add a car', 'spawn a car', 'add a vehicle', 'create a rover', 'create a robot',
                 'add differential robot', 'spawn differential robot', 'add another differential robot',
                 'add another robot'
             ])
-            and not any(w in p for w in ['drone', 'speed'])
+            and not any(w in p for w in ['drone', 'speed', 'arm'])
         )
         if is_add_robot:
             pos = None
