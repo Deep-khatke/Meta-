@@ -104,11 +104,13 @@ export const UserProfileBadge: React.FC<UserProfileBadgeProps> = ({ variant = 'd
         }}
         title={`Signed in as ${displayName} (${user.email})`}
       >
-        {/* Generous, high-res avatar (34x34 px) */}
+        {/* Generous, high-res avatar (32x32 px) */}
         {hasValidPicture ? (
           <img
             src={user.picture}
-            alt={displayName}
+            alt=""
+            referrerPolicy="no-referrer"
+            crossOrigin="anonymous"
             onError={() => setImgError(true)}
             style={{
               width: 32,
@@ -117,6 +119,7 @@ export const UserProfileBadge: React.FC<UserProfileBadgeProps> = ({ variant = 'd
               objectFit: 'cover',
               border: '1.5px solid #C4472D',
               flexShrink: 0,
+              display: 'block',
             }}
           />
         ) : (

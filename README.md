@@ -206,7 +206,9 @@ npm run build
 
 ```text
 ├── backend/
-│   ├── app.py                 # FastAPI application & WebSocket broadcast hub
+│   ├── app.py                 # FastAPI application, WebSocket hub & Auth endpoints (/api/auth)
+│   ├── database.py            # SQLite database with PBKDF2 hashing & session management
+│   ├── ai_reasoning_service.py # Tiered reasoning engine (NVIDIA Nemotron via OpenRouter, Meta API)
 │   ├── simulator.py           # Core MuJoCo physics engine & MJCF generator
 │   ├── robot_studio.py        # Robot modeling engine, FK/IK solvers & URDF parser
 │   ├── robot_validator.py     # Structural validation, singular configs & diagnostics
@@ -218,7 +220,11 @@ npm run build
 │   └── tests/                 # 86 automated unit and integration tests
 ├── frontend/
 │   ├── src/
+│   │   ├── context/
+│   │   │   └── AuthContext.tsx        # Persistent user authentication & session management
 │   │   ├── components/
+│   │   │   ├── GoogleSignInButton.tsx # Official Google OAuth 2.0 & One-Tap button
+│   │   │   ├── UserProfileBadge.tsx   # User profile pill with avatar and initials fallback
 │   │   │   ├── Viewport3D.tsx         # Three.js 3D viewport & visualizer
 │   │   │   ├── RobotStudioModal.tsx   # Docked Robot Modeling & Control Studio
 │   │   │   ├── AssetLibraryPanel.tsx  # Docked Asset & Template Catalog
@@ -228,6 +234,10 @@ npm run build
 │   │   │   ├── BottomPanel.tsx        # Collapsible SVG telemetry & logs
 │   │   │   ├── RobotCreatorModal.tsx  # Mobile/Articulated robot generator
 │   │   │   └── EnvironmentCreatorModal.tsx
+│   │   ├── pages/
+│   │   │   ├── LoginPage.tsx          # Login page with 3D interactive RoboBuddy
+│   │   │   ├── SignupPage.tsx         # Signup page with full credentials validation
+│   │   │   └── StudioPage.tsx         # Full engineering workspace
 │   │   ├── services/          # REST & WebSocket API clients
 │   │   ├── types.ts           # TypeScript interfaces & state definitions
 │   │   └── App.tsx            # Main application layout & state orchestrator
