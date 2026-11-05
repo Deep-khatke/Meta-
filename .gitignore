@@ -86,3 +86,17 @@ benchmarks/discovery/benchmark_summary.md
 projects/last_session.json
 projects/*.rfproj.json
 projects/archive/
+
+# Security, SSH Keys & Certificates
+*.pem
+*.key
+*.cert
+*.crt
+
+# Databases & Local SQLite files
+*.db
+*.sqlite
+*.sqlite3
+backend/roboforge.db
+roboforge.db
+
