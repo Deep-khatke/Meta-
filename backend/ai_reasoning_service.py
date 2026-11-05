@@ -4633,6 +4633,31 @@ class AIReasoningService:
             logger.warning("Ollama fallback request failed: %s", e)
             return None
 
+    def _resolve_served_provider_label(self, provider_info: Dict[str, Any], is_model_inference: bool = True) -> str:
+        """Honest label of WHO actually served the most recent turn.
+
+        The configured primary is Meta, but if a fallback answered (Nemotron / Ollama)
+        the UI must say so rather than always claiming Meta. Maps the internal
+        _last_reasoning_provider tag to a friendly, endpoint-aware name.
+        """
+        tag = getattr(self, "_last_reasoning_provider", None)
+        if not tag:
+            # No model served this turn -> the deterministic engine handled it.
+            if not is_model_inference:
+                return "Deterministic engine (offline fallback)"
+            return provider_info.get("active_provider", "AI")
+        kind, _, model = tag.partition(":")
+        if kind == "primary":
+            return provider_info.get("active_provider", model)
+        if kind == "fallback":
+            m = model.lower()
+            if "nemotron" in m or "nvidia" in m:
+                return f"Nemotron fallback ({model})"
+            if model == "ollama":
+                return "Local Ollama fallback"
+            return f"Fallback ({model})"
+        return provider_info.get("active_provider", "AI")
+
     def _compat_chat_once(
         self,
         base: str,
@@ -6129,6 +6154,8 @@ class AIReasoningService:
         model_reasoning = None
         is_model_inference = False
         is_fallback = False
+        # Reset per-turn so the served-provider label reflects THIS turn, not a stale one.
+        self._last_reasoning_provider = None
 
         if provider_info["has_credentials"] and provider_info.get("provider_type") in ("ollama", "llm", "openai_compat"):
             try:
@@ -6328,7 +6355,7 @@ class AIReasoningService:
 
         return AIChatResponse(
             reply=reply,
-            provider=provider_info["active_provider"],
+            provider=self._resolve_served_provider_label(provider_info, is_model_inference),
             is_model_inference=is_model_inference,
             is_fallback=is_fallback,
             mode=req.mode,
