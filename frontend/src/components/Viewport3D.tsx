@@ -6,7 +6,7 @@ import { Project, SimulationState, SceneObject, JointModel } from '../types';
 import {
   Camera, Compass, Crosshair, ArrowUp, ArrowDown, ArrowLeft, ArrowRight,
   Move, RotateCw, Maximize2, X, Eye, EyeOff, Radio, Magnet, Video, Zap,
-  GitFork, Layers, Route, FileUp, Trash2, Cpu, Sparkles, Square
+  GitFork, Layers, Route, FileUp, Trash2, Cpu, Sparkles, Square, Plane, Car, Navigation2
 } from 'lucide-react';
 import { importURDF, importMJCF, trainDroneLive, trainArmLive, trainRoverLive, stopAllRl } from '../services/api';
 import { MotorControlHUD } from './MotorControlHUD';
@@ -1042,7 +1042,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     const height = container.clientHeight || 600;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x0e0f13);
+    scene.background = new THREE.Color(0x0a0c10);
     sceneRef.current = scene;
     setSceneInstance(scene);
 
@@ -1308,25 +1308,25 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     scene.add(rimLight);
 
     // Subtle depth fog matching the background
-    scene.fog = new THREE.Fog(0x0e0f13, 22, 55);
+    scene.fog = new THREE.Fog(0x0a0c10, 24, 60);
 
     // Ground Plane
     const groundGeo = new THREE.PlaneGeometry(100, 100);
     const groundMat = new THREE.MeshStandardMaterial({
-      color: 0x15161a,
-      roughness: 0.92,
-      metalness: 0.0,
+      color: 0x0f1118,
+      roughness: 0.88,
+      metalness: 0.1,
     });
     const groundMesh = new THREE.Mesh(groundGeo, groundMat);
     groundMesh.receiveShadow = true;
     scene.add(groundMesh);
 
-    // Grid Helper rotated into XY plane
-    const gridHelper = new THREE.GridHelper(50, 50, 0x3d4452, 0x242831);
+    // Grid Helper rotated into XY plane (Precision dual-tone CAD grid)
+    const gridHelper = new THREE.GridHelper(50, 50, 0x273142, 0x141824);
     gridHelper.rotation.x = Math.PI / 2;
     gridHelper.position.z = 0.001;
     (gridHelper.material as THREE.Material).transparent = true;
-    (gridHelper.material as any).opacity = 0.55;
+    (gridHelper.material as any).opacity = 0.5;
     scene.add(gridHelper);
 
     // Coordinate Axes at World Origin
@@ -2248,207 +2248,113 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
         </div>
       )}
 
-      {/* Viewport Overlay Controls (Top Right): Camera Views & Modes */}
-      <div style={{ position: 'absolute', top: 12, right: 12, display: 'flex', gap: 6, zIndex: 5 }}>
-        {/* Auto-Drive Autonomous Waypoint-Seeking Toggle */}
-        <button
-          className={`rf-btn ${autoDriveEnabled ? 'rf-btn-success' : ''}`}
-          style={{
-            fontSize: 11,
-            fontWeight: 600,
-            padding: '4px 10px',
-            backgroundColor: autoDriveEnabled ? 'rgba(16, 185, 129, 0.25)' : 'var(--bg-panel)',
-            borderColor: autoDriveEnabled ? 'var(--accent-green)' : 'var(--border-subtle)',
-            color: autoDriveEnabled ? '#10b981' : 'var(--text-secondary)'
-          }}
-          title="Toggle Autonomous Waypoint Navigation (Robot navigates to target)"
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggleAutoDrive?.();
-          }}
-        >
-          <Zap size={13} color={autoDriveEnabled ? 'var(--accent-green)' : 'currentColor'} />
-          <span>Auto-Drive: {autoDriveEnabled ? 'ON' : 'OFF'}</span>
-        </button>
-
-        {/* Active RL Policy Live Badge */}
-        {simState?.rl_policy_active && (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 5,
-              fontSize: 11,
-              padding: '4px 10px',
-              borderRadius: 6,
-              background: 'rgba(168, 85, 247, 0.25)',
-              border: '1px solid rgba(168, 85, 247, 0.6)',
-              color: '#c084fc',
-              fontWeight: 600,
-              boxShadow: '0 0 10px rgba(168, 85, 247, 0.25)'
-            }}
-            title={`Active PPO Neural Network Policy: ${simState.active_rl_policy_name || 'Policy Active'}`}
-          >
-            <Cpu size={13} color="#c084fc" />
-            <span>RL Policy: {simState.active_rl_policy_name || 'Active'}</span>
-            <button
-              onClick={handleStopRl}
-              disabled={stoppingRl}
-              title="Disengage active RL policy"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 4,
-                marginLeft: 4,
-                padding: '2px 7px',
-                fontSize: 10,
-                fontWeight: 700,
-                color: '#fff',
-                background: stoppingRl ? 'rgba(248,113,113,0.4)' : 'linear-gradient(90deg, #ef4444, #b91c1c)',
-                border: '1px solid rgba(248,113,113,0.7)',
-                borderRadius: 5,
-                cursor: stoppingRl ? 'default' : 'pointer',
-              }}
-            >
-              <Square size={10} fill="#fff" />
-              {stoppingRl ? '…' : 'Stop'}
-            </button>
-          </div>
-        )}
-
-        {/* Live Isaac Lab Multi-Robot RL Training Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          {/* Stop Training — shown whenever a live training run is active (incl. chat-initiated),
-              so there is always a visible way to stop it even when no policy is deployed yet and
-              the Mission Planner panel is closed. */}
-          {simState?.rl_training_active && (
-            <button
-              className="rf-btn"
-              onClick={async (e) => {
-                e.stopPropagation();
-                await handleStopRl();
-              }}
-              disabled={stoppingRl}
-              title="Stop the live RL training run"
-              style={{
-                fontSize: 11,
-                padding: '3px 10px',
-                borderRadius: 6,
-                fontWeight: 700,
-                color: '#fff',
-                background: stoppingRl ? 'rgba(248,113,113,0.4)' : 'linear-gradient(90deg, #ef4444, #b91c1c)',
-                border: '1px solid rgba(248,113,113,0.7)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 4,
-                cursor: stoppingRl ? 'default' : 'pointer',
-                boxShadow: '0 0 10px rgba(239,68,68,0.3)',
-              }}
-            >
-              <Square size={11} fill="#fff" />
-              <span>{stoppingRl ? 'Stopping…' : 'Stop Training'}</span>
-            </button>
-          )}
+      {/* Viewport Center CAD HUD: Camera Presets & Display Overlays */}
+      <div
+        className="rf-glass-hud"
+        style={{
+          position: 'absolute',
+          top: 10,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 4,
+          padding: '3px 6px',
+          zIndex: 10,
+        }}
+      >
+        {/* Camera Views Preset */}
+        <div className="rf-segmented" style={{ padding: 1, gap: 1 }}>
           <button
-            className="rf-btn"
-            style={{
-              fontSize: 11,
-              padding: '3px 8px',
-              borderRadius: 6,
-              backgroundColor: simState?.rl_training_active ? 'rgba(239, 68, 68, 0.25)' : 'rgba(56, 189, 248, 0.2)',
-              border: simState?.rl_training_active ? '1px solid rgba(239, 68, 68, 0.6)' : '1px solid rgba(56, 189, 248, 0.6)',
-              color: simState?.rl_training_active ? '#fca5a5' : '#38bdf8',
-              fontWeight: 600,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4
-            }}
-            onClick={async (e) => {
-              e.stopPropagation();
-              try {
-                await trainDroneLive(4);
-              } catch (err) {
-                console.error('Failed to trigger live drone training:', err);
-              }
-            }}
-            title="Train Drone Hover live in 3D scene (Isaac Lab curriculum: fail, retry, converge to hover, store PPO model)"
+            className="rf-segmented-item"
+            style={{ padding: '2px 7px', fontSize: 10.5 }}
+            onClick={() => setCameraPreset('top')}
+            title="Top-Down Camera (Z axis)"
           >
-            <Sparkles size={12} color={simState?.rl_training_active ? '#fca5a5' : '#38bdf8'} />
-            <span>{simState?.rl_training_active ? 'Training...' : '🚁 Drone RL'}</span>
+            Top
           </button>
-
           <button
-            className="rf-btn"
-            style={{
-              fontSize: 11,
-              padding: '3px 8px',
-              borderRadius: 6,
-              backgroundColor: 'rgba(168, 85, 247, 0.18)',
-              border: '1px solid rgba(168, 85, 247, 0.5)',
-              color: '#c084fc',
-              fontWeight: 600,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4
-            }}
-            onClick={async (e) => {
-              e.stopPropagation();
-              try {
-                await trainArmLive(4);
-              } catch (err) {
-                console.error('Failed to trigger live arm training:', err);
-              }
-            }}
-            title="Train Robotic Arm Pick & Place live in 3D scene (overshoot, slip, align, lift, store PPO model)"
+            className="rf-segmented-item"
+            style={{ padding: '2px 7px', fontSize: 10.5 }}
+            onClick={() => setCameraPreset('front')}
+            title="Front Camera (X axis)"
           >
-            <span>🦾 Arm RL</span>
+            Front
           </button>
-
           <button
-            className="rf-btn"
-            style={{
-              fontSize: 11,
-              padding: '3px 8px',
-              borderRadius: 6,
-              backgroundColor: 'rgba(34, 197, 94, 0.18)',
-              border: '1px solid rgba(34, 197, 94, 0.5)',
-              color: '#4ade80',
-              fontWeight: 600,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4
-            }}
-            onClick={async (e) => {
-              e.stopPropagation();
-              try {
-                await trainRoverLive(4);
-              } catch (err) {
-                console.error('Failed to trigger live rover training:', err);
-              }
-            }}
-            title="Train Ground Rover Navigation live in 3D scene (crash, oversteer, LiDAR avoidance, goal beacon, store PPO model)"
+            className="rf-segmented-item"
+            style={{ padding: '2px 7px', fontSize: 10.5 }}
+            onClick={() => setCameraPreset('side')}
+            title="Side Camera (Y axis)"
           >
-            <span>🚗 Rover RL</span>
+            Side
+          </button>
+          <button
+            className="rf-segmented-item"
+            style={{ padding: '2px 7px', fontSize: 10.5 }}
+            onClick={() => setCameraPreset('iso')}
+            title="3D Orbit Perspective"
+          >
+            3D
           </button>
         </div>
 
-        {/* 3D Trajectory Ribbon & Prediction Horizon Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', background: 'var(--bg-panel)', padding: 2, borderRadius: 6, border: '1px solid var(--border-subtle)', gap: 2 }}>
+        <div style={{ height: 14, width: 1, backgroundColor: 'rgba(255, 255, 255, 0.12)', margin: '0 2px' }} />
+
+        {/* Camera Follow Toggle */}
+        <button
+          className={`rf-segmented-item ${followRobot ? 'active' : ''}`}
+          style={{
+            padding: '2px 8px',
+            fontSize: 10.5,
+            color: followRobot ? '#38bdf8' : 'var(--text-secondary)',
+          }}
+          title="Keep Camera Locked onto Robot (Toggle Follow)"
+          onClick={(e) => {
+            e.stopPropagation();
+            setFollowRobot(!followRobot);
+          }}
+        >
+          <Crosshair size={12} color={followRobot ? '#38bdf8' : 'currentColor'} />
+          <span>Follow: {followRobot ? 'ON' : 'OFF'}</span>
+        </button>
+
+        {/* Focus on Robot */}
+        <button
+          className="rf-segmented-item"
+          style={{ padding: '3px 6px' }}
+          title="Focus Camera on Robot"
+          onClick={(e) => {
+            e.stopPropagation();
+            focusOnRobot();
+          }}
+        >
+          <Camera size={12} />
+        </button>
+
+        <div style={{ height: 14, width: 1, backgroundColor: 'rgba(255, 255, 255, 0.12)', margin: '0 2px' }} />
+
+        {/* 3D Trajectory Ribbon & Speed Heatmap */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <button
-            className={`rf-btn ${showTrajectoryTrail ? 'rf-btn-primary' : ''}`}
-            style={{ fontSize: 11, padding: '3px 8px' }}
+            className={`rf-segmented-item ${showTrajectoryTrail ? 'active' : ''}`}
+            style={{
+              padding: '2px 7px',
+              fontSize: 10.5,
+              color: showTrajectoryTrail ? '#38bdf8' : 'var(--text-secondary)',
+            }}
             onClick={(e) => {
               e.stopPropagation();
               setShowTrajectoryTrail(!showTrajectoryTrail);
             }}
             title="Toggle Dynamic 3D Trajectory Ribbon & Speed Heatmap"
           >
-            <Route size={12} />
-            <span>Trail: {showTrajectoryTrail ? 'ON' : 'OFF'}</span>
+            <Route size={12} color={showTrajectoryTrail ? '#38bdf8' : 'currentColor'} />
+            <span>Trail</span>
           </button>
           <button
-            className="rf-btn"
-            style={{ fontSize: 11, padding: '3px 6px' }}
+            className="rf-segmented-item"
+            style={{ padding: '3px 5px', opacity: 0.7 }}
             onClick={(e) => {
               e.stopPropagation();
               trailHistoryRef.current = [];
@@ -2457,74 +2363,183 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
             }}
             title="Clear Trajectory Trail History"
           >
-            <Trash2 size={12} />
+            <Trash2 size={11} />
           </button>
         </div>
+      </div>
 
-        {/* Camera Views Preset */}
-        <div style={{ display: 'flex', background: 'var(--bg-panel)', padding: 2, borderRadius: 6, border: '1px solid var(--border-subtle)' }}>
-          <button
-            className="rf-btn"
-            style={{ fontSize: 11, padding: '3px 8px' }}
-            onClick={() => setCameraPreset('top')}
-            title="Top-Down Camera (Z axis)"
-          >
-            Top
-          </button>
-          <button
-            className="rf-btn"
-            style={{ fontSize: 11, padding: '3px 8px' }}
-            onClick={() => setCameraPreset('front')}
-            title="Front Camera (X axis)"
-          >
-            Front
-          </button>
-          <button
-            className="rf-btn"
-            style={{ fontSize: 11, padding: '3px 8px' }}
-            onClick={() => setCameraPreset('side')}
-            title="Side Camera (Y axis)"
-          >
-            Side
-          </button>
-          <button
-            className="rf-btn"
-            style={{ fontSize: 11, padding: '3px 8px' }}
-            onClick={() => setCameraPreset('iso')}
-            title="3D Orbit Perspective"
-          >
-            3D
-          </button>
-        </div>
-
+      {/* Viewport Top Right HUD: Autonomous Navigation & RL Curriculum Suite */}
+      <div
+        className="rf-glass-hud"
+        style={{
+          position: 'absolute',
+          top: 10,
+          right: 12,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          padding: '3px 8px',
+          zIndex: 10,
+        }}
+      >
+        {/* Auto-Drive Autonomous Navigation Toggle */}
         <button
-          className="rf-btn"
+          className="rf-segmented-item"
           style={{
             fontSize: 11,
-            backgroundColor: followRobot ? 'rgba(59, 130, 246, 0.25)' : 'var(--bg-panel)',
-            borderColor: followRobot ? 'var(--accent-blue)' : 'var(--border-subtle)',
-            color: followRobot ? '#fff' : 'var(--text-secondary)',
+            fontWeight: 500,
+            padding: '3px 8px',
+            color: autoDriveEnabled ? '#10b981' : 'var(--text-secondary)',
+            background: autoDriveEnabled ? 'rgba(16, 185, 129, 0.12)' : 'transparent',
+            borderColor: autoDriveEnabled ? 'rgba(16, 185, 129, 0.35)' : 'transparent',
           }}
-          title="Keep Camera Locked onto Robot (Toggle Follow)"
+          title="Toggle Autonomous Waypoint Navigation (Robot navigates to target)"
           onClick={(e) => {
             e.stopPropagation();
-            setFollowRobot(!followRobot);
+            onToggleAutoDrive?.();
           }}
         >
-          <Crosshair size={13} color={followRobot ? 'var(--accent-blue)' : 'currentColor'} />
-          <span>Follow: {followRobot ? 'ON' : 'OFF'}</span>
+          <span
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: '50%',
+              backgroundColor: autoDriveEnabled ? '#10b981' : 'var(--text-muted)',
+              boxShadow: autoDriveEnabled ? '0 0 8px rgba(16, 185, 129, 0.6)' : 'none',
+            }}
+          />
+          <Zap size={12} color={autoDriveEnabled ? '#10b981' : 'currentColor'} />
+          <span>Auto-Drive</span>
         </button>
 
-        <button
-          className="rf-btn rf-btn-icon"
-          title="Focus Camera on Robot"
-          onClick={(e) => {
-            e.stopPropagation();
-            focusOnRobot();
-          }}
-        >
-          <Camera size={14} />
-        </button>
+        <div style={{ height: 14, width: 1, backgroundColor: 'rgba(255, 255, 255, 0.12)' }} />
+
+        {/* Active RL Policy Live Badge */}
+        {simState?.rl_policy_active && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+              fontSize: 10.5,
+              padding: '2px 7px',
+              borderRadius: 5,
+              background: 'rgba(56, 189, 248, 0.12)',
+              border: '1px solid rgba(56, 189, 248, 0.3)',
+              color: '#38bdf8',
+              fontWeight: 600,
+            }}
+            title={`Active Neural Network Policy: ${simState.active_rl_policy_name || 'Policy Active'}`}
+          >
+            <Cpu size={12} color="#38bdf8" />
+            <span>{simState.active_rl_policy_name || 'Policy Active'}</span>
+            <button
+              onClick={handleStopRl}
+              disabled={stoppingRl}
+              title="Disengage active RL policy"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 2,
+                marginLeft: 3,
+                padding: '1px 5px',
+                fontSize: 9.5,
+                fontWeight: 600,
+                color: '#ef4444',
+                background: 'rgba(239, 68, 68, 0.15)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                borderRadius: 3,
+                cursor: stoppingRl ? 'default' : 'pointer',
+              }}
+            >
+              <Square size={8} fill="#ef4444" />
+              <span>{stoppingRl ? '…' : 'Stop'}</span>
+            </button>
+          </div>
+        )}
+
+        {/* Isaac Lab RL Training Curriculum Hub */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+          {simState?.rl_training_active && (
+            <button
+              className="rf-btn rf-btn-danger"
+              onClick={async (e) => {
+                e.stopPropagation();
+                await handleStopRl();
+              }}
+              disabled={stoppingRl}
+              title="Stop the live RL training run"
+              style={{
+                fontSize: 10.5,
+                padding: '2px 8px',
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+              }}
+            >
+              <Square size={10} fill="currentColor" />
+              <span>{stoppingRl ? 'Stopping…' : 'Stop Training'}</span>
+            </button>
+          )}
+
+          <div className="rf-segmented" style={{ padding: 1, gap: 1 }}>
+            <button
+              className="rf-segmented-item"
+              style={{
+                fontSize: 10.5,
+                padding: '2px 7px',
+                color: simState?.rl_training_active ? '#fca5a5' : undefined,
+              }}
+              onClick={async (e) => {
+                e.stopPropagation();
+                try {
+                  await trainDroneLive(4);
+                } catch (err) {
+                  console.error('Failed to trigger live drone training:', err);
+                }
+              }}
+              title="Train Drone Hover in 3D (Isaac Lab curriculum)"
+            >
+              <Plane size={11} color={simState?.rl_training_active ? '#fca5a5' : '#38bdf8'} />
+              <span>Drone RL</span>
+            </button>
+
+            <button
+              className="rf-segmented-item"
+              style={{ fontSize: 10.5, padding: '2px 7px' }}
+              onClick={async (e) => {
+                e.stopPropagation();
+                try {
+                  await trainArmLive(4);
+                } catch (err) {
+                  console.error('Failed to trigger live arm training:', err);
+                }
+              }}
+              title="Train Robotic Arm Pick & Place in 3D (Isaac Lab curriculum)"
+            >
+              <GitFork size={11} color="#c084fc" />
+              <span>Arm RL</span>
+            </button>
+
+            <button
+              className="rf-segmented-item"
+              style={{ fontSize: 10.5, padding: '2px 7px' }}
+              onClick={async (e) => {
+                e.stopPropagation();
+                try {
+                  await trainRoverLive(4);
+                } catch (err) {
+                  console.error('Failed to trigger live rover training:', err);
+                }
+              }}
+              title="Train Ground Rover Navigation in 3D (LiDAR avoidance curriculum)"
+            >
+              <Car size={11} color="#4ade80" />
+              <span>Rover RL</span>
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Kinematic Studio Visualizations Overlay Bar */}

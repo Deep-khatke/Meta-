@@ -96,36 +96,36 @@ export const ScenePanel: React.FC<ScenePanelProps> = ({
           gap: 6,
         }}
       >
-        <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-          Add Primitive Obstacle
+        <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', letterSpacing: '0.4px' }}>
+          Primitive Obstacles
         </span>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4 }}>
+        <div className="rf-segmented" style={{ width: '100%', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 2, padding: 2 }}>
           <button
-            className="rf-btn"
-            style={{ fontSize: 11, padding: '4px 6px' }}
+            className="rf-segmented-item"
+            style={{ fontSize: 10.5, padding: '4px 6px', justifyContent: 'center' }}
             onClick={() => onAddObstacle('box')}
             title="Add Box Obstacle"
           >
-            <Box size={12} color="#e06c75" />
+            <Box size={12} color="var(--text-secondary)" />
             <span>Box</span>
           </button>
           <button
-            className="rf-btn"
-            style={{ fontSize: 11, padding: '4px 6px' }}
+            className="rf-segmented-item"
+            style={{ fontSize: 10.5, padding: '4px 6px', justifyContent: 'center' }}
             onClick={() => onAddObstacle('sphere')}
             title="Add Sphere Obstacle"
           >
-            <Circle size={12} color="#d19a66" />
+            <Circle size={12} color="var(--text-secondary)" />
             <span>Sphere</span>
           </button>
           <button
-            className="rf-btn"
-            style={{ fontSize: 11, padding: '4px 6px' }}
+            className="rf-segmented-item"
+            style={{ fontSize: 10.5, padding: '4px 6px', justifyContent: 'center' }}
             onClick={() => onAddObstacle('cylinder')}
             title="Add Cylinder Obstacle"
           >
-            <Cylinder size={12} color="#98c379" />
-            <span>Cyl</span>
+            <Cylinder size={12} color="var(--text-secondary)" />
+            <span>Cylinder</span>
           </button>
         </div>
       </div>
@@ -230,8 +230,45 @@ export const ScenePanel: React.FC<ScenePanelProps> = ({
 
         {/* Empty Scene Robot Notice: no mobile robot and no generic/URDF robot at all */}
         {!project.robot && !project.generic_robot && (
-          <div style={{ padding: '8px 10px', fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', background: 'rgba(255,255,255,0.02)', borderRadius: 6, margin: '6px 0 12px 0', border: '1px dashed var(--border-subtle)' }}>
-            Empty Scene: No active robot.
+          <div style={{
+            padding: '16px 12px',
+            margin: '8px 0 14px 0',
+            borderRadius: 7,
+            background: 'rgba(255, 255, 255, 0.02)',
+            border: '1px solid var(--border-subtle)',
+            textAlign: 'center',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 6,
+          }}>
+            <div style={{
+              width: 30,
+              height: 30,
+              borderRadius: 6,
+              background: 'rgba(255, 255, 255, 0.04)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--text-muted)'
+            }}>
+              <Bot size={15} />
+            </div>
+            <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-secondary)' }}>
+              No Active Robot
+            </div>
+            <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+              Import a URDF or spawn a mobile rover
+            </div>
+            {onRestoreRobot && (
+              <button
+                onClick={() => onRestoreRobot()}
+                className="rf-btn"
+                style={{ fontSize: 10.5, padding: '3px 9px', marginTop: 4, color: '#38bdf8', borderColor: 'rgba(56, 189, 248, 0.3)' }}
+              >
+                + Spawn AMR Rover
+              </button>
+            )}
           </div>
         )}
 
@@ -308,8 +345,8 @@ export const ScenePanel: React.FC<ScenePanelProps> = ({
 
         {/* Obstacles List */}
         {project.objects.length === 0 ? (
-          <div style={{ padding: '12px 8px', color: 'var(--text-muted)', fontSize: 11, textAlign: 'center' }}>
-            No obstacles in scene. Click "+ Box/Sphere/Cyl" above to spawn one.
+          <div style={{ padding: '14px 8px', color: 'var(--text-muted)', fontSize: 10.5, textAlign: 'center' }}>
+            No obstacles in scene. Use the tools above to place geometry.
           </div>
         ) : (
           project.objects.map((obj: SceneObject) => {

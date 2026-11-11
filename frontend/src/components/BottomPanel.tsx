@@ -196,165 +196,110 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {/* Tab Selectors */}
-          <div
-            onClick={(e) => {
-              e.stopPropagation();
-              setActiveTab('telemetry');
-              setIsExpanded(true);
-            }}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 5,
-              padding: '3px 8px',
-              borderRadius: 4,
-              backgroundColor: activeTab === 'telemetry' ? 'var(--bg-panel-hover)' : 'transparent',
-              color: activeTab === 'telemetry' ? 'var(--accent-blue)' : 'var(--text-secondary)',
-            }}
-          >
-            <Activity size={13} />
-            <span>Telemetry</span>
-          </div>
+          {/* Tab Selectors (CAD Segmented Dock) */}
+          <div className="rf-segmented" style={{ padding: '2px 3px', gap: 2 }}>
+            <button
+              className={`rf-segmented-item ${activeTab === 'telemetry' ? 'active' : ''}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                setActiveTab('telemetry');
+                setIsExpanded(true);
+              }}
+            >
+              <Activity size={12} />
+              <span>Telemetry</span>
+            </button>
 
-          <div
-            onClick={(e) => {
-              e.stopPropagation();
-              setActiveTab('console');
-              setIsExpanded(true);
-            }}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 5,
-              padding: '3px 8px',
-              borderRadius: 4,
-              backgroundColor: activeTab === 'console' ? 'var(--bg-panel-hover)' : 'transparent',
-              color: activeTab === 'console' ? 'var(--accent-blue)' : 'var(--text-secondary)',
-            }}
-          >
-            <Terminal size={13} />
-            <span>Console</span>
-            {logs.some((l) => l.level === 'error') && (
-              <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: 'var(--accent-red)' }} />
-            )}
-          </div>
+            <button
+              className={`rf-segmented-item ${activeTab === 'console' ? 'active' : ''}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                setActiveTab('console');
+                setIsExpanded(true);
+              }}
+            >
+              <Terminal size={12} />
+              <span>Console</span>
+              {logs.some((l) => l.level === 'error') && (
+                <span style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: 'var(--accent-red)' }} />
+              )}
+            </button>
 
-          <div
-            onClick={(e) => {
-              e.stopPropagation();
-              setActiveTab('contacts');
-              setIsExpanded(true);
-            }}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 5,
-              padding: '3px 8px',
-              borderRadius: 4,
-              backgroundColor: activeTab === 'contacts' ? 'var(--bg-panel-hover)' : 'transparent',
-              color: activeTab === 'contacts' ? 'var(--accent-orange)' : 'var(--text-secondary)',
-            }}
-          >
-            <ShieldAlert size={13} />
-            <span>Contacts</span>
-            {simState.contacts.length > 0 && (
-              <span style={{
-                fontSize: 10,
-                padding: '0 4px',
-                borderRadius: 8,
-                backgroundColor: 'var(--accent-orange)',
-                color: '#fff',
-                fontWeight: 600
-              }}>
-                {simState.contacts.length}
-              </span>
-            )}
-          </div>
+            <button
+              className={`rf-segmented-item ${activeTab === 'contacts' ? 'active' : ''}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                setActiveTab('contacts');
+                setIsExpanded(true);
+              }}
+            >
+              <ShieldAlert size={12} />
+              <span>Contacts</span>
+              {simState.contacts.length > 0 && (
+                <span style={{
+                  fontSize: 9.5,
+                  padding: '0 4px',
+                  borderRadius: 6,
+                  backgroundColor: 'rgba(249, 115, 22, 0.2)',
+                  color: '#fb923c',
+                  border: '1px solid rgba(249, 115, 22, 0.4)',
+                  fontWeight: 600
+                }}>
+                  {simState.contacts.length}
+                </span>
+              )}
+            </button>
 
-          <div
-            onClick={(e) => {
-              e.stopPropagation();
-              setActiveTab('experiments');
-              setIsExpanded(true);
-            }}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 5,
-              padding: '3px 8px',
-              borderRadius: 4,
-              backgroundColor: activeTab === 'experiments' ? 'var(--bg-panel-hover)' : 'transparent',
-              color: activeTab === 'experiments' ? 'var(--accent-blue)' : 'var(--text-secondary)',
-            }}
-          >
-            <FlaskConical size={13} />
-            <span>Experiments</span>
-          </div>
+            <button
+              className={`rf-segmented-item ${activeTab === 'experiments' ? 'active' : ''}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                setActiveTab('experiments');
+                setIsExpanded(true);
+              }}
+            >
+              <FlaskConical size={12} />
+              <span>Experiments</span>
+            </button>
 
-          <div
-            onClick={(e) => {
-              e.stopPropagation();
-              setActiveTab('research');
-              setIsExpanded(true);
-            }}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 5,
-              padding: '3px 8px',
-              borderRadius: 4,
-              backgroundColor: activeTab === 'research' ? 'var(--bg-panel-hover)' : 'transparent',
-              color: activeTab === 'research' ? 'var(--accent-blue)' : 'var(--text-secondary)',
-            }}
-          >
-            <Brain size={13} />
-            <span>Research Agent</span>
-          </div>
+            <button
+              className={`rf-segmented-item ${activeTab === 'research' ? 'active' : ''}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                setActiveTab('research');
+                setIsExpanded(true);
+              }}
+            >
+              <Brain size={12} />
+              <span>Research Agent</span>
+            </button>
 
-          <div
-            onClick={(e) => {
-              e.stopPropagation();
-              setActiveTab('ai_studio');
-              setIsExpanded(true);
-              if (panelHeight < 420) setPanelHeight(480);
-            }}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 5,
-              padding: '3px 8px',
-              borderRadius: 4,
-              backgroundColor: activeTab === 'ai_studio' ? 'rgba(168, 85, 247, 0.2)' : 'transparent',
-              color: activeTab === 'ai_studio' ? '#c084fc' : 'var(--text-secondary)',
-              cursor: 'pointer',
-            }}
-            title="RoboForge Autonomous AI Studio (Natural Language & Self-Driving Experimentation)"
-          >
-            <Sparkles size={13} color="#c084fc" />
-            <span>Autonomous AI</span>
-          </div>
+            <button
+              className={`rf-segmented-item ${activeTab === 'ai_studio' ? 'active' : ''}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                setActiveTab('ai_studio');
+                setIsExpanded(true);
+                if (panelHeight < 420) setPanelHeight(480);
+              }}
+              title="RoboForge Autonomous AI Studio (Natural Language & Self-Driving Experimentation)"
+            >
+              <Sparkles size={12} />
+              <span>Autonomous AI</span>
+            </button>
 
-          <div
-            onClick={(e) => {
-              e.stopPropagation();
-              setActiveTab('ros2');
-              setIsExpanded(true);
-            }}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 5,
-              padding: '3px 8px',
-              borderRadius: 4,
-              backgroundColor: activeTab === 'ros2' ? 'rgba(56, 189, 248, 0.2)' : 'transparent',
-              color: activeTab === 'ros2' ? '#38bdf8' : 'var(--text-secondary)',
-              cursor: 'pointer',
-            }}
-            title="ROS 2 Interoperability Studio, Live Topics & Bag Recorder"
-          >
-            <Radio size={13} color="#38bdf8" />
-            <span>ROS 2 Studio</span>
+            <button
+              className={`rf-segmented-item ${activeTab === 'ros2' ? 'active' : ''}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                setActiveTab('ros2');
+                setIsExpanded(true);
+              }}
+              title="ROS 2 Interoperability Studio, Live Topics & Bag Recorder"
+            >
+              <Radio size={12} />
+              <span>ROS 2 Studio</span>
+            </button>
           </div>
         </div>
 

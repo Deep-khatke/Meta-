@@ -24,7 +24,7 @@ import { RobotStudioModal } from './components/RobotStudioModal';
 import { LandingScreen, WorkspaceChoice } from './components/LandingScreen';
 import { WorkspaceSetupModal } from './components/WorkspaceSetupModal';
 import { useKeyboardTeleop } from './hooks/useKeyboardTeleop';
-import { BrainCircuit, Sparkles, CheckCircle2, XCircle, X, Play, ShieldAlert, Upload, FileCode, AlertTriangle, FileText } from 'lucide-react';
+import { BrainCircuit, Sparkles, CheckCircle2, XCircle, X, Play, ShieldAlert, Upload, FileCode, AlertTriangle, FileText, Compass } from 'lucide-react';
 
 const initialSimState: SimulationState = {
   status: 'stopped',
@@ -1145,14 +1145,48 @@ export const AppContent: React.FC = () => {
             <button
               onClick={() => setMissionOpen(true)}
               title="Open Mission Planner: click to place waypoints & obstacles, then train or run"
+              className="rf-glass-hud"
               style={{
-                position: 'absolute', bottom: 16, right: 16, zIndex: 30, padding: '9px 14px',
-                fontSize: 12.5, fontWeight: 700, color: '#fff', borderRadius: 10, cursor: 'pointer',
-                border: '1px solid rgba(96,165,250,0.7)', background: 'linear-gradient(90deg,#2563eb,#7c3aed)',
-                boxShadow: '0 6px 20px rgba(37,99,235,0.45)',
+                position: 'absolute',
+                bottom: 16,
+                right: 16,
+                zIndex: 30,
+                padding: '8px 14px',
+                fontSize: 12,
+                fontWeight: 600,
+                color: '#f8fafc',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                transition: 'all 0.2s ease',
               }}
             >
-              🧭 Mission Planner
+              <div style={{
+                width: 22,
+                height: 22,
+                borderRadius: 5,
+                background: 'rgba(56, 189, 248, 0.15)',
+                border: '1px solid rgba(56, 189, 248, 0.4)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+                <Compass size={13} color="#38bdf8" />
+              </div>
+              <span>Mission Planner</span>
+              {missionWaypoints.length > 0 && (
+                <span style={{
+                  fontSize: 10,
+                  padding: '1px 5px',
+                  borderRadius: 4,
+                  background: 'rgba(56, 189, 248, 0.2)',
+                  color: '#38bdf8',
+                  fontFamily: 'var(--font-mono)'
+                }}>
+                  {missionWaypoints.length}
+                </span>
+              )}
             </button>
           )}
           {missionOpen && project && (

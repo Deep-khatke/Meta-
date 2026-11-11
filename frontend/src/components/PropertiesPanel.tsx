@@ -751,9 +751,9 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
       <div className="rf-panel-body">
         {/* World Physics & Gravity */}
         <div className="rf-prop-group">
-          <div className="rf-prop-title">World Gravity & Environment</div>
+          <div className="rf-prop-title">Environment & Gravity</div>
           <div className="rf-prop-row">
-            <span className="rf-prop-label">Gravity Presets:</span>
+            <span className="rf-prop-label">Preset:</span>
             <select
               className="rf-select"
               onChange={(e) => {
@@ -761,6 +761,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                 onUpdateGravity([0, 0, val]);
               }}
               value={project.settings.gravity[2].toString()}
+              style={{ fontSize: 11, padding: '3px 8px' }}
             >
               <option value="-9.81">Earth (-9.81 m/s²)</option>
               <option value="-1.62">Moon (-1.62 m/s²)</option>
@@ -770,38 +771,44 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
           </div>
 
           <div className="rf-prop-row">
-            <span className="rf-prop-label">Gravity Z (m/s²):</span>
-            <input
-              type="number"
-              step="0.5"
-              className="rf-input"
-              style={{ width: 80 }}
-              value={project.settings.gravity[2]}
-              onChange={(e) => {
-                const gz = parseFloat(e.target.value);
-                if (!isNaN(gz)) onUpdateGravity([0, 0, gz]);
-              }}
-            />
+            <span className="rf-prop-label">Gravity Z:</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <input
+                type="number"
+                step="0.5"
+                className="rf-input"
+                style={{ width: 75, padding: '3px 6px', fontSize: 11, fontFamily: 'var(--font-mono)' }}
+                value={project.settings.gravity[2]}
+                onChange={(e) => {
+                  const gz = parseFloat(e.target.value);
+                  if (!isNaN(gz)) onUpdateGravity([0, 0, gz]);
+                }}
+              />
+              <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>m/s²</span>
+            </div>
           </div>
         </div>
 
         {/* World Boundaries */}
         <div className="rf-prop-group">
-          <div className="rf-prop-title">World Containment Boundaries</div>
+          <div className="rf-prop-title">Containment Boundaries</div>
           <div className="rf-prop-row">
-            <span className="rf-prop-label">Containment Walls:</span>
+            <span className="rf-prop-label">Physical Walls:</span>
             <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
               <input
                 type="checkbox"
                 checked={boundariesOn}
                 onChange={(e) => onUpdateBoundaries?.(e.target.checked, b as any)}
+                style={{ accentColor: 'var(--accent-blue)' }}
               />
-              <span style={{ fontSize: 11 }}>{boundariesOn ? 'Enabled (Physical Walls)' : 'Disabled (Open Floor)'}</span>
+              <span style={{ fontSize: 11, color: boundariesOn ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                {boundariesOn ? 'Enabled' : 'Disabled'}
+              </span>
             </label>
           </div>
           {boundariesOn && (
-            <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>
-              Boundary Span: [{b[0]}m to {b[1]}m] × [{b[2]}m to {b[3]}m]
+            <div style={{ fontSize: 10, color: 'var(--text-muted)', background: 'rgba(255,255,255,0.02)', padding: '4px 6px', borderRadius: 4, marginTop: 4, fontFamily: 'var(--font-mono)' }}>
+              Span: [{b[0]}m, {b[1]}m] × [{b[2]}m, {b[3]}m]
             </div>
           )}
         </div>

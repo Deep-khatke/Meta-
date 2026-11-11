@@ -90,55 +90,83 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   const isRunning = simState.status === 'running';
 
   return (
-    <header className="rf-toolbar" style={{ height: 44, padding: '0 10px', gap: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+    <header className="rf-toolbar" style={{ height: 44, padding: '0 12px', gap: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-subtle)' }}>
       {/* Brand & Project File Quick Actions */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, letterSpacing: '0.6px', fontSize: 13 }}>
-          <Cpu size={16} color="var(--accent-blue)" />
-          <span>ROBO<span style={{ color: 'var(--accent-blue)' }}>FORGE</span></span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+        {/* Sleek Brand Mark */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 7, userSelect: 'none' }}>
+          <div style={{
+            width: 22,
+            height: 22,
+            borderRadius: 5,
+            background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.2), rgba(37, 99, 235, 0.3))',
+            border: '1px solid rgba(56, 189, 248, 0.4)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 0 10px rgba(56, 189, 248, 0.2)'
+          }}>
+            <Cpu size={13} color="#38bdf8" />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+            <span style={{ fontWeight: 700, fontSize: 12.5, letterSpacing: '0.8px', color: '#f8fafc' }}>
+              ROBO<span style={{ color: '#38bdf8' }}>FORGE</span>
+            </span>
+            <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.8px' }}>
+              CAD
+            </span>
+          </div>
         </div>
 
         <div style={{ height: 16, width: 1, backgroundColor: 'var(--border-subtle)' }} />
 
         {/* Undo / Redo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+        <div className="rf-segmented" style={{ padding: 1, gap: 1 }}>
           <button
-            className="rf-btn rf-btn-icon"
+            className="rf-btn-icon"
             onClick={onUndo}
             disabled={!canUndo}
             title="Undo Scene Edit (Ctrl+Z)"
-            style={{ width: 24, height: 24, padding: 3, opacity: canUndo ? 1.0 : 0.4 }}
+            style={{ width: 22, height: 22, padding: 3, opacity: canUndo ? 0.9 : 0.35, background: 'transparent', border: 'none', cursor: canUndo ? 'pointer' : 'default', color: 'var(--text-primary)' }}
           >
             <Undo2 size={12} />
           </button>
           <button
-            className="rf-btn rf-btn-icon"
+            className="rf-btn-icon"
             onClick={onRedo}
             disabled={!canRedo}
             title="Redo Scene Edit (Ctrl+Y)"
-            style={{ width: 24, height: 24, padding: 3, opacity: canRedo ? 1.0 : 0.4 }}
+            style={{ width: 22, height: 22, padding: 3, opacity: canRedo ? 0.9 : 0.35, background: 'transparent', border: 'none', cursor: canRedo ? 'pointer' : 'default', color: 'var(--text-primary)' }}
           >
             <Redo2 size={12} />
           </button>
         </div>
 
-        <div style={{ height: 16, width: 1, backgroundColor: 'var(--border-subtle)' }} />
-
         {/* Project File Actions */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-          <button className="rf-btn" onClick={onNewProject} title="Create New Simulation Project" style={{ padding: '3px 7px', fontSize: 11 }}>
+        <div className="rf-segmented" style={{ padding: '1px 2px', gap: 1 }}>
+          <button
+            className="rf-segmented-item"
+            onClick={onNewProject}
+            title="Create New Simulation Project"
+            style={{ padding: '3px 7px', fontSize: 10.5 }}
+          >
             <FilePlus size={11} />
             <span>New</span>
           </button>
-          <button className="rf-btn" onClick={onSaveProject} title="Save Project to Disk" style={{ padding: '3px 7px', fontSize: 11 }}>
+          <button
+            className="rf-segmented-item"
+            onClick={onSaveProject}
+            title="Save Project to Disk"
+            style={{ padding: '3px 7px', fontSize: 10.5 }}
+          >
             <Save size={11} />
             <span>Save</span>
           </button>
           <button
-            className="rf-btn"
+            className="rf-segmented-item"
             onClick={() => fileInputRef.current?.click()}
             title="Open Project (.rfproj.json)"
-            style={{ padding: '3px 7px', fontSize: 11 }}
+            style={{ padding: '3px 7px', fontSize: 10.5 }}
           >
             <FolderOpen size={11} />
             <span>Open</span>
@@ -152,10 +180,10 @@ export const Toolbar: React.FC<ToolbarProps> = ({
           />
           {onOpenURDFModal && (
             <button
-              className="rf-btn"
+              className="rf-segmented-item"
               onClick={onOpenURDFModal}
               title="Import Robot from URDF XML"
-              style={{ padding: '3px 8px', fontSize: 11, color: '#38bdf8', borderColor: 'rgba(56, 189, 248, 0.4)' }}
+              style={{ padding: '3px 7px', fontSize: 10.5, color: '#38bdf8' }}
             >
               <Upload size={11} color="#38bdf8" />
               <span>URDF</span>
@@ -165,121 +193,138 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 
         <div style={{ height: 16, width: 1, backgroundColor: 'var(--border-subtle)' }} />
 
-        {/* Project Name Badge */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={project.name}>
-          <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{project.name}</span>
+        {/* Breadcrumb / Project Name */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--text-muted)' }} title={project.name}>
+          <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>/</span>
+          <span style={{ fontWeight: 500, color: 'var(--text-secondary)', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {project.name}
+          </span>
         </div>
       </div>
 
-      {/* Central Workspace Priority Tabs: Intelligent space allocation based on user workflow */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 3,
-          background: 'rgba(15, 17, 23, 0.85)',
-          padding: '2px 4px',
-          borderRadius: 6,
-          border: '1px solid var(--border-subtle)',
-          flexShrink: 0,
-        }}
-      >
+      {/* Central Workspace Priority Tabs (Segmented CAD Mode Switcher) */}
+      <div className="rf-segmented" style={{ padding: '2px 3px', gap: 2, flexShrink: 0 }}>
         <button
-          className={`rf-workspace-tab ${activeSection === 'scene' ? 'active' : ''}`}
+          className={`rf-segmented-item ${activeSection === 'scene' ? 'active' : ''}`}
           onClick={() => onSelectSection?.('scene')}
           title="Scene Hierarchy & Physics Viewport"
-          style={{ padding: '4px 9px', fontSize: 11, gap: 5 }}
         >
           <Box size={12} />
           <span>Scene</span>
         </button>
 
         <button
-          className={`rf-workspace-tab ${activeSection === 'robots' ? 'active' : ''}`}
+          className={`rf-segmented-item ${activeSection === 'robots' ? 'active' : ''}`}
           onClick={() => {
             onSelectSection?.('robots');
             onOpenRobotStudio?.();
           }}
           title="Robot Modeling & Control Studio (Links, Joints, FK, IK, Actuators)"
-          style={{
-            padding: '4px 10px',
-            fontSize: 11,
-            gap: 5,
-            color: activeSection === 'robots' ? '#60a5fa' : undefined,
-            borderColor: activeSection === 'robots' ? 'rgba(96, 165, 250, 0.4)' : undefined,
-            background: activeSection === 'robots' ? 'rgba(96, 165, 250, 0.15)' : undefined,
-          }}
         >
-          <GitFork size={12} color={activeSection === 'robots' ? '#60a5fa' : 'currentColor'} />
+          <GitFork size={12} />
           <span>Robot Studio</span>
         </button>
 
         <button
-          className={`rf-workspace-tab ${activeSection === 'assets' ? 'active' : ''}`}
+          className={`rf-segmented-item ${activeSection === 'assets' ? 'active' : ''}`}
           onClick={() => {
             if (onOpenAssetLibrary) onOpenAssetLibrary();
             else onSelectSection?.('assets');
           }}
           title="Reusable Asset Library (Robots, Obstacles, Sensors, Scene Templates)"
-          style={{ padding: '4px 9px', fontSize: 11, gap: 5 }}
         >
           <Package size={12} />
           <span>Assets</span>
         </button>
 
         <button
-          className={`rf-workspace-tab ${activeSection === 'sensors' ? 'active' : ''}`}
+          className={`rf-segmented-item ${activeSection === 'sensors' ? 'active' : ''}`}
           onClick={() => onSelectSection?.('sensors')}
           title="Sensors & Actuators (LiDAR, Camera, IMU Telemetry)"
-          style={{ padding: '4px 9px', fontSize: 11, gap: 5 }}
         >
           <Radio size={12} />
           <span>Sensors</span>
         </button>
 
         <button
-          className={`rf-workspace-tab ${activeSection === 'experiments' ? 'active' : ''}`}
+          className={`rf-segmented-item ${activeSection === 'experiments' ? 'active' : ''}`}
           onClick={() => onSelectSection?.('experiments')}
           title="Simulation Scenarios, Waypoint Targets & RL Training"
-          style={{ padding: '4px 9px', fontSize: 11, gap: 5 }}
         >
           <Compass size={12} />
           <span>Experiments</span>
         </button>
 
         <button
-          className={`rf-workspace-tab ${activeSection === 'results' ? 'active' : ''}`}
+          className={`rf-segmented-item ${activeSection === 'results' ? 'active' : ''}`}
           onClick={() => onSelectSection?.('results')}
           title="Real-time Telemetry, Trajectories & Evaluation Results"
-          style={{ padding: '4px 9px', fontSize: 11, gap: 5 }}
         >
           <Activity size={12} />
           <span>Results</span>
         </button>
       </div>
 
-      {/* Physics Simulation Controls & Status */}
+      {/* Physics Simulation Controls & Status Transport Dock */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-        {/* Playback Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 3, background: 'var(--bg-panel)', padding: '2px 4px', borderRadius: 5, border: '1px solid var(--border-subtle)' }}>
+        {/* Precision Playback Transport Dock */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 2,
+            background: 'rgba(10, 12, 17, 0.75)',
+            padding: '2px 4px',
+            borderRadius: 7,
+            border: '1px solid var(--border-subtle)',
+          }}
+        >
           {isRunning ? (
-            <button className="rf-btn rf-btn-primary" onClick={onPause} title="Pause Simulation (Space)" style={{ padding: '3px 8px', fontSize: 11 }}>
+            <button
+              className="rf-btn"
+              onClick={onPause}
+              title="Pause Simulation (Space)"
+              style={{
+                padding: '3px 9px',
+                fontSize: 11,
+                fontWeight: 600,
+                backgroundColor: 'rgba(245, 158, 11, 0.18)',
+                borderColor: 'rgba(245, 158, 11, 0.45)',
+                color: '#fbbf24',
+              }}
+            >
               <Pause size={12} />
               <span>Pause</span>
             </button>
           ) : (
-            <button className="rf-btn rf-btn-primary" onClick={onPlay} title="Start Simulation (Space)" style={{ padding: '3px 8px', fontSize: 11 }}>
+            <button
+              className="rf-btn rf-btn-primary"
+              onClick={onPlay}
+              title="Start Simulation (Space)"
+              style={{ padding: '3px 9px', fontSize: 11, fontWeight: 600 }}
+            >
               <Play size={12} fill="currentColor" />
               <span>Run</span>
             </button>
           )}
 
-          <button className="rf-btn" onClick={onStep} disabled={isRunning} title="Single Step Physics (1 frame)" style={{ padding: '3px 7px', fontSize: 11 }}>
+          <button
+            className="rf-btn"
+            onClick={onStep}
+            disabled={isRunning}
+            title="Single Step Physics (1 frame)"
+            style={{ padding: '3px 7px', fontSize: 11 }}
+          >
             <StepForward size={12} />
             <span>Step</span>
           </button>
 
-          <button className="rf-btn" onClick={onReset} title="Reset Simulation to Initial Conditions (R)" style={{ padding: '3px 7px', fontSize: 11 }}>
+          <button
+            className="rf-btn"
+            onClick={onReset}
+            title="Reset Simulation to Initial Conditions (R)"
+            style={{ padding: '3px 7px', fontSize: 11 }}
+          >
             <RotateCcw size={11} />
             <span>Reset</span>
           </button>
@@ -295,27 +340,29 @@ export const Toolbar: React.FC<ToolbarProps> = ({
               <span>{isRecordingTrajectory ? 'REC' : 'Rec'}</span>
             </button>
           )}
+
+          <div style={{ height: 14, width: 1, backgroundColor: 'var(--border-subtle)', margin: '0 2px' }} />
+
+          {/* Speed Selector */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '0 2px' }}>
+            <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Speed</span>
+            <select
+              className="rf-select"
+              value={project.settings.speed_multiplier}
+              onChange={(e) => onChangeSpeed(parseFloat(e.target.value))}
+              style={{ padding: '2px 4px', fontSize: 10, height: 22, background: 'transparent', border: '1px solid var(--border-subtle)', borderRadius: 4 }}
+            >
+              <option value="0.2">0.2x</option>
+              <option value="0.5">0.5x</option>
+              <option value="1.0">1.0x</option>
+              <option value="2.0">2.0x</option>
+              <option value="5.0">5.0x</option>
+            </select>
+          </div>
         </div>
 
-        {/* Speed Multiplier */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 10, color: 'var(--text-secondary)' }}>
-          <span>Speed:</span>
-          <select
-            className="rf-select"
-            value={project.settings.speed_multiplier}
-            onChange={(e) => onChangeSpeed(parseFloat(e.target.value))}
-            style={{ padding: '2px 4px', fontSize: 10 }}
-          >
-            <option value="0.2">0.2x</option>
-            <option value="0.5">0.5x</option>
-            <option value="1.0">1.0x</option>
-            <option value="2.0">2.0x</option>
-            <option value="5.0">5.0x</option>
-          </select>
-        </div>
-
-        {/* Status Badge */}
-        <div className={`rf-badge rf-badge-${simState.status}`} style={{ fontSize: 10, padding: '2px 5px' }}>
+        {/* State Badge */}
+        <div className={`rf-badge rf-badge-${simState.status}`} style={{ fontSize: 9.5, padding: '3px 6px', letterSpacing: '0.6px' }}>
           <span style={{
             width: 5,
             height: 5,
@@ -325,28 +372,47 @@ export const Toolbar: React.FC<ToolbarProps> = ({
           {simState.status}
         </div>
 
-        {/* Clocks */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
-          <span title="Physics time"><strong style={{ color: 'var(--text-primary)' }}>{simState.sim_time.toFixed(1)}s</strong></span>
+        {/* Telemetry Clock */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            padding: '2px 6px',
+            borderRadius: 4,
+            background: 'rgba(10, 12, 17, 0.6)',
+            border: '1px solid var(--border-subtle)',
+            fontSize: 10.5,
+            fontFamily: 'var(--font-mono)',
+            color: 'var(--text-secondary)'
+          }}
+          title="Simulated physics time"
+        >
+          <Clock size={10} style={{ marginRight: 4, opacity: 0.6 }} />
+          <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{simState.sim_time.toFixed(1)}s</span>
         </div>
 
-        {/* Connection */}
+        {/* WebSocket Connection */}
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: 4,
             fontSize: 10,
+            padding: '2px 6px',
+            borderRadius: 4,
+            background: isConnected ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+            border: isConnected ? '1px solid rgba(16, 185, 129, 0.25)' : '1px solid rgba(239, 68, 68, 0.25)',
             color: isConnected ? 'var(--accent-green)' : 'var(--accent-red)',
+            fontWeight: 600,
           }}
           title={isConnected ? 'Backend WebSocket Connected' : 'Disconnected'}
         >
-          <Activity size={11} />
-          <span>{isConnected ? 'ON' : 'OFF'}</span>
+          <span style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: isConnected ? 'var(--accent-green)' : 'var(--accent-red)' }} />
+          <span>{isConnected ? 'LIVE' : 'OFFLINE'}</span>
         </div>
 
         {/* User Profile Badge */}
-        <div style={{ marginLeft: 6, display: 'flex', alignItems: 'center' }}>
+        <div style={{ marginLeft: 2, display: 'flex', alignItems: 'center' }}>
           <UserProfileBadge variant="dark" />
         </div>
       </div>
