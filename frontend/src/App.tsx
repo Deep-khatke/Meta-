@@ -1148,41 +1148,55 @@ export const AppContent: React.FC = () => {
               className="rf-glass-hud"
               style={{
                 position: 'absolute',
-                bottom: 16,
-                right: 16,
+                bottom: 18,
+                right: 18,
                 zIndex: 30,
-                padding: '8px 14px',
+                padding: '7px 16px',
+                borderRadius: 100,
                 fontSize: 12,
                 fontWeight: 600,
-                color: '#f8fafc',
+                color: '#F1EEE7',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                gap: 8,
-                transition: 'all 0.2s ease',
+                gap: 9,
+                background: 'rgba(23, 25, 28, 0.88)',
+                backdropFilter: 'blur(20px)',
+                border: '1px solid rgba(255, 255, 255, 0.09)',
+                boxShadow: '0 8px 28px rgba(0, 0, 0, 0.5)',
+                transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 12px 32px rgba(0, 0, 0, 0.6)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 8px 28px rgba(0, 0, 0, 0.5)';
               }}
             >
               <div style={{
                 width: 22,
                 height: 22,
-                borderRadius: 5,
-                background: 'rgba(56, 189, 248, 0.15)',
-                border: '1px solid rgba(56, 189, 248, 0.4)',
+                borderRadius: '50%',
+                background: 'rgba(196, 71, 45, 0.18)',
+                border: '1px solid rgba(196, 71, 45, 0.35)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
               }}>
-                <Compass size={13} color="#38bdf8" />
+                <Compass size={12} color="#C4472D" />
               </div>
-              <span>Mission Planner</span>
+              <span style={{ letterSpacing: '0.02em' }}>Mission Planner</span>
               {missionWaypoints.length > 0 && (
                 <span style={{
                   fontSize: 10,
-                  padding: '1px 5px',
-                  borderRadius: 4,
-                  background: 'rgba(56, 189, 248, 0.2)',
-                  color: '#38bdf8',
-                  fontFamily: 'var(--font-mono)'
+                  padding: '1px 6px',
+                  borderRadius: 100,
+                  background: 'rgba(196, 71, 45, 0.25)',
+                  color: '#F1EEE7',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 600
                 }}>
                   {missionWaypoints.length}
                 </span>

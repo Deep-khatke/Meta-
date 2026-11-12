@@ -346,40 +346,49 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
                 className="rf-btn"
                 onClick={() => setPanelHeight(190)}
                 style={{
-                  fontSize: 10,
-                  padding: '1px 6px',
-                  backgroundColor: panelHeight <= 210 ? 'var(--accent-blue)' : 'transparent',
-                  color: panelHeight <= 210 ? '#fff' : 'var(--text-muted)'
+                  fontSize: 9.5,
+                  padding: '2px 8px',
+                  borderRadius: 100,
+                  fontFamily: 'var(--font-mono)',
+                  backgroundColor: panelHeight <= 210 ? '#C4472D' : 'transparent',
+                  color: panelHeight <= 210 ? '#FFFFFF' : 'var(--text-muted)',
+                  border: panelHeight <= 210 ? '1px solid #C4472D' : '1px solid transparent'
                 }}
                 title="Compact Height (190px)"
               >
-                Compact
+                COMPACT
               </button>
               <button
                 className="rf-btn"
                 onClick={() => setPanelHeight(310)}
                 style={{
-                  fontSize: 10,
-                  padding: '1px 6px',
-                  backgroundColor: panelHeight > 210 && panelHeight <= 380 ? 'var(--accent-blue)' : 'transparent',
-                  color: panelHeight > 210 && panelHeight <= 380 ? '#fff' : 'var(--text-muted)'
+                  fontSize: 9.5,
+                  padding: '2px 8px',
+                  borderRadius: 100,
+                  fontFamily: 'var(--font-mono)',
+                  backgroundColor: panelHeight > 210 && panelHeight <= 380 ? '#C4472D' : 'transparent',
+                  color: panelHeight > 210 && panelHeight <= 380 ? '#FFFFFF' : 'var(--text-muted)',
+                  border: panelHeight > 210 && panelHeight <= 380 ? '1px solid #C4472D' : '1px solid transparent'
                 }}
                 title="Comfortable Height (310px)"
               >
-                Comfort
+                COMFORT
               </button>
               <button
                 className="rf-btn"
                 onClick={() => setPanelHeight(480)}
                 style={{
-                  fontSize: 10,
-                  padding: '1px 6px',
-                  backgroundColor: panelHeight > 380 ? 'var(--accent-blue)' : 'transparent',
-                  color: panelHeight > 380 ? '#fff' : 'var(--text-muted)'
+                  fontSize: 9.5,
+                  padding: '2px 8px',
+                  borderRadius: 100,
+                  fontFamily: 'var(--font-mono)',
+                  backgroundColor: panelHeight > 380 ? '#C4472D' : 'transparent',
+                  color: panelHeight > 380 ? '#FFFFFF' : 'var(--text-muted)',
+                  border: panelHeight > 380 ? '1px solid #C4472D' : '1px solid transparent'
                 }}
                 title="Expanded Height (480px)"
               >
-                Expanded
+                EXPANDED
               </button>
             </div>
           )}

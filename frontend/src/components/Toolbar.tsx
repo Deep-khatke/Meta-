@@ -91,30 +91,29 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   const isRunning = simState.status === 'running';
 
   return (
-    <header className="rf-toolbar" style={{ height: 44, padding: '0 12px', gap: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-subtle)' }}>
+    <header className="rf-toolbar" style={{ height: 46, padding: '0 14px', gap: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-subtle)' }}>
       {/* Brand & Project File Quick Actions */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
         {/* Sleek Brand Mark */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 7, userSelect: 'none' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, userSelect: 'none' }}>
           <div style={{
-            width: 22,
-            height: 22,
-            borderRadius: 5,
-            background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.2), rgba(37, 99, 235, 0.3))',
-            border: '1px solid rgba(56, 189, 248, 0.4)',
+            width: 24,
+            height: 24,
+            borderRadius: 7,
+            background: '#C4472D',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 0 10px rgba(56, 189, 248, 0.2)'
+            boxShadow: '0 2px 10px rgba(196, 71, 45, 0.45)'
           }}>
-            <Cpu size={13} color="#38bdf8" />
+            <Cpu size={13} color="#FFFFFF" />
           </div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-            <span style={{ fontWeight: 700, fontSize: 12.5, letterSpacing: '0.8px', color: '#f8fafc' }}>
-              ROBO<span style={{ color: '#38bdf8' }}>FORGE</span>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 5 }}>
+            <span style={{ fontWeight: 800, fontSize: 13, letterSpacing: '0.4px', color: '#F1EEE7' }}>
+              ROBO<span style={{ color: '#C4472D' }}>FORGE</span>
             </span>
-            <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.8px' }}>
-              CAD
+            <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', letterSpacing: '0.12em' }}>
+              STUDIO
             </span>
           </div>
         </div>
@@ -122,7 +121,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
         <div style={{ height: 16, width: 1, backgroundColor: 'var(--border-subtle)' }} />
 
         {/* Undo / Redo */}
-        <div className="rf-segmented" style={{ padding: 1, gap: 1 }}>
+        <div className="rf-segmented" style={{ padding: 2, gap: 1 }}>
           <button
             className="rf-btn-icon"
             onClick={onUndo}
@@ -144,12 +143,12 @@ export const Toolbar: React.FC<ToolbarProps> = ({
         </div>
 
         {/* Project File Actions */}
-        <div className="rf-segmented" style={{ padding: '1px 2px', gap: 1 }}>
+        <div className="rf-segmented" style={{ padding: '2px 4px', gap: 2 }}>
           <button
             className="rf-segmented-item"
             onClick={onNewProject}
             title="Create New Simulation Project"
-            style={{ padding: '3px 7px', fontSize: 10.5 }}
+            style={{ padding: '3px 8px', fontSize: 10.5 }}
           >
             <FilePlus size={11} />
             <span>New</span>
@@ -158,7 +157,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
             className="rf-segmented-item"
             onClick={onSaveProject}
             title="Save Project to Disk"
-            style={{ padding: '3px 7px', fontSize: 10.5 }}
+            style={{ padding: '3px 8px', fontSize: 10.5 }}
           >
             <Save size={11} />
             <span>Save</span>
@@ -167,7 +166,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
             className="rf-segmented-item"
             onClick={() => fileInputRef.current?.click()}
             title="Open Project (.rfproj.json)"
-            style={{ padding: '3px 7px', fontSize: 10.5 }}
+            style={{ padding: '3px 8px', fontSize: 10.5 }}
           >
             <FolderOpen size={11} />
             <span>Open</span>
@@ -184,9 +183,9 @@ export const Toolbar: React.FC<ToolbarProps> = ({
               className="rf-segmented-item"
               onClick={onOpenURDFModal}
               title="Import Robot from URDF XML"
-              style={{ padding: '3px 7px', fontSize: 10.5, color: '#38bdf8' }}
+              style={{ padding: '3px 8px', fontSize: 10.5 }}
             >
-              <Upload size={11} color="#38bdf8" />
+              <Upload size={11} />
               <span>URDF</span>
             </button>
           )}
@@ -273,11 +272,13 @@ export const Toolbar: React.FC<ToolbarProps> = ({
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: 2,
-            background: 'rgba(10, 12, 17, 0.75)',
-            padding: '2px 4px',
-            borderRadius: 7,
-            border: '1px solid var(--border-subtle)',
+            gap: 3,
+            background: 'rgba(23, 25, 28, 0.9)',
+            backdropFilter: 'blur(16px)',
+            padding: '3px 5px',
+            borderRadius: 100,
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            boxShadow: '0 2px 10px rgba(0, 0, 0, 0.25)',
           }}
         >
           {isRunning ? (
@@ -286,11 +287,12 @@ export const Toolbar: React.FC<ToolbarProps> = ({
               onClick={onPause}
               title="Pause Simulation (Space)"
               style={{
-                padding: '3px 9px',
+                padding: '4px 13px',
                 fontSize: 11,
-                fontWeight: 600,
-                backgroundColor: 'rgba(245, 158, 11, 0.18)',
-                borderColor: 'rgba(245, 158, 11, 0.45)',
+                fontWeight: 700,
+                borderRadius: 100,
+                backgroundColor: 'rgba(245, 158, 11, 0.16)',
+                borderColor: 'rgba(245, 158, 11, 0.4)',
                 color: '#fbbf24',
               }}
             >
@@ -302,7 +304,14 @@ export const Toolbar: React.FC<ToolbarProps> = ({
               className="rf-btn rf-btn-primary"
               onClick={onPlay}
               title="Start Simulation (Space)"
-              style={{ padding: '3px 9px', fontSize: 11, fontWeight: 600 }}
+              style={{
+                padding: '4px 13px',
+                fontSize: 11,
+                fontWeight: 700,
+                borderRadius: 100,
+                backgroundColor: '#C4472D',
+                boxShadow: '0 4px 14px rgba(196, 71, 45, 0.45)',
+              }}
             >
               <Play size={12} fill="currentColor" />
               <span>Run</span>
@@ -314,7 +323,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
             onClick={onStep}
             disabled={isRunning}
             title="Single Step Physics (1 frame)"
-            style={{ padding: '3px 7px', fontSize: 11 }}
+            style={{ padding: '3px 8px', fontSize: 11, borderRadius: 100 }}
           >
             <StepForward size={12} />
             <span>Step</span>
@@ -324,7 +333,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
             className="rf-btn"
             onClick={onReset}
             title="Reset Simulation to Initial Conditions (R)"
-            style={{ padding: '3px 7px', fontSize: 11 }}
+            style={{ padding: '3px 8px', fontSize: 11, borderRadius: 100 }}
           >
             <RotateCcw size={11} />
             <span>Reset</span>
@@ -335,23 +344,23 @@ export const Toolbar: React.FC<ToolbarProps> = ({
               className={`rf-btn ${isRecordingTrajectory ? 'rf-btn-danger' : ''}`}
               onClick={onToggleRecordTrajectory}
               title={isRecordingTrajectory ? 'Stop Trajectory Recording' : 'Record Robot Trajectory Path'}
-              style={{ padding: '3px 6px', fontSize: 10, gap: 3 }}
+              style={{ padding: '3px 8px', fontSize: 10, gap: 3, borderRadius: 100 }}
             >
               <Disc size={11} color={isRecordingTrajectory ? '#ef4444' : 'currentColor'} />
               <span>{isRecordingTrajectory ? 'REC' : 'Rec'}</span>
             </button>
           )}
 
-          <div style={{ height: 14, width: 1, backgroundColor: 'var(--border-subtle)', margin: '0 2px' }} />
+          <div style={{ height: 14, width: 1, backgroundColor: 'rgba(255, 255, 255, 0.08)', margin: '0 2px' }} />
 
           {/* Speed Selector */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '0 2px' }}>
-            <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Speed</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '0 4px' }}>
+            <span style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>SPEED</span>
             <select
               className="rf-select"
               value={project.settings.speed_multiplier}
               onChange={(e) => onChangeSpeed(parseFloat(e.target.value))}
-              style={{ padding: '2px 4px', fontSize: 10, height: 22, background: 'transparent', border: '1px solid var(--border-subtle)', borderRadius: 4 }}
+              style={{ padding: '2px 6px', fontSize: 10, height: 22, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: 100, color: '#F1EEE7' }}
             >
               <option value="0.2">0.2x</option>
               <option value="0.5">0.5x</option>
@@ -363,12 +372,12 @@ export const Toolbar: React.FC<ToolbarProps> = ({
         </div>
 
         {/* State Badge */}
-        <div className={`rf-badge rf-badge-${simState.status}`} style={{ fontSize: 9.5, padding: '3px 6px', letterSpacing: '0.6px' }}>
+        <div className={`rf-badge rf-badge-${simState.status}`} style={{ fontSize: 9.5, padding: '3px 8px', letterSpacing: '0.6px', borderRadius: 100 }}>
           <span style={{
             width: 5,
             height: 5,
             borderRadius: '50%',
-            backgroundColor: isRunning ? 'var(--accent-green)' : simState.status === 'paused' ? 'var(--accent-yellow)' : simState.status === 'error' ? 'var(--accent-red)' : 'var(--text-muted)'
+            backgroundColor: isRunning ? '#34D399' : simState.status === 'paused' ? '#FBBF24' : simState.status === 'error' ? '#FB7185' : 'var(--text-muted)'
           }} />
           {simState.status}
         </div>
@@ -378,10 +387,10 @@ export const Toolbar: React.FC<ToolbarProps> = ({
           style={{
             display: 'flex',
             alignItems: 'center',
-            padding: '2px 6px',
-            borderRadius: 4,
-            background: 'rgba(10, 12, 17, 0.6)',
-            border: '1px solid var(--border-subtle)',
+            padding: '3px 8px',
+            borderRadius: 100,
+            background: 'rgba(23, 25, 28, 0.85)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
             fontSize: 10.5,
             fontFamily: 'var(--font-mono)',
             color: 'var(--text-secondary)'
@@ -389,7 +398,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
           title="Simulated physics time"
         >
           <Clock size={10} style={{ marginRight: 4, opacity: 0.6 }} />
-          <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{simState.sim_time.toFixed(1)}s</span>
+          <span style={{ color: '#F1EEE7', fontWeight: 600 }}>{simState.sim_time.toFixed(1)}s</span>
         </div>
 
         {/* WebSocket Connection */}
@@ -399,16 +408,18 @@ export const Toolbar: React.FC<ToolbarProps> = ({
             alignItems: 'center',
             gap: 4,
             fontSize: 10,
-            padding: '2px 6px',
-            borderRadius: 4,
-            background: isConnected ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-            border: isConnected ? '1px solid rgba(16, 185, 129, 0.25)' : '1px solid rgba(239, 68, 68, 0.25)',
-            color: isConnected ? 'var(--accent-green)' : 'var(--accent-red)',
-            fontWeight: 600,
+            padding: '3px 8px',
+            borderRadius: 100,
+            fontFamily: 'var(--font-mono)',
+            background: isConnected ? 'rgba(52, 211, 153, 0.12)' : 'rgba(225, 29, 72, 0.12)',
+            border: isConnected ? '1px solid rgba(52, 211, 153, 0.3)' : '1px solid rgba(225, 29, 72, 0.3)',
+            color: isConnected ? '#34D399' : '#FB7185',
+            fontWeight: 700,
+            letterSpacing: '0.04em'
           }}
           title={isConnected ? 'Backend WebSocket Connected' : 'Disconnected'}
         >
-          <span style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: isConnected ? 'var(--accent-green)' : 'var(--accent-red)' }} />
+          <span style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: isConnected ? '#34D399' : '#FB7185' }} />
           <span>{isConnected ? 'LIVE' : 'OFFLINE'}</span>
         </div>
 

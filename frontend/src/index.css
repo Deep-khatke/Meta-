@@ -1,28 +1,28 @@
 :root {
-  --bg-primary: #0a0b0f;
-  --bg-secondary: #0f1117;
-  --bg-panel: #141722;
-  --bg-panel-hover: #1c202c;
-  --bg-input: #0b0d13;
+  --bg-primary: #121316;
+  --bg-secondary: #17191A;
+  --bg-panel: #1D2024;
+  --bg-panel-hover: #262A30;
+  --bg-input: #141618;
 
   --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-strong: rgba(255, 255, 255, 0.16);
-  --border-highlight: rgba(56, 189, 248, 0.35);
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --border-highlight: rgba(196, 71, 45, 0.45);
 
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
+  --text-primary: #F1EEE7;
+  --text-secondary: #9E9C96;
+  --text-muted: #6B6964;
 
-  --accent-blue: #3b82f6;
-  --accent-blue-hover: #2563eb;
-  --accent-cyan: #0ea5e9;
-  --accent-green: #10b981;
-  --accent-yellow: #f59e0b;
-  --accent-red: #ef4444;
-  --accent-orange: #f97316;
+  --accent-blue: #C4472D;
+  --accent-blue-hover: #D95338;
+  --accent-cyan: #2DD4BF;
+  --accent-green: #34D399;
+  --accent-yellow: #F59E0B;
+  --accent-red: #E11D48;
+  --accent-orange: #C4472D;
 
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: 'JetBrains Mono', 'Fira Code', Menlo, Consolas, monospace;
+  --font-sans: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'IBM Plex Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
 }
 
 * {
@@ -96,19 +96,25 @@ textarea {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 4px 10px;
+  padding: 4px 11px;
   background-color: var(--bg-panel);
   color: var(--text-primary);
   border: 1px solid var(--border-subtle);
-  border-radius: 4px;
+  border-radius: 8px;
   cursor: pointer;
   font-weight: 500;
-  transition: background-color 0.15s, border-color 0.15s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.08s ease, box-shadow 0.15s ease;
 }
 
 .rf-btn:hover:not(:disabled) {
   background-color: var(--bg-panel-hover);
   border-color: var(--border-strong);
+  color: #FFFFFF;
+}
+
+.rf-btn:active:not(:disabled) {
+  transform: translateY(1px);
 }
 
 .rf-btn:disabled {
@@ -117,144 +123,154 @@ textarea {
 }
 
 .rf-btn-primary {
-  background-color: var(--accent-blue);
-  border-color: var(--accent-blue);
+  background-color: #C4472D;
+  border-color: #C4472D;
   color: #ffffff;
+  border-radius: 100px;
+  box-shadow: 0 4px 14px rgba(196, 71, 45, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 
 .rf-btn-primary:hover:not(:disabled) {
-  background-color: var(--accent-blue-hover);
-  border-color: var(--accent-blue-hover);
+  background-color: #D35237;
+  border-color: #D35237;
+  box-shadow: 0 6px 20px rgba(196, 71, 45, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 .rf-btn-danger {
-  background-color: rgba(239, 68, 68, 0.15);
-  border-color: rgba(239, 68, 68, 0.3);
-  color: var(--accent-red);
+  background-color: rgba(225, 29, 72, 0.15);
+  border-color: rgba(225, 29, 72, 0.3);
+  color: #FB7185;
 }
 
 .rf-btn-danger:hover:not(:disabled) {
-  background-color: rgba(239, 68, 68, 0.25);
-  border-color: var(--accent-red);
+  background-color: rgba(225, 29, 72, 0.25);
+  border-color: #E11D48;
 }
 
 .rf-btn-icon {
   padding: 5px;
   width: 26px;
   height: 26px;
+  border-radius: 6px;
 }
 
 .rf-input {
   background-color: var(--bg-input);
   border: 1px solid var(--border-subtle);
   color: var(--text-primary);
-  border-radius: 4px;
-  padding: 4px 8px;
+  border-radius: 7px;
+  padding: 5px 9px;
   outline: none;
-  transition: border-color 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
 .rf-input:focus {
-  border-color: var(--accent-blue);
+  border-color: var(--border-highlight);
+  box-shadow: 0 0 0 2px rgba(196, 71, 45, 0.2);
 }
 
 .rf-select {
   background-color: var(--bg-input);
   border: 1px solid var(--border-subtle);
   color: var(--text-primary);
-  border-radius: 4px;
-  padding: 4px 8px;
+  border-radius: 7px;
+  padding: 5px 9px;
   outline: none;
   cursor: pointer;
+  transition: border-color 0.15s;
 }
 
 .rf-select:focus {
-  border-color: var(--accent-blue);
+  border-color: var(--border-highlight);
 }
 
 .rf-badge {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 2px 7px;
-  border-radius: 4px;
+  padding: 2px 8px;
+  border-radius: 100px;
   font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.6px;
+  font-family: var(--font-mono);
 }
 
 .rf-badge-running {
-  background: rgba(16, 185, 129, 0.15);
-  color: var(--accent-green);
-  border: 1px solid rgba(16, 185, 129, 0.35);
+  background: rgba(52, 211, 153, 0.12);
+  color: #34D399;
+  border: 1px solid rgba(52, 211, 153, 0.3);
 }
 
 .rf-badge-paused {
-  background: rgba(245, 158, 11, 0.15);
-  color: var(--accent-yellow);
-  border: 1px solid rgba(245, 158, 11, 0.35);
+  background: rgba(245, 158, 11, 0.12);
+  color: #FBBF24;
+  border: 1px solid rgba(245, 158, 11, 0.3);
 }
 
 .rf-badge-stopped {
-  background: rgba(100, 116, 139, 0.15);
+  background: rgba(158, 156, 150, 0.1);
   color: var(--text-secondary);
   border: 1px solid var(--border-subtle);
 }
 
 .rf-badge-error {
-  background: rgba(239, 68, 68, 0.15);
-  color: var(--accent-red);
-  border: 1px solid rgba(239, 68, 68, 0.35);
+  background: rgba(225, 29, 72, 0.15);
+  color: #FB7185;
+  border: 1px solid rgba(225, 29, 72, 0.35);
 }
 
 /* Glassmorphic CAD HUD Overlay */
 .rf-glass-hud {
-  background: rgba(15, 18, 25, 0.82);
-  backdrop-filter: blur(14px) saturate(160%);
-  -webkit-backdrop-filter: blur(14px) saturate(160%);
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
-  border-radius: 8px;
+  background: rgba(23, 25, 28, 0.86);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.45);
+  border-radius: 100px;
 }
 
-/* Precision Segmented Control (Apple / Linear style) */
+/* Precision Segmented Control (Apple / Linear / Teenage Engineering style) */
 .rf-segmented {
   display: inline-flex;
   align-items: center;
-  background: rgba(10, 12, 17, 0.75);
+  background: rgba(23, 25, 28, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 7px;
-  padding: 2px;
+  border-radius: 100px;
+  padding: 3px;
   gap: 2px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
 }
 
 .rf-segmented-item {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 3px 9px;
+  padding: 4px 11px;
   font-size: 11px;
   font-weight: 500;
   color: var(--text-secondary);
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 5px;
+  border-radius: 100px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
   user-select: none;
 }
 
 .rf-segmented-item:hover {
   color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .rf-segmented-item.active {
-  color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.14);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+  color: #FFFFFF;
+  background: #C4472D;
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 2px 10px rgba(196, 71, 45, 0.45);
   font-weight: 600;
 }
 
@@ -268,14 +284,14 @@ textarea {
 }
 
 .rf-toolbar {
-  height: 44px;
-  min-height: 44px;
+  height: 46px;
+  min-height: 46px;
   background-color: var(--bg-secondary);
   border-bottom: 1px solid var(--border-subtle);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 12px;
+  padding: 0 14px;
   gap: 12px;
   z-index: 10;
 }
@@ -283,7 +299,7 @@ textarea {
 .rf-workspace-bar {
   height: 34px;
   min-height: 34px;
-  background-color: #12151e;
+  background-color: #141619;
   border-bottom: 1px solid var(--border-subtle);
   display: flex;
   align-items: center;
@@ -296,34 +312,35 @@ textarea {
 .rf-workspace-nav-tabs {
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
 }
 
 .rf-workspace-tab {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 10px;
-  border-radius: 5px;
+  padding: 4px 11px;
+  border-radius: 100px;
   font-size: 11px;
   font-weight: 500;
   color: var(--text-secondary);
   background: transparent;
   border: 1px solid transparent;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.18s ease;
   user-select: none;
 }
 
 .rf-workspace-tab:hover {
   color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .rf-workspace-tab.active {
-  color: #38bdf8;
-  background: rgba(56, 189, 248, 0.12);
-  border-color: rgba(56, 189, 248, 0.35);
+  color: #FFFFFF;
+  background: #C4472D;
+  border-color: #C4472D;
+  box-shadow: 0 2px 10px rgba(196, 71, 45, 0.4);
   font-weight: 600;
 }
 
@@ -360,7 +377,7 @@ textarea {
   transform: translateY(-50%);
   width: 16px;
   height: 48px;
-  background: rgba(28, 32, 42, 0.95);
+  background: rgba(23, 25, 28, 0.95);
   border: 1px solid var(--border-subtle);
   color: var(--text-secondary);
   display: flex;
@@ -369,15 +386,15 @@ textarea {
   cursor: pointer;
   z-index: 20;
   font-size: 9px;
-  border-radius: 4px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  border-radius: 6px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
   transition: background 0.15s, color 0.15s, transform 0.15s;
 }
 
 .rf-sidebar-toggle-btn:hover {
-  background: var(--accent-blue);
+  background: #C4472D;
   color: #fff;
-  border-color: var(--accent-blue);
+  border-color: #C4472D;
 }
 
 .rf-sidebar-toggle-left {
@@ -406,7 +423,7 @@ textarea {
 .rf-viewport-wrapper {
   flex: 1;
   position: relative;
-  background-color: #0f1013;
+  background-color: #121316;
   overflow: hidden;
 }
 
@@ -431,35 +448,43 @@ textarea {
 }
 
 .rf-panel-header {
-  height: 34px;
-  min-height: 34px;
-  padding: 0 12px;
-  background-color: var(--bg-panel);
+  height: 38px;
+  min-height: 38px;
+  padding: 0 14px;
+  background-color: var(--bg-secondary);
   border-bottom: 1px solid var(--border-subtle);
   display: flex;
   align-items: center;
   justify-content: space-between;
   font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.3px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--text-primary);
 }
 
 .rf-panel-body {
-  padding: 10px;
+  padding: 12px;
   overflow-y: auto;
   flex: 1;
 }
 
 .rf-prop-group {
-  margin-bottom: 14px;
+  margin-bottom: 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 10px;
+  padding: 10px 12px;
 }
 
 .rf-prop-title {
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: var(--font-mono);
   color: var(--text-secondary);
-  letter-spacing: 0.3px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   margin-bottom: 8px;
 }
 
@@ -599,21 +624,21 @@ textarea {
   transform: translateY(1px);
 }
 .rf-btn-primary {
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 14px rgba(196, 71, 45, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 .rf-btn-primary:hover:not(:disabled) {
-  box-shadow: 0 2px 10px rgba(59, 130, 246, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  box-shadow: 0 6px 20px rgba(196, 71, 45, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 /* Panel headers read as crisper section dividers */
 .rf-panel-header {
-  letter-spacing: 0.02em;
+  letter-spacing: 0.06em;
 }
 
 /* Thinner, rounder scrollbars that fade in */
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 4px; border: 2px solid transparent; background-clip: padding-box; }
-::-webkit-scrollbar-thumb:hover { background: var(--text-muted); background-clip: padding-box; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 4px; border: 1px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.22); background-clip: padding-box; }
 
 /* Soft entrance for overlays/toasts so UI feels alive */
 @keyframes rf-fade-in {
@@ -625,6 +650,6 @@ textarea {
 .rf-btn:focus-visible,
 .rf-input:focus-visible,
 .rf-select:focus-visible {
-  outline: 2px solid rgba(59, 130, 246, 0.6);
+  outline: 2px solid rgba(196, 71, 45, 0.6);
   outline-offset: 1px;
 }

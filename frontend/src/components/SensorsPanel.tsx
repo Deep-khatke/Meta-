@@ -105,14 +105,14 @@ export const SensorsPanel: React.FC<SensorsPanelProps> = ({ simState, onShowToas
           {bodies.length === 0 && <option value="robot">robot</option>}
           {bodies.map((b) => <option key={b} value={b}>{b}</option>)}
         </select>
-        <button className="rf-btn rf-btn-primary" style={{ fontSize: 10, padding: '3px 8px', gap: 3 }} onClick={handleAdd} disabled={loading}>
+        <button className="rf-btn rf-btn-primary" style={{ fontSize: 10, padding: '3px 10px', gap: 3, borderRadius: 100 }} onClick={handleAdd} disabled={loading}>
           <Plus size={11} /><span>Add</span>
         </button>
       </div>
 
       {sensors.length === 0 && (
         <div style={{ padding: '14px 10px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 11,
-          border: '1px dashed var(--border-subtle)', borderRadius: 6, lineHeight: 1.5 }}>
+          border: '1px dashed rgba(255, 255, 255, 0.1)', borderRadius: 10, background: 'rgba(255, 255, 255, 0.02)', lineHeight: 1.5 }}>
           No sensors attached. Pick a type and a body above and click <strong>Add</strong>,
           or ask the assistant to <em>"attach an IMU to the drone"</em>.
         </div>

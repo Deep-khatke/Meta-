@@ -110,18 +110,18 @@ export const MissionPlanner: React.FC<Props> = ({
 
   return (
     <div style={{
-      position: 'absolute', top: 56, right: 12, width: 300, maxHeight: 'calc(100% - 70px)', overflowY: 'auto',
-      zIndex: 30, background: 'rgba(12,14,20,0.95)', border: '1px solid rgba(59,130,246,0.5)', borderRadius: 12,
-      padding: 14, boxShadow: '0 10px 30px rgba(0,0,0,0.5)', color: '#e2e8f0', fontSize: 12,
+      position: 'absolute', top: 56, right: 14, width: 320, maxHeight: 'calc(100% - 70px)', overflowY: 'auto',
+      zIndex: 30, background: 'rgba(23, 25, 28, 0.95)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: 14,
+      padding: 16, boxShadow: '0 12px 40px rgba(0, 0, 0, 0.6)', color: '#F1EEE7', fontSize: 12,
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-        <span style={{ fontWeight: 800, fontSize: 13.5, display: 'flex', alignItems: 'center', gap: 6 }}>
-          <Crosshair size={15} color="#60a5fa" /> Mission Planner
-          <span style={{ fontSize: 9.5, fontWeight: 700, padding: '1px 6px', borderRadius: 4, background: isDrone ? 'rgba(56,189,248,0.2)' : 'rgba(34,197,94,0.2)', color: isDrone ? '#38bdf8' : '#22c55e' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <span style={{ fontWeight: 800, fontSize: 13.5, display: 'flex', alignItems: 'center', gap: 7 }}>
+          <Crosshair size={15} color="#C4472D" /> <span style={{ color: '#F1EEE7' }}>Mission Planner</span>
+          <span style={{ fontSize: 9.5, fontWeight: 700, padding: '2px 7px', borderRadius: 100, background: isDrone ? 'rgba(196, 71, 45, 0.15)' : 'rgba(52, 211, 153, 0.15)', color: isDrone ? '#C4472D' : '#34D399', fontFamily: 'var(--font-mono)' }}>
             {isDrone ? 'DRONE' : 'ROVER'}
           </span>
         </span>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }} aria-label="Close mission planner"><X size={16} /></button>
+        <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#9E9C96', cursor: 'pointer' }} aria-label="Close mission planner"><X size={16} /></button>
       </div>
 
       {/* 1. Place */}
@@ -220,10 +220,10 @@ export const MissionPlanner: React.FC<Props> = ({
       <div style={section}>
         <span style={label}>5 · RUN</span>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-          <button disabled={!!busy || training} style={{ ...btn(true, '#3b82f6'), opacity: busy || training ? 0.5 : 1 }} onClick={() => run('run')}><Play size={13} />Run Path</button>
-          <button disabled={!!busy || training} style={{ ...btn(true, '#a855f7'), opacity: busy || training ? 0.5 : 1 }} onClick={() => run('train')}><Brain size={13} />Train &amp; Run</button>
+          <button disabled={!!busy || training} style={{ ...btn(true, '#C4472D'), opacity: busy || training ? 0.5 : 1, borderRadius: 100 }} onClick={() => run('run')}><Play size={13} />Run Path</button>
+          <button disabled={!!busy || training} style={{ ...btn(true, '#A855F7'), opacity: busy || training ? 0.5 : 1, borderRadius: 100 }} onClick={() => run('train')}><Brain size={13} />Train &amp; Run</button>
         </div>
-        <button style={{ ...btn(true, '#ef4444'), width: '100%', marginTop: 6 }} onClick={() => stopMission().then(() => onShowToast('Stopped.'))}><Square size={12} />Stop</button>
+        <button style={{ ...btn(true, '#E11D48'), width: '100%', marginTop: 6, borderRadius: 100 }} onClick={() => stopMission().then(() => onShowToast('Stopped.'))}><Square size={12} />Stop</button>
         <div style={{ marginTop: 8, fontSize: 10.5, color: '#94a3b8', lineHeight: 1.4 }}>
           <b>Run Path</b> drives it now. <b>Train &amp; Run</b> trains a PPO policy live (saved to the PPO tab), then follows your path.
         </div>

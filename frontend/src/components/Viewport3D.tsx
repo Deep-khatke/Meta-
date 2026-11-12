@@ -2253,21 +2253,26 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
         className="rf-glass-hud"
         style={{
           position: 'absolute',
-          top: 10,
+          top: 12,
           left: '50%',
           transform: 'translateX(-50%)',
           display: 'flex',
           alignItems: 'center',
-          gap: 4,
-          padding: '3px 6px',
+          gap: 6,
+          padding: '4px 8px',
+          borderRadius: 100,
+          background: 'rgba(23, 25, 28, 0.88)',
+          backdropFilter: 'blur(20px)',
+          border: '1px solid rgba(255, 255, 255, 0.08)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.45)',
           zIndex: 10,
         }}
       >
         {/* Camera Views Preset */}
-        <div className="rf-segmented" style={{ padding: 1, gap: 1 }}>
+        <div className="rf-segmented" style={{ padding: 2, gap: 1 }}>
           <button
             className="rf-segmented-item"
-            style={{ padding: '2px 7px', fontSize: 10.5 }}
+            style={{ padding: '3px 8px', fontSize: 10.5 }}
             onClick={() => setCameraPreset('top')}
             title="Top-Down Camera (Z axis)"
           >
@@ -2275,7 +2280,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
           </button>
           <button
             className="rf-segmented-item"
-            style={{ padding: '2px 7px', fontSize: 10.5 }}
+            style={{ padding: '3px 8px', fontSize: 10.5 }}
             onClick={() => setCameraPreset('front')}
             title="Front Camera (X axis)"
           >
@@ -2283,7 +2288,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
           </button>
           <button
             className="rf-segmented-item"
-            style={{ padding: '2px 7px', fontSize: 10.5 }}
+            style={{ padding: '3px 8px', fontSize: 10.5 }}
             onClick={() => setCameraPreset('side')}
             title="Side Camera (Y axis)"
           >
@@ -2291,7 +2296,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
           </button>
           <button
             className="rf-segmented-item"
-            style={{ padding: '2px 7px', fontSize: 10.5 }}
+            style={{ padding: '3px 8px', fontSize: 10.5 }}
             onClick={() => setCameraPreset('iso')}
             title="3D Orbit Perspective"
           >
@@ -2299,15 +2304,18 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
           </button>
         </div>
 
-        <div style={{ height: 14, width: 1, backgroundColor: 'rgba(255, 255, 255, 0.12)', margin: '0 2px' }} />
+        <div style={{ height: 14, width: 1, backgroundColor: 'rgba(255, 255, 255, 0.08)', margin: '0 2px' }} />
 
         {/* Camera Follow Toggle */}
         <button
           className={`rf-segmented-item ${followRobot ? 'active' : ''}`}
           style={{
-            padding: '2px 8px',
+            padding: '3px 9px',
             fontSize: 10.5,
-            color: followRobot ? '#38bdf8' : 'var(--text-secondary)',
+            borderRadius: 100,
+            color: followRobot ? '#FFFFFF' : 'var(--text-secondary)',
+            backgroundColor: followRobot ? '#C4472D' : 'transparent',
+            boxShadow: followRobot ? '0 2px 10px rgba(196, 71, 45, 0.4)' : 'none',
           }}
           title="Keep Camera Locked onto Robot (Toggle Follow)"
           onClick={(e) => {
@@ -2315,14 +2323,14 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
             setFollowRobot(!followRobot);
           }}
         >
-          <Crosshair size={12} color={followRobot ? '#38bdf8' : 'currentColor'} />
+          <Crosshair size={12} color={followRobot ? '#FFFFFF' : 'currentColor'} />
           <span>Follow: {followRobot ? 'ON' : 'OFF'}</span>
         </button>
 
         {/* Focus on Robot */}
         <button
           className="rf-segmented-item"
-          style={{ padding: '3px 6px' }}
+          style={{ padding: '3px 7px', borderRadius: 100 }}
           title="Focus Camera on Robot"
           onClick={(e) => {
             e.stopPropagation();
@@ -2332,16 +2340,19 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
           <Camera size={12} />
         </button>
 
-        <div style={{ height: 14, width: 1, backgroundColor: 'rgba(255, 255, 255, 0.12)', margin: '0 2px' }} />
+        <div style={{ height: 14, width: 1, backgroundColor: 'rgba(255, 255, 255, 0.08)', margin: '0 2px' }} />
 
         {/* 3D Trajectory Ribbon & Speed Heatmap */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <button
             className={`rf-segmented-item ${showTrajectoryTrail ? 'active' : ''}`}
             style={{
-              padding: '2px 7px',
+              padding: '3px 8px',
               fontSize: 10.5,
-              color: showTrajectoryTrail ? '#38bdf8' : 'var(--text-secondary)',
+              borderRadius: 100,
+              color: showTrajectoryTrail ? '#FFFFFF' : 'var(--text-secondary)',
+              backgroundColor: showTrajectoryTrail ? '#C4472D' : 'transparent',
+              boxShadow: showTrajectoryTrail ? '0 2px 10px rgba(196, 71, 45, 0.4)' : 'none',
             }}
             onClick={(e) => {
               e.stopPropagation();
@@ -2349,12 +2360,12 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
             }}
             title="Toggle Dynamic 3D Trajectory Ribbon & Speed Heatmap"
           >
-            <Route size={12} color={showTrajectoryTrail ? '#38bdf8' : 'currentColor'} />
+            <Route size={12} color={showTrajectoryTrail ? '#FFFFFF' : 'currentColor'} />
             <span>Trail</span>
           </button>
           <button
             className="rf-segmented-item"
-            style={{ padding: '3px 5px', opacity: 0.7 }}
+            style={{ padding: '3px 6px', opacity: 0.65, borderRadius: 100 }}
             onClick={(e) => {
               e.stopPropagation();
               trailHistoryRef.current = [];
@@ -2373,12 +2384,17 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
         className="rf-glass-hud"
         style={{
           position: 'absolute',
-          top: 10,
-          right: 12,
+          top: 12,
+          right: 14,
           display: 'flex',
           alignItems: 'center',
           gap: 6,
-          padding: '3px 8px',
+          padding: '4px 10px',
+          borderRadius: 100,
+          background: 'rgba(23, 25, 28, 0.88)',
+          backdropFilter: 'blur(20px)',
+          border: '1px solid rgba(255, 255, 255, 0.08)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.45)',
           zIndex: 10,
         }}
       >
@@ -2387,11 +2403,12 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
           className="rf-segmented-item"
           style={{
             fontSize: 11,
-            fontWeight: 500,
-            padding: '3px 8px',
-            color: autoDriveEnabled ? '#10b981' : 'var(--text-secondary)',
-            background: autoDriveEnabled ? 'rgba(16, 185, 129, 0.12)' : 'transparent',
-            borderColor: autoDriveEnabled ? 'rgba(16, 185, 129, 0.35)' : 'transparent',
+            fontWeight: 600,
+            padding: '3px 10px',
+            borderRadius: 100,
+            color: autoDriveEnabled ? '#34D399' : 'var(--text-secondary)',
+            background: autoDriveEnabled ? 'rgba(52, 211, 153, 0.12)' : 'transparent',
+            borderColor: autoDriveEnabled ? 'rgba(52, 211, 153, 0.3)' : 'transparent',
           }}
           title="Toggle Autonomous Waypoint Navigation (Robot navigates to target)"
           onClick={(e) => {
@@ -2404,15 +2421,15 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
               width: 6,
               height: 6,
               borderRadius: '50%',
-              backgroundColor: autoDriveEnabled ? '#10b981' : 'var(--text-muted)',
-              boxShadow: autoDriveEnabled ? '0 0 8px rgba(16, 185, 129, 0.6)' : 'none',
+              backgroundColor: autoDriveEnabled ? '#34D399' : 'var(--text-muted)',
+              boxShadow: autoDriveEnabled ? '0 0 8px rgba(52, 211, 153, 0.6)' : 'none',
             }}
           />
-          <Zap size={12} color={autoDriveEnabled ? '#10b981' : 'currentColor'} />
+          <Zap size={12} color={autoDriveEnabled ? '#34D399' : 'currentColor'} />
           <span>Auto-Drive</span>
         </button>
 
-        <div style={{ height: 14, width: 1, backgroundColor: 'rgba(255, 255, 255, 0.12)' }} />
+        <div style={{ height: 14, width: 1, backgroundColor: 'rgba(255, 255, 255, 0.08)' }} />
 
         {/* Active RL Policy Live Badge */}
         {simState?.rl_policy_active && (
@@ -2422,16 +2439,16 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
               alignItems: 'center',
               gap: 5,
               fontSize: 10.5,
-              padding: '2px 7px',
-              borderRadius: 5,
-              background: 'rgba(56, 189, 248, 0.12)',
-              border: '1px solid rgba(56, 189, 248, 0.3)',
-              color: '#38bdf8',
+              padding: '2px 8px',
+              borderRadius: 100,
+              background: 'rgba(196, 71, 45, 0.15)',
+              border: '1px solid rgba(196, 71, 45, 0.35)',
+              color: '#F1EEE7',
               fontWeight: 600,
             }}
             title={`Active Neural Network Policy: ${simState.active_rl_policy_name || 'Policy Active'}`}
           >
-            <Cpu size={12} color="#38bdf8" />
+            <Cpu size={12} color="#C4472D" />
             <span>{simState.active_rl_policy_name || 'Policy Active'}</span>
             <button
               onClick={handleStopRl}
@@ -2773,27 +2790,27 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
       <div
         style={{
           position: 'absolute',
-          top: 12,
-          left: 12,
-          backgroundColor: 'rgba(20, 22, 28, 0.88)',
-          backdropFilter: 'blur(6px)',
-          border: '1px solid var(--border-subtle)',
-          borderRadius: 8,
-          padding: '8px 14px',
+          top: 14,
+          left: 14,
+          backgroundColor: 'rgba(23, 25, 28, 0.88)',
+          backdropFilter: 'blur(16px)',
+          border: '1px solid rgba(255, 255, 255, 0.08)',
+          borderRadius: 12,
+          padding: '10px 16px',
           display: 'flex',
           flexDirection: 'column',
           gap: 6,
           pointerEvents: 'none',
           fontSize: 11,
           fontFamily: 'var(--font-mono)',
-          boxShadow: '0 4px 16px rgba(0,0,0,0.4)'
+          boxShadow: '0 8px 24px rgba(0, 0, 0, 0.45)'
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-secondary)' }}>
-          <Compass size={13} color="var(--accent-blue)" />
-          <span style={{ fontWeight: 600 }}>ROBOT TELEMETRY</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 7, color: 'var(--text-secondary)' }}>
+          <Compass size={12} color="#C4472D" />
+          <span style={{ fontWeight: 700, letterSpacing: '0.08em', fontSize: 10, color: '#F1EEE7' }}>ROBOT TELEMETRY</span>
         </div>
-        <div style={{ display: 'flex', gap: 14, color: 'var(--text-primary)' }}>
+        <div style={{ display: 'flex', gap: 14, color: '#F1EEE7' }}>
           <span>X: {rPose?.position ? rPose.position[0].toFixed(3) : '0.000'}m</span>
           <span>Y: {rPose?.position ? rPose.position[1].toFixed(3) : '0.000'}m</span>
           <span>Z: {rPose?.position ? rPose.position[2].toFixed(3) : '0.000'}m</span>
@@ -2803,7 +2820,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
           <span>Turn: {rPose?.angular_speed !== undefined ? rPose.angular_speed.toFixed(2) : '0.00'} rad/s</span>
         </div>
         {simState.contacts && simState.contacts.length > 0 && (
-          <div style={{ color: '#ef4444', fontWeight: 600 }}>
+          <div style={{ color: '#FB7185', fontWeight: 600 }}>
             Contacts: {simState.contacts.length}
           </div>
         )}
@@ -2815,15 +2832,15 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
         <div
           style={{
             position: 'absolute',
-            bottom: 14,
-            right: 14,
+            bottom: 16,
+            right: 16,
             width: 260,
-            backgroundColor: 'rgba(15, 17, 23, 0.92)',
-            backdropFilter: 'blur(8px)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: 8,
+            backgroundColor: 'rgba(23, 25, 28, 0.92)',
+            backdropFilter: 'blur(16px)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            borderRadius: 12,
             overflow: 'hidden',
-            boxShadow: '0 8px 24px rgba(0,0,0,0.6)',
+            boxShadow: '0 10px 30px rgba(0, 0, 0, 0.55)',
             zIndex: 6,
             display: 'flex',
             flexDirection: 'column'
@@ -2834,19 +2851,20 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            padding: '5px 10px',
-            backgroundColor: 'rgba(26, 30, 40, 0.95)',
-            borderBottom: '1px solid var(--border-subtle)',
+            padding: '6px 12px',
+            backgroundColor: 'rgba(30, 33, 38, 0.95)',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
             fontSize: 10,
-            fontWeight: 600,
-            color: 'var(--text-secondary)'
+            fontWeight: 700,
+            fontFamily: 'var(--font-mono)',
+            color: '#F1EEE7'
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#38bdf8' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#C4472D' }}>
               <Video size={12} />
               <span>ROBOT EYE (RGB CAMERA)</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontSize: 9, padding: '1px 4px', backgroundColor: 'rgba(56, 189, 248, 0.2)', color: '#38bdf8', borderRadius: 3 }}>
+              <span style={{ fontSize: 9, padding: '1px 5px', backgroundColor: 'rgba(196, 71, 45, 0.15)', color: '#F1EEE7', borderRadius: 100 }}>
                 FOV {project.sensors?.camera?.fov_deg || 65}°
               </span>
               <button

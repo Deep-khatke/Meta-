@@ -742,8 +742,8 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   return (
     <aside className="rf-right-sidebar">
       <div className="rf-panel-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <Sliders size={13} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+          <Sliders size={13} color="#C4472D" />
           <span>Simulation & Sensor Studio</span>
         </div>
       </div>
@@ -923,7 +923,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
         <div className="rf-prop-group">
           <div className="rf-prop-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-              <Video size={13} color="#38bdf8" />
+              <Video size={13} color="#C4472D" />
               <span>Vision Camera (RGB Sensor)</span>
             </div>
             <label style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>

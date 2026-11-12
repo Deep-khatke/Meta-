@@ -68,18 +68,18 @@ export const ScenePanel: React.FC<ScenePanelProps> = ({
     <aside className="rf-left-sidebar">
       {/* Panel Header */}
       <div className="rf-panel-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <Layers size={13} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+          <Layers size={13} color="#C4472D" />
           <span>Scene Hierarchy</span>
         </div>
         {onOpenURDFModal && (
           <button
             className="rf-btn"
-            style={{ fontSize: 10, padding: '2px 6px', gap: 4 }}
+            style={{ fontSize: 10, padding: '2px 8px', gap: 4, borderRadius: 100 }}
             onClick={onOpenURDFModal}
             title="Import Robot from URDF XML"
           >
-            <Upload size={11} color="var(--accent-blue)" />
+            <Upload size={11} color="#C4472D" />
             <span>URDF</span>
           </button>
         )}
@@ -88,25 +88,25 @@ export const ScenePanel: React.FC<ScenePanelProps> = ({
       {/* Add Object Action Strip */}
       <div
         style={{
-          padding: '8px 10px',
+          padding: '10px 12px',
           borderBottom: '1px solid var(--border-subtle)',
-          backgroundColor: 'var(--bg-panel)',
+          backgroundColor: 'rgba(255, 255, 255, 0.02)',
           display: 'flex',
           flexDirection: 'column',
-          gap: 6,
+          gap: 7,
         }}
       >
-        <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', letterSpacing: '0.4px' }}>
+        <span style={{ fontSize: 9.5, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
           Primitive Obstacles
         </span>
-        <div className="rf-segmented" style={{ width: '100%', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 2, padding: 2 }}>
+        <div className="rf-segmented" style={{ width: '100%', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 3, padding: 3 }}>
           <button
             className="rf-segmented-item"
             style={{ fontSize: 10.5, padding: '4px 6px', justifyContent: 'center' }}
             onClick={() => onAddObstacle('box')}
             title="Add Box Obstacle"
           >
-            <Box size={12} color="var(--text-secondary)" />
+            <Box size={12} color="#C4472D" />
             <span>Box</span>
           </button>
           <button
@@ -115,7 +115,7 @@ export const ScenePanel: React.FC<ScenePanelProps> = ({
             onClick={() => onAddObstacle('sphere')}
             title="Add Sphere Obstacle"
           >
-            <Circle size={12} color="var(--text-secondary)" />
+            <Circle size={12} color="#FBBF24" />
             <span>Sphere</span>
           </button>
           <button
@@ -124,7 +124,7 @@ export const ScenePanel: React.FC<ScenePanelProps> = ({
             onClick={() => onAddObstacle('cylinder')}
             title="Add Cylinder Obstacle"
           >
-            <Cylinder size={12} color="var(--text-secondary)" />
+            <Cylinder size={12} color="#34D399" />
             <span>Cylinder</span>
           </button>
         </div>
@@ -231,40 +231,51 @@ export const ScenePanel: React.FC<ScenePanelProps> = ({
         {/* Empty Scene Robot Notice: no mobile robot and no generic/URDF robot at all */}
         {!project.robot && !project.generic_robot && (
           <div style={{
-            padding: '16px 12px',
+            padding: '20px 14px',
             margin: '8px 0 14px 0',
-            borderRadius: 7,
+            borderRadius: 12,
             background: 'rgba(255, 255, 255, 0.02)',
-            border: '1px solid var(--border-subtle)',
+            border: '1px dashed rgba(255, 255, 255, 0.1)',
             textAlign: 'center',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: 6,
+            gap: 8,
           }}>
             <div style={{
-              width: 30,
-              height: 30,
-              borderRadius: 6,
-              background: 'rgba(255, 255, 255, 0.04)',
+              width: 34,
+              height: 34,
+              borderRadius: '50%',
+              background: 'rgba(196, 71, 45, 0.12)',
+              border: '1px solid rgba(196, 71, 45, 0.25)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: 'var(--text-muted)'
+              color: '#C4472D'
             }}>
-              <Bot size={15} />
+              <Bot size={16} />
             </div>
-            <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-secondary)' }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: '#F1EEE7' }}>
               No Active Robot
             </div>
-            <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
               Import a URDF or spawn a mobile rover
             </div>
             {onRestoreRobot && (
               <button
                 onClick={() => onRestoreRobot()}
                 className="rf-btn"
-                style={{ fontSize: 10.5, padding: '3px 9px', marginTop: 4, color: '#38bdf8', borderColor: 'rgba(56, 189, 248, 0.3)' }}
+                style={{
+                  fontSize: 11,
+                  fontWeight: 600,
+                  padding: '4px 12px',
+                  marginTop: 4,
+                  borderRadius: 100,
+                  color: '#FFFFFF',
+                  backgroundColor: '#C4472D',
+                  borderColor: '#C4472D',
+                  boxShadow: '0 2px 10px rgba(196, 71, 45, 0.4)'
+                }}
               >
                 + Spawn AMR Rover
               </button>
@@ -495,26 +506,27 @@ export const ScenePanel: React.FC<ScenePanelProps> = ({
       {/* Scene Footer Stats */}
       <div
         style={{
-          padding: '8px 10px',
+          padding: '10px 14px',
           borderTop: '1px solid var(--border-subtle)',
-          backgroundColor: 'var(--bg-panel)',
-          fontSize: 11,
+          backgroundColor: 'rgba(255, 255, 255, 0.02)',
+          fontSize: 10.5,
+          fontFamily: 'var(--font-mono)',
           color: 'var(--text-muted)',
           display: 'flex',
           flexDirection: 'column',
-          gap: 3,
+          gap: 4,
         }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <span>Active Contacts:</span>
-          <span style={{ color: simState.contacts.length > 0 ? 'var(--accent-orange)' : 'var(--text-secondary)', fontWeight: 600 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span>ACTIVE CONTACTS:</span>
+          <span style={{ color: simState.contacts.length > 0 ? '#FB7185' : '#F1EEE7', fontWeight: 600 }}>
             {simState.contacts.length}
           </span>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <span>Containment:</span>
-          <span style={{ color: project.settings.enable_boundaries ? 'var(--accent-green)' : 'var(--text-muted)' }}>
-            {project.settings.enable_boundaries ? 'Boundaries ON' : 'Free Floor'}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span>CONTAINMENT:</span>
+          <span style={{ color: project.settings.enable_boundaries ? '#34D399' : 'var(--text-muted)', fontWeight: 600 }}>
+            {project.settings.enable_boundaries ? 'BOUNDARIES ON' : 'FREE FLOOR'}
           </span>
         </div>
       </div>
