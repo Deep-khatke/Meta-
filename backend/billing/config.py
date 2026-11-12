@@ -6,6 +6,9 @@ Defines plan specifications, operation credit pricing, and environment settings.
 from __future__ import annotations
 import os
 from typing import Dict, Any
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Environment & PayPal Credentials
 PAYPAL_ENV: str = os.getenv("PAYPAL_ENV", "sandbox").strip().lower()
@@ -76,7 +79,7 @@ PLANS_CONFIG: Dict[str, Dict[str, Any]] = {
     "pro_max": {
         "slug": "pro_max",
         "name": "RoboForge Pro Max",
-        "description": "Enterprise robotics suite: 5,000 credits/mo for large-scale Isaac Lab curricula, swarm orchestration, and advanced AI reasoning.",
+        "description": "Enterprise robotics suite: 5,000 credits/mo for large-scale curricula, swarm orchestration, and AI reasoning.",
         "price_cents": 4000,
         "price_usd": 40.00,
         "currency": "USD",
@@ -111,3 +114,4 @@ OPERATION_PRICING: Dict[str, int] = {
     "synthetic_data_export": 5,        # Synthetic perception / COCO dataset rendering
     "experiment_multi_trial": 5,       # Multi-trial batch robotic experiment
 }
+

@@ -166,3 +166,4 @@ if __name__ == "__main__":
     logger.info("Subscriptions reconciliation: %s", json.dumps(res_subs, indent=2))
     res_wh = reprocess_failed_webhooks()
     logger.info("Webhooks reconciliation: %s", json.dumps(res_wh, indent=2))
+

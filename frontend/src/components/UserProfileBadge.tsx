@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { LogOut, ShieldCheck, Settings, User } from 'lucide-react';
+import { LogOut, ShieldCheck, Settings, User, CreditCard } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 
 interface UserProfileBadgeProps {
@@ -202,6 +202,33 @@ export const UserProfileBadge: React.FC<UserProfileBadgeProps> = ({ variant = 'd
               <span>{user.provider === 'google' ? 'Google Account' : 'RoboForge Member'}</span>
             </div>
           </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              setDropdownOpen(false);
+              navigate('/billing');
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              padding: '9px 12px',
+              background: 'transparent',
+              border: 'none',
+              borderRadius: 6,
+              color: '#F1EEE7',
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: 'pointer',
+              textAlign: 'left',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.06)')}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+          >
+            <CreditCard size={14} color="#C4472D" />
+            <span>Billing & Credits</span>
+          </button>
 
           <button
             type="button"

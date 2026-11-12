@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
 import { SignupPage } from './pages/SignupPage';
+import { BillingPage } from './pages/BillingPage';
 
 // Lazy-load the heavy studio so the landing page is fast
 const StudioPage = lazy(() => import('./pages/StudioPage').then(m => ({ default: m.StudioPage })));
@@ -14,6 +15,7 @@ export function AppRouter() {
       <Route path="/aurix" element={<Navigate to="/" replace />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
+      <Route path="/billing" element={<BillingPage />} />
       <Route
         path="/studio"
         element={

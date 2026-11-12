@@ -195,8 +195,8 @@ class PayPalService:
 
         payload = {
             "product_id": product_id,
-            "name": name,
-            "description": description,
+            "name": name[:127],
+            "description": description[:127],
             "status": "ACTIVE",
             "billing_cycles": [
                 {
@@ -401,3 +401,4 @@ class PayPalService:
 
 # Shared Singleton Instance
 paypal_service = PayPalService()
+

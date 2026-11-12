@@ -1,9 +1,10 @@
 import React, { useRef } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Play, Pause, RotateCcw, StepForward, Save, FolderOpen,
   FilePlus, RefreshCw, Cpu, Activity, Clock, BrainCircuit,
   Undo2, Redo2, Copy, Download, Upload, Video, Disc,
-  Box, Bot, Package, Radio, Compass, Layers, Plus, Sparkles, GitFork
+  Box, Bot, Package, Radio, Compass, Layers, Plus, Sparkles, GitFork, Zap
 } from 'lucide-react';
 import { Project, SimulationState, WorkspaceSection } from '../types';
 import { UserProfileBadge } from './UserProfileBadge';
@@ -410,6 +411,31 @@ export const Toolbar: React.FC<ToolbarProps> = ({
           <span style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: isConnected ? 'var(--accent-green)' : 'var(--accent-red)' }} />
           <span>{isConnected ? 'LIVE' : 'OFFLINE'}</span>
         </div>
+
+        {/* Billing & Credits quick pill */}
+        <Link
+          to="/billing"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 5,
+            padding: '4px 10px',
+            borderRadius: 100,
+            backgroundColor: 'rgba(196, 71, 45, 0.12)',
+            border: '1px solid rgba(196, 71, 45, 0.25)',
+            color: '#F1EEE7',
+            textDecoration: 'none',
+            fontSize: 11,
+            fontFamily: 'IBM Plex Mono, monospace',
+            fontWeight: 700,
+            letterSpacing: '0.04em',
+            transition: 'all 0.15s ease',
+          }}
+          title="Billing, Plans & Credit Ledger"
+        >
+          <Zap size={11} color="#C4472D" />
+          <span>Credits</span>
+        </Link>
 
         {/* User Profile Badge */}
         <div style={{ marginLeft: 2, display: 'flex', alignItems: 'center' }}>

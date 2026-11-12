@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import * as THREE from 'three';
 import { OrbitControls } from 'three-stdlib';
 import { AurixScrollShowcase } from '../components/AurixScrollShowcase';
@@ -2802,6 +2802,7 @@ function BubbleNavBar({
   onOpenDocs: () => void;
   onNavigateSection: (sectionId: string) => void;
 }) {
+  const navigate = useNavigate();
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   const [bubbleStyle, setBubbleStyle] = useState({ left: 0, width: 0, opacity: 0 });
   const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -2811,6 +2812,7 @@ function BubbleNavBar({
     { label: '3D Exploded', action: () => onNavigateSection('exploded') },
     { label: 'Robots', action: () => onNavigateSection('robots') },
     { label: 'Research', action: () => onNavigateSection('research') },
+    { label: 'Pricing', action: () => navigate('/billing') },
     { label: 'Documentation', action: onOpenDocs },
   ];
 
@@ -4119,6 +4121,7 @@ export function LandingPage() {
             <span onClick={() => handleNavigateSection('platform')} style={{ cursor: 'pointer' }}>Platform</span>
             <span onClick={() => handleNavigateSection('robots')} style={{ cursor: 'pointer' }}>Mechanisms</span>
             <span onClick={() => handleNavigateSection('research')} style={{ cursor: 'pointer' }}>Research</span>
+            <Link to="/billing" style={{ color: 'white', textDecoration: 'none' }}>Pricing</Link>
             <span onClick={() => setIsDocsOpen(true)} style={{ cursor: 'pointer' }}>Documentation</span>
             <Link to="/login" style={{ color: 'white', textDecoration: 'none' }}>Log in</Link>
           </div>
