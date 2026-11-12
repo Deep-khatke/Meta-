@@ -192,18 +192,33 @@ def create_subscription_endpoint(
     # Check for existing active or pending subscription
     existing_sub = bdb.get_active_subscription_for_user(user_id)
     if existing_sub:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"You already have an existing {existing_sub['status']} subscription ({existing_sub['plan_slug']}). Please cancel your current plan or wait until its billing period ends before subscribing to a new tier.",
-        )
+        if existing_sub["status"] == "active":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"You already have an active subscription ({existing_sub['plan_slug']}). Please cancel your current plan or wait until its billing period ends before subscribing to a new tier.",
+            )
+        elif existing_sub["status"] == "pending":
+            # If for the same plan and approval_url exists, reuse the existing pending checkout
+            if existing_sub["plan_slug"] == plan_slug and existing_sub.get("approval_url"):
+                logger.info("Reusing existing pending approval URL for user %s, sub %s", user_id, existing_sub["id"])
+                return {
+                    "status": "pending",
+                    "subscription_id": existing_sub["id"],
+                    "paypal_subscription_id": existing_sub["paypal_subscription_id"],
+                    "approval_url": existing_sub["approval_url"],
+                    "plan_slug": plan_slug,
+                }
+            else:
+                # Cancel superseded pending attempt so new one can be created
+                bdb.update_subscription(existing_sub["id"], status="cancelled")
 
     local_sub_id = f"sub_{uuid.uuid4().hex[:12]}"
     idempotency_key = f"idem_sub_{local_sub_id}"
 
     # Construct Return and Cancel URLs
     base_fe_url = FRONTEND_URL or APP_PUBLIC_URL
-    return_url = f"{base_fe_url}/billing/return?subscription_id={local_sub_id}"
-    cancel_url = f"{base_fe_url}/billing/cancel?subscription_id={local_sub_id}"
+    return_url = f"{base_fe_url}/billing?subscription_id={local_sub_id}"
+    cancel_url = f"{base_fe_url}/billing?cancelled=true&subscription_id={local_sub_id}"
 
     try:
         remote_res = paypal_service.create_subscription(

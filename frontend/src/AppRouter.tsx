@@ -16,6 +16,8 @@ export function AppRouter() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
       <Route path="/billing" element={<BillingPage />} />
+      <Route path="/billing/return" element={<BillingPage />} />
+      <Route path="/billing/cancel" element={<BillingPage />} />
       <Route
         path="/studio"
         element={

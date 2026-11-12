@@ -171,12 +171,12 @@ export const BillingPage: React.FC = () => {
 
     try {
       const res = await createBillingSubscription(planSlug);
-      if (res.approval_url) {
+      if (res && res.approval_url) {
         setNotification({
           type: 'info',
           message: 'Redirecting to PayPal Sandbox checkout approval...',
         });
-        window.location.href = res.approval_url;
+        window.location.assign(res.approval_url);
       } else {
         throw new Error('PayPal did not return an approval URL');
       }
@@ -821,11 +821,10 @@ export const BillingPage: React.FC = () => {
                         >
                           Default Free Allowance
                         </button>
-                      ) : (
+                      ) : !isAuthenticated ? (
                         <button
                           type="button"
-                          onClick={() => handleUpgrade(p.slug)}
-                          disabled={actionLoading === p.slug}
+                          onClick={() => navigate('/login?redirect=/billing')}
                           style={{
                             width: '100%',
                             padding: '12px',
@@ -835,7 +834,35 @@ export const BillingPage: React.FC = () => {
                             border: 'none',
                             fontSize: 14,
                             fontWeight: 700,
-                            cursor: actionLoading === p.slug ? 'wait' : 'pointer',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 8,
+                            boxShadow: '0 4px 14px rgba(196, 71, 45, 0.4)',
+                            transition: 'all 0.15s ease',
+                          }}
+                          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#d35237')}
+                          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#C4472D')}
+                        >
+                          <CreditCard size={16} />
+                          <span>Sign In to Subscribe</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleUpgrade(p.slug)}
+                          disabled={Boolean(actionLoading)}
+                          style={{
+                            width: '100%',
+                            padding: '12px',
+                            borderRadius: 10,
+                            backgroundColor: '#C4472D',
+                            color: '#FFFFFF',
+                            border: 'none',
+                            fontSize: 14,
+                            fontWeight: 700,
+                            cursor: actionLoading ? 'wait' : 'pointer',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
@@ -847,7 +874,10 @@ export const BillingPage: React.FC = () => {
                           onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#C4472D')}
                         >
                           {actionLoading === p.slug ? (
-                            <span>Initiating PayPal...</span>
+                            <>
+                              <RefreshCw size={16} className="animate-spin" />
+                              <span>Connecting to PayPal...</span>
+                            </>
                           ) : (
                             <>
                               <CreditCard size={16} />
