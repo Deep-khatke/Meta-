@@ -78,7 +78,14 @@ export async function fetchBillingPlans(): Promise<BillingPlan[]> {
   if (!res.ok) {
     throw new Error('Failed to load billing plans');
   }
-  return res.json();
+  const data = await res.json();
+  if (Array.isArray(data)) {
+    return data;
+  }
+  if (data && Array.isArray(data.plans)) {
+    return data.plans;
+  }
+  return [];
 }
 
 export async function fetchBillingMe(): Promise<BillingMeResponse> {
@@ -140,3 +147,4 @@ export async function fetchCreditLedger(limit = 20, offset = 0): Promise<CreditL
   const data = await res.json();
   return data.entries || [];
 }
+

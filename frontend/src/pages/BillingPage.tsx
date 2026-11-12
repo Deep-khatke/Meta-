@@ -29,12 +29,59 @@ import {
   Sparkles,
 } from 'lucide-react';
 
+const DEFAULT_PLANS: BillingPlan[] = [
+  {
+    slug: 'free',
+    name: 'RoboForge Free',
+    description: 'Baseline robotics simulation, URDF editing, and 50 free credits every UTC account month.',
+    price_cents: 0,
+    currency: 'USD',
+    credits_per_period: 50,
+    billing_interval: 'month',
+    interval_count: 1,
+    is_sandbox: true,
+  },
+  {
+    slug: 'pro',
+    name: 'RoboForge Pro',
+    description: 'Professional engineering compute: 1,000 credits/mo for live RL training, kinematics, and AI co-pilot.',
+    price_cents: 1000,
+    currency: 'USD',
+    credits_per_period: 1000,
+    billing_interval: 'month',
+    interval_count: 1,
+    is_sandbox: true,
+  },
+  {
+    slug: 'pro_plus',
+    name: 'RoboForge Pro+',
+    description: 'High-throughput robotics research: 2,000 credits/mo with accelerated multi-worker RL training.',
+    price_cents: 2000,
+    currency: 'USD',
+    credits_per_period: 2000,
+    billing_interval: 'month',
+    interval_count: 1,
+    is_sandbox: true,
+  },
+  {
+    slug: 'pro_max',
+    name: 'RoboForge Pro Max',
+    description: 'Enterprise robotics suite: 5,000 credits/mo for large-scale curricula and swarm orchestration.',
+    price_cents: 4000,
+    currency: 'USD',
+    credits_per_period: 5000,
+    billing_interval: 'month',
+    interval_count: 1,
+    is_sandbox: true,
+  },
+];
+
 export const BillingPage: React.FC = () => {
   const { isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const [plans, setPlans] = useState<BillingPlan[]>([]);
+  const [plans, setPlans] = useState<BillingPlan[]>(DEFAULT_PLANS);
   const [billingMe, setBillingMe] = useState<BillingMeResponse | null>(null);
   const [ledger, setLedger] = useState<CreditLedgerEntry[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -631,7 +678,7 @@ export const BillingPage: React.FC = () => {
               gap: 20,
               marginBottom: 48,
             }}>
-              {plans.map((p) => {
+              {(Array.isArray(plans) && plans.length > 0 ? plans : DEFAULT_PLANS).map((p) => {
                 const isCurrent = currentSlug === p.slug;
                 const isProPlus = p.slug === 'pro_plus';
                 const isFree = p.slug === 'free';
@@ -1065,3 +1112,6 @@ export const BillingPage: React.FC = () => {
     </div>
   );
 };
+
+export default BillingPage;
+
