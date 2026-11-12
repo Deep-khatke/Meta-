@@ -5,13 +5,15 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
 import { createRoverModel, RoverModel } from '../components/robots/roverModel';
 import { createDroneModel, DroneModel } from '../components/robots/droneModel';
 import { createPreviewArm } from '../components/robots/armModel';
+import { createHumanoidModel } from '../components/robots/humanoidModel';
+import { createDogModel } from '../components/robots/dogModel';
 
 /**
  * Robot design preview: a neutral studio for inspecting each robot model on its own.
  * Route: /robots?robot=rover|drone|arm&view=iso   (views: iso, front, side, top, back, detail)
  */
 type ViewName = 'iso' | 'front' | 'side' | 'top' | 'back' | 'detail';
-type RobotId = 'rover' | 'drone' | 'arm';
+type RobotId = 'rover' | 'drone' | 'arm' | 'humanoid' | 'dog';
 
 // Camera presets are authored for the rover (a 0.4 m robot) and scaled per robot.
 const VIEWS: Record<ViewName, { pos: [number, number, number]; target: [number, number, number] }> = {
@@ -28,12 +30,16 @@ const FOCUS: Record<RobotId, { k: number; tz: number }> = {
   rover: { k: 1, tz: 0.07 },
   drone: { k: 1.15, tz: 0.3 },
   arm: { k: 2.3, tz: 0.4 },
+  humanoid: { k: 3.1, tz: 0.65 },
+  dog: { k: 2.1, tz: 0.27 },
 };
 
 const ROBOTS: Array<{ id: RobotId; label: string }> = [
   { id: 'rover', label: 'Rover' },
   { id: 'drone', label: 'Drone' },
   { id: 'arm', label: 'Arm' },
+  { id: 'humanoid', label: 'Humanoid' },
+  { id: 'dog', label: 'Robot dog' },
 ];
 
 export const RobotPreview: React.FC = () => {
@@ -109,6 +115,14 @@ export const RobotPreview: React.FC = () => {
       drone = createDroneModel();
       drone.root.position.set(0, 0, 0.3); // hovering
       scene.add(drone.root);
+    } else if (robot === 'humanoid') {
+      const h = createHumanoidModel();
+      scene.add(h.root);
+      disposeArm = h.dispose;
+    } else if (robot === 'dog') {
+      const d = createDogModel();
+      scene.add(d.root);
+      disposeArm = d.dispose;
     } else {
       const arm = createPreviewArm();
       scene.add(arm.root);
