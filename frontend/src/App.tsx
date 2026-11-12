@@ -13,6 +13,7 @@ import {
 } from './services/api';
 import { Toolbar } from './components/Toolbar';
 import { ScenePanel } from './components/ScenePanel';
+import { LeftAIChatPanel } from './components/LeftAIChatPanel';
 import { Viewport3D } from './components/Viewport3D';
 import { MissionPlanner, PlacementMode } from './components/MissionPlanner';
 import { PropertiesPanel } from './components/PropertiesPanel';
@@ -196,6 +197,7 @@ export const AppContent: React.FC = () => {
 
   // Spacious Workspace: Collapsible Sidebars & Auto-Drive Mode
   const [leftSidebarOpen, setLeftSidebarOpen] = useState<boolean>(true);
+  const [leftSidebarTab, setLeftSidebarTab] = useState<'scene' | 'ai'>('scene');
   const [rightSidebarOpen, setRightSidebarOpen] = useState<boolean>(true);
   const [autoDriveEnabled, setAutoDriveEnabled] = useState<boolean>(false);
 
@@ -1070,12 +1072,25 @@ export const AppContent: React.FC = () => {
         onOpenRobotCreator={() => setShowRobotCreator(true)}
         onOpenEnvironmentCreator={() => setShowEnvironmentCreator(true)}
         onOpenRobotStudio={() => handleOpenRobotStudio()}
+        onOpenAIChat={() => {
+          setLeftSidebarTab('ai');
+          setLeftSidebarOpen(true);
+        }}
       />
 
       {/* Main Workspace Layout */}
       <div className="rf-main-content">
-        {/* Left Priority Panel: Asset Library when active, otherwise Scene Hierarchy */}
-        <div className={`rf-sidebar-container ${!leftSidebarOpen ? 'collapsed' : ''}`} style={{ width: (workspaceSection === 'assets' || showAssetLibrary) ? 380 : undefined }}>
+        {/* Left Priority Panel: Asset Library when active, otherwise Autonomous AI Chat or Scene Hierarchy */}
+        <div
+          className={`rf-sidebar-container ${!leftSidebarOpen ? 'collapsed' : ''}`}
+          style={{
+            width: (workspaceSection === 'assets' || showAssetLibrary)
+              ? 380
+              : leftSidebarOpen && leftSidebarTab === 'ai'
+              ? 390
+              : undefined,
+          }}
+        >
           {(workspaceSection === 'assets' || showAssetLibrary) && project ? (
             <AssetLibraryPanel
               isDocked={true}
@@ -1096,6 +1111,22 @@ export const AppContent: React.FC = () => {
                 setWorkspaceSection('scene');
               }}
             />
+          ) : leftSidebarOpen && leftSidebarTab === 'ai' ? (
+            <LeftAIChatPanel
+              onShowToast={showToast}
+              targetPosition={targetPosition}
+              onProjectLoaded={() => {
+                fetchProject().then((p) => setProject(p)).catch(() => {});
+              }}
+              onSelectTarget={setTargetPosition}
+              onMissionWaypoints={(wps, loop) => {
+                setMissionWaypoints(wps);
+                setMissionLoop(loop);
+                setMissionOpen(true);
+                showToast(`Loaded ${wps.length}-waypoint mission into the planner.`);
+              }}
+              onSwitchToScene={() => setLeftSidebarTab('scene')}
+            />
           ) : leftSidebarOpen && (
             <ScenePanel
               project={project}
@@ -1110,6 +1141,10 @@ export const AppContent: React.FC = () => {
               onClearGenericRobot={handleClearGenericRobot}
               onRemoveRobot={handleRemoveRobot}
               onRestoreRobot={handleRestoreRobot}
+              onOpenAIChat={() => {
+                setLeftSidebarTab('ai');
+                setLeftSidebarOpen(true);
+              }}
             />
           )}
           <button

@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Play, Pause, RotateCcw, StepForward, Save, FolderOpen,
@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { Project, SimulationState, WorkspaceSection } from '../types';
 import { UserProfileBadge } from './UserProfileBadge';
+import { fetchBillingMe } from '../services/billing';
 
 interface ToolbarProps {
   project: Project;
@@ -39,6 +40,7 @@ interface ToolbarProps {
   onOpenRobotCreator?: () => void;
   onOpenEnvironmentCreator?: () => void;
   onOpenRobotStudio?: () => void;
+  onOpenAIChat?: () => void;
 }
 
 export const Toolbar: React.FC<ToolbarProps> = ({
@@ -71,8 +73,16 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   onOpenRobotCreator,
   onOpenEnvironmentCreator,
   onOpenRobotStudio,
+  onOpenAIChat,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [availableCredits, setAvailableCredits] = useState<number | null>(null);
+
+  useEffect(() => {
+    fetchBillingMe()
+      .then((data) => setAvailableCredits(data?.credits?.available ?? null))
+      .catch(() => setAvailableCredits(null));
+  }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -423,6 +433,34 @@ export const Toolbar: React.FC<ToolbarProps> = ({
           <span>{isConnected ? 'LIVE' : 'OFFLINE'}</span>
         </div>
 
+        {/* Autonomous AI Quick Launch Pill */}
+        {onOpenAIChat && (
+          <button
+            onClick={onOpenAIChat}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+              padding: '4px 12px',
+              borderRadius: 100,
+              backgroundColor: '#C4472D',
+              border: 'none',
+              color: '#FFFFFF',
+              fontSize: 11,
+              fontWeight: 700,
+              cursor: 'pointer',
+              boxShadow: '0 2px 10px rgba(196, 71, 45, 0.4)',
+              transition: 'all 0.15s ease',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#D35237')}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#C4472D')}
+            title="Open Autonomous AI Co-Pilot & Direct Chat on the left"
+          >
+            <Sparkles size={12} />
+            <span>Autonomous AI</span>
+          </button>
+        )}
+
         {/* Billing & Credits quick pill */}
         <Link
           to="/billing"
@@ -433,7 +471,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
             padding: '4px 10px',
             borderRadius: 100,
             backgroundColor: 'rgba(196, 71, 45, 0.12)',
-            border: '1px solid rgba(196, 71, 45, 0.25)',
+            border: '1px solid rgba(196, 71, 45, 0.28)',
             color: '#F1EEE7',
             textDecoration: 'none',
             fontSize: 11,
@@ -442,10 +480,42 @@ export const Toolbar: React.FC<ToolbarProps> = ({
             letterSpacing: '0.04em',
             transition: 'all 0.15s ease',
           }}
-          title="Billing, Plans & Credit Ledger"
+          title={availableCredits !== null ? `${availableCredits} credits remaining. Click to view billing ledger.` : 'View billing and credit allowance'}
         >
           <Zap size={11} color="#C4472D" />
-          <span>Credits</span>
+          <span>{availableCredits !== null ? `${availableCredits} CR` : 'Credits'}</span>
+        </Link>
+
+        {/* Upgrade Plan Button */}
+        <Link
+          to="/billing"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+            padding: '4px 10px',
+            borderRadius: 100,
+            backgroundColor: 'rgba(255, 255, 255, 0.08)',
+            border: '1px solid rgba(255, 255, 255, 0.15)',
+            color: '#F1EEE7',
+            textDecoration: 'none',
+            fontSize: 10.5,
+            fontWeight: 700,
+            fontFamily: 'var(--font-mono)',
+            letterSpacing: '0.04em',
+            transition: 'all 0.15s ease',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = '#C4472D';
+            e.currentTarget.style.color = '#FFFFFF';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)';
+            e.currentTarget.style.color = '#F1EEE7';
+          }}
+          title="Upgrade your plan with PayPal sandbox subscriptions"
+        >
+          <span>Upgrade</span>
         </Link>
 
         {/* User Profile Badge */}

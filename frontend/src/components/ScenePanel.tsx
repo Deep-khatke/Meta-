@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   Layers, Box, Circle, Cylinder, Eye, EyeOff, Trash2,
-  Copy, Bot, Upload, GitFork, Navigation, ArrowUp, ArrowDown
+  Copy, Bot, Upload, GitFork, Navigation, ArrowUp, ArrowDown, Sparkles
 } from 'lucide-react';
 import { Project, SceneObject, SimulationState } from '../types';
 
@@ -18,6 +18,7 @@ interface ScenePanelProps {
   onClearGenericRobot?: () => void;
   onRemoveRobot?: () => void;
   onRestoreRobot?: () => void;
+  onOpenAIChat?: () => void;
 }
 
 export const ScenePanel: React.FC<ScenePanelProps> = ({
@@ -33,6 +34,7 @@ export const ScenePanel: React.FC<ScenePanelProps> = ({
   onClearGenericRobot,
   onRemoveRobot,
   onRestoreRobot,
+  onOpenAIChat,
 }) => {
   const handleDroneFlightCommand = async (droneId: string, cmd: 'takeoff' | 'land') => {
     try {
@@ -66,12 +68,36 @@ export const ScenePanel: React.FC<ScenePanelProps> = ({
 
   return (
     <aside className="rf-left-sidebar">
-      {/* Panel Header */}
-      <div className="rf-panel-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-          <Layers size={13} color="#C4472D" />
-          <span>Scene Hierarchy</span>
+      {/* Panel Header with Dual-Mode Tabs */}
+      <div className="rf-panel-header" style={{ padding: '0 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div className="rf-segmented" style={{ padding: 2, gap: 2 }}>
+          <button
+            className="rf-segmented-item active"
+            title="Scene Hierarchy & Physics Objects"
+            style={{ padding: '3px 9px', fontSize: 10.5 }}
+          >
+            <Layers size={11} />
+            <span>Scene</span>
+          </button>
+          {onOpenAIChat && (
+            <button
+              className="rf-segmented-item"
+              onClick={onOpenAIChat}
+              title="Open Autonomous AI Co-Pilot & Direct Chat"
+              style={{
+                padding: '3px 10px',
+                fontSize: 10.5,
+                color: '#F1EEE7',
+                backgroundColor: 'rgba(196, 71, 45, 0.15)',
+                border: '1px solid rgba(196, 71, 45, 0.3)',
+              }}
+            >
+              <Sparkles size={11} color="#C4472D" />
+              <span>Autonomous AI</span>
+            </button>
+          )}
         </div>
+
         {onOpenURDFModal && (
           <button
             className="rf-btn"
@@ -84,6 +110,44 @@ export const ScenePanel: React.FC<ScenePanelProps> = ({
           </button>
         )}
       </div>
+
+      {/* Autonomous AI Quick Launch Strip */}
+      {onOpenAIChat && (
+        <div
+          style={{
+            padding: '8px 10px',
+            borderBottom: '1px solid var(--border-subtle)',
+            backgroundColor: 'rgba(23, 25, 28, 0.6)',
+          }}
+        >
+          <button
+            onClick={onOpenAIChat}
+            style={{
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 7,
+              padding: '6px 14px',
+              borderRadius: 100,
+              background: '#C4472D',
+              color: '#FFFFFF',
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: 11,
+              fontWeight: 700,
+              boxShadow: '0 2px 10px rgba(196, 71, 45, 0.4)',
+              transition: 'all 0.15s ease',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#D35237')}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#C4472D')}
+            title="Directly chat with RoboForge Autonomous AI & view credits"
+          >
+            <Sparkles size={13} />
+            <span>Autonomous AI</span>
+          </button>
+        </div>
+      )}
 
       {/* Add Object Action Strip */}
       <div

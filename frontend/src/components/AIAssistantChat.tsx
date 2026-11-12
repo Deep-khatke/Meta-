@@ -1084,9 +1084,9 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
         display: 'flex',
         flexDirection: 'column',
         height: isExpanded ? '90vh' : '100%',
-        background: '#12141a',
-        borderRadius: 8,
-        border: '1px solid #232733',
+        background: '#121316',
+        borderRadius: isExpanded ? 14 : 0,
+        border: isExpanded ? '1px solid rgba(255, 255, 255, 0.12)' : 'none',
         position: isExpanded ? 'fixed' : 'relative',
         top: isExpanded ? '5vh' : 'auto',
         left: isExpanded ? '5vw' : 'auto',
@@ -1102,33 +1102,34 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '10px 16px',
-          background: '#161922',
-          borderBottom: '1px solid #232733',
+          padding: '8px 14px',
+          background: '#17191A',
+          borderBottom: '1px solid var(--border-subtle)',
           flexWrap: 'wrap',
           gap: 8,
         }}
       >
         {/* Assistant Identity & Model Badge */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <AgentAvatar mood="speaking" size={26} />
+          <AgentAvatar mood="speaking" size={24} />
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontWeight: 600, fontSize: 13, color: '#f8fafc' }}>
-                RoboForge Assistant
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+              <span style={{ fontWeight: 700, fontSize: 12, color: '#F1EEE7' }}>
+                RoboAgent
               </span>
               <span
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 5,
-                  padding: '2px 8px',
-                  borderRadius: 12,
-                  fontSize: 10,
-                  fontWeight: 500,
-                  background: 'rgba(56, 189, 248, 0.12)',
-                  color: '#38bdf8',
-                  border: '1px solid rgba(56, 189, 248, 0.25)',
+                  gap: 4,
+                  padding: '2px 7px',
+                  borderRadius: 100,
+                  fontSize: 9.5,
+                  fontWeight: 600,
+                  fontFamily: 'var(--font-mono)',
+                  background: 'rgba(196, 71, 45, 0.15)',
+                  color: '#F1EEE7',
+                  border: '1px solid rgba(196, 71, 45, 0.3)',
                 }}
               >
                 <span
@@ -1136,8 +1137,8 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
                     width: 5,
                     height: 5,
                     borderRadius: '50%',
-                    background: '#22c55e',
-                    boxShadow: '0 0 6px #22c55e',
+                    background: '#34D399',
+                    boxShadow: '0 0 6px #34D399',
                   }}
                 />
                 <span>{aiStatus?.model || 'qwen2.5:7b'}</span>
@@ -1147,66 +1148,51 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
         </div>
 
         {/* Right Controls: Mode Toggle, Clear, Expand */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           {/* Mode Segmented Control */}
           <div
+            className="rf-segmented"
             style={{
-              display: 'flex',
-              background: '#0d0f14',
-              borderRadius: 6,
               padding: 2,
-              border: '1px solid #232733',
+              gap: 1,
             }}
           >
             <button
               type="button"
+              className="rf-segmented-item"
               onClick={() => {
                 setMode('autonomous');
                 onShowToast('Mode: Autonomous (Agent executes actions directly in MuJoCo)');
               }}
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 5,
-                padding: '4px 10px',
-                borderRadius: 4,
-                border: 'none',
-                background: mode === 'autonomous' ? '#6366f1' : 'transparent',
-                color: mode === 'autonomous' ? '#ffffff' : '#64748b',
-                fontSize: 11,
-                fontWeight: 600,
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
+                padding: '3px 8px',
+                fontSize: 10.5,
+                background: mode === 'autonomous' ? '#C4472D' : 'transparent',
+                color: mode === 'autonomous' ? '#ffffff' : 'var(--text-secondary)',
+                boxShadow: mode === 'autonomous' ? '0 2px 8px rgba(196, 71, 45, 0.4)' : 'none',
               }}
               title="Autonomous Mode: Executes tool commands directly in the simulation"
             >
-              <Zap size={12} />
-              <span>Autonomous</span>
+              <Zap size={11} />
+              <span>Auto</span>
             </button>
             <button
               type="button"
+              className="rf-segmented-item"
               onClick={() => {
                 setMode('supervised');
                 onShowToast('Mode: Supervised (Requests approval for multi-trial plans)');
               }}
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 5,
-                padding: '4px 10px',
-                borderRadius: 4,
-                border: 'none',
-                background: mode === 'supervised' ? '#2563eb' : 'transparent',
-                color: mode === 'supervised' ? '#ffffff' : '#64748b',
-                fontSize: 11,
-                fontWeight: 600,
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
+                padding: '3px 8px',
+                fontSize: 10.5,
+                background: mode === 'supervised' ? 'rgba(255, 255, 255, 0.12)' : 'transparent',
+                color: mode === 'supervised' ? '#ffffff' : 'var(--text-secondary)',
               }}
               title="Supervised Mode: Formulates plans and requires operator confirmation"
             >
-              <ShieldCheck size={12} />
-              <span>Supervised</span>
+              <ShieldCheck size={11} />
+              <span>Plan</span>
             </button>
           </div>
 
@@ -1214,19 +1200,19 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
             type="button"
             className="rf-btn"
             onClick={handleClearHistory}
-            style={{ fontSize: 11, padding: '4px 8px' }}
+            style={{ fontSize: 10, padding: '3px 7px', borderRadius: 100 }}
             title="Clear Chat History"
           >
-            <Trash2 size={13} />
+            <Trash2 size={12} />
           </button>
           <button
             type="button"
             className="rf-btn"
             onClick={() => setIsExpanded(!isExpanded)}
-            style={{ fontSize: 11, padding: '4px 8px' }}
+            style={{ fontSize: 10, padding: '3px 7px', borderRadius: 100 }}
             title={isExpanded ? 'Collapse' : 'Expand full screen'}
           >
-            {isExpanded ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+            {isExpanded ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
           </button>
         </div>
       </div>
@@ -1464,10 +1450,11 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                background: inputValue.trim() && !isLoading ? 'linear-gradient(135deg, #6366f1, #38bdf8)' : '#232733',
-                color: inputValue.trim() && !isLoading ? '#ffffff' : '#64748b',
+                background: inputValue.trim() && !isLoading ? '#C4472D' : 'rgba(255, 255, 255, 0.08)',
+                color: inputValue.trim() && !isLoading ? '#FFFFFF' : '#64748b',
                 border: 'none',
                 cursor: inputValue.trim() && !isLoading ? 'pointer' : 'not-allowed',
+                boxShadow: inputValue.trim() && !isLoading ? '0 2px 10px rgba(196, 71, 45, 0.45)' : 'none',
                 transition: 'all 0.15s ease',
               }}
               title="Send message"
