@@ -67,7 +67,7 @@ const CodeBlock: React.FC<{ language: string; code: string }> = ({ language, cod
         borderRadius: 8,
         overflow: 'hidden',
         background: '#0d1117',
-        border: '1px solid #30363d',
+        border: '1px solid #2f3436',
       }}
     >
       <div
@@ -112,7 +112,7 @@ const CodeBlock: React.FC<{ language: string; code: string }> = ({ language, cod
           fontSize: 12,
           lineHeight: 1.5,
           fontFamily: 'var(--font-mono, monospace)',
-          color: '#e6edf3',
+          color: '#f4f3ef',
         }}
       >
         <code>{code}</code>
@@ -135,15 +135,15 @@ const MarkdownTable: React.FC<{ rows: string[][] }> = ({ rows }) => {
           borderCollapse: 'collapse',
           fontSize: 12,
           textAlign: 'left',
-          border: '1px solid #30363d',
+          border: '1px solid #2f3436',
           borderRadius: 6,
           overflow: 'hidden',
         }}
       >
         <thead>
-          <tr style={{ background: '#161b22', borderBottom: '2px solid #30363d' }}>
+          <tr style={{ background: '#161b22', borderBottom: '2px solid #2f3436' }}>
             {header.map((col, idx) => (
-              <th key={idx} style={{ padding: '7px 12px', color: '#f0f6fc', fontWeight: 600 }}>
+              <th key={idx} style={{ padding: '7px 12px', color: '#f4f3ef', fontWeight: 600 }}>
                 {col}
               </th>
             ))}
@@ -159,7 +159,7 @@ const MarkdownTable: React.FC<{ rows: string[][] }> = ({ rows }) => {
               }}
             >
               {row.map((cell, cIdx) => (
-                <td key={cIdx} style={{ padding: '6px 12px', color: '#c9d1d9' }}>
+                <td key={cIdx} style={{ padding: '6px 12px', color: '#d6d5cf' }}>
                   {cell}
                 </td>
               ))}
@@ -381,7 +381,7 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
       const errorMsg: PersistentChatMessage = {
         id: `ai_err_${Date.now()}`,
         sender: 'assistant',
-        text: `⚠️ **Error:** ${e.message || 'Failed to complete agent execution'}.\n\nPlease try again.`,
+        text: `**Error:** ${e.message || 'Failed to complete agent execution'}.\n\nPlease try again.`,
         timestamp: Date.now(),
         lastPrompt: prompt,
       };
@@ -436,25 +436,25 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
   // Quick Action Starter Prompts
   const quickActions = [
     {
-      icon: <BrainCircuit size={16} color="#a78bfa" />,
+      icon: <BrainCircuit size={16} color="#a9aca7" />,
       title: 'Train RL Policy (PPO)',
       desc: 'Train reinforcement learning in scene',
       prompt: 'Train a PPO reinforcement learning policy in the scene until it achieves the goal',
     },
     {
-      icon: <RotateCcw size={16} color="#38bdf8" />,
+      icon: <RotateCcw size={16} color="#e8622c" />,
       title: 'Clear Scene (Keep Robot)',
       desc: 'Clear obstacles and keep robot safe',
       prompt: 'Clear all obstacles from the scene but keep the active robot untouched',
     },
     {
-      icon: <Sliders size={16} color="#4ade80" />,
+      icon: <Sliders size={16} color="#5cc596" />,
       title: 'Actuate Motors to Zero',
       desc: 'Reset all joints to home position',
       prompt: 'Reset all robot motor actuators to zero home position',
     },
     {
-      icon: <Box size={16} color="#f59e0b" />,
+      icon: <Box size={16} color="#dca23a" />,
       title: 'Spawn Obstacle Course',
       desc: 'Build randomized navigation course',
       prompt: 'Spawn a 4-obstacle course around the active robot with guaranteed clearance',
@@ -515,7 +515,7 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
       // Headings
       if (line.startsWith('# ')) {
         blocks.push(
-          <h2 key={`h1-${i}`} style={{ fontSize: 16, fontWeight: 700, color: '#f0f6fc', margin: '10px 0 4px' }}>
+          <h2 key={`h1-${i}`} style={{ fontSize: 16, fontWeight: 700, color: '#f4f3ef', margin: '10px 0 4px' }}>
             {formatInline(line.slice(2))}
           </h2>
         );
@@ -524,7 +524,7 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
       }
       if (line.startsWith('## ')) {
         blocks.push(
-          <h3 key={`h2-${i}`} style={{ fontSize: 14, fontWeight: 700, color: '#e6edf3', margin: '8px 0 4px' }}>
+          <h3 key={`h2-${i}`} style={{ fontSize: 14, fontWeight: 700, color: '#f4f3ef', margin: '8px 0 4px' }}>
             {formatInline(line.slice(3))}
           </h3>
         );
@@ -533,7 +533,7 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
       }
       if (line.startsWith('### ')) {
         blocks.push(
-          <h4 key={`h3-${i}`} style={{ fontSize: 13, fontWeight: 600, color: '#38bdf8', margin: '6px 0 3px' }}>
+          <h4 key={`h3-${i}`} style={{ fontSize: 13, fontWeight: 600, color: '#e8622c', margin: '6px 0 3px' }}>
             {formatInline(line.slice(4))}
           </h4>
         );
@@ -546,8 +546,8 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
         const bulletContent = line.trim().replace(/^[-*•]\s+/, '');
         blocks.push(
           <div key={`li-${i}`} style={{ display: 'flex', gap: 8, margin: '3px 0 3px 6px', alignItems: 'flex-start' }}>
-            <span style={{ color: '#38bdf8', fontSize: 14, lineHeight: 1.4 }}>•</span>
-            <div style={{ flex: 1, fontSize: 13, lineHeight: 1.6, color: '#c9d1d9' }}>{formatInline(bulletContent)}</div>
+            <span style={{ color: '#e8622c', fontSize: 14, lineHeight: 1.4 }}>•</span>
+            <div style={{ flex: 1, fontSize: 13, lineHeight: 1.6, color: '#d6d5cf' }}>{formatInline(bulletContent)}</div>
           </div>
         );
         i++;
@@ -559,8 +559,8 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
       if (numMatch) {
         blocks.push(
           <div key={`num-${i}`} style={{ display: 'flex', gap: 8, margin: '3px 0 3px 6px', alignItems: 'flex-start' }}>
-            <span style={{ color: '#60a5fa', fontSize: 12, fontWeight: 600, minWidth: 16 }}>{numMatch[1]}.</span>
-            <div style={{ flex: 1, fontSize: 13, lineHeight: 1.6, color: '#c9d1d9' }}>{formatInline(numMatch[2])}</div>
+            <span style={{ color: '#e8622c', fontSize: 12, fontWeight: 600, minWidth: 16 }}>{numMatch[1]}.</span>
+            <div style={{ flex: 1, fontSize: 13, lineHeight: 1.6, color: '#d6d5cf' }}>{formatInline(numMatch[2])}</div>
           </div>
         );
         i++;
@@ -604,7 +604,7 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
       return boldParts.map((bPart, bIdx) => {
         if (bPart.startsWith('**') && bPart.endsWith('**')) {
           return (
-            <strong key={`b-${pIdx}-${bIdx}`} style={{ color: '#f0f6fc', fontWeight: 600 }}>
+            <strong key={`b-${pIdx}-${bIdx}`} style={{ color: '#f4f3ef', fontWeight: 600 }}>
               {bPart.slice(2, -2)}
             </strong>
           );
@@ -628,98 +628,98 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
   const renderActionCard = (act: any, idx: number) => {
     const actionKey = act.action?.replace('tool_', '') || '';
     let title = 'Scene Updated';
-    let icon = <Zap size={14} color="#38bdf8" />;
+    let icon = <Zap size={14} color="#e8622c" />;
 
     if (actionKey === 'spawn_obstacle') {
       title = `Spawned ${act.shape ? act.shape.toUpperCase() : 'Obstacle'} '${act.name || 'obstacle'}'`;
-      icon = <Box size={14} color="#38bdf8" />;
+      icon = <Box size={14} color="#e8622c" />;
     } else if (actionKey === 'remove_obstacle') {
       title = `Removed Obstacle '${act.name || ''}'`;
-      icon = <Trash2 size={14} color="#f87171" />;
+      icon = <Trash2 size={14} color="#f07378" />;
     } else if (actionKey === 'clear_scene') {
       title = 'Cleared All Obstacles from Scene';
-      icon = <RotateCcw size={14} color="#fbbf24" />;
+      icon = <RotateCcw size={14} color="#dca23a" />;
     } else if (actionKey === 'generate_obstacle_course') {
       title = `Generated ${act.obstacle_count || 6}-Obstacle Course`;
-      icon = <Layers size={14} color="#a855f7" />;
+      icon = <Layers size={14} color="#a9aca7" />;
     } else if (actionKey === 'synthesize_environment') {
       title = `Synthesized ${act.env_type ? act.env_type.toUpperCase().replace('_', ' ') : 'Custom'} Environment (${act.obstacle_count || 'Multi'}-Entities)`;
-      icon = <Layers size={14} color="#38bdf8" />;
+      icon = <Layers size={14} color="#e8622c" />;
     } else if (actionKey === 'set_robot_speed') {
       title = `Set Max Velocity: ${act.linear_speed ?? 2.0} m/s`;
-      icon = <Gauge size={14} color="#4ade80" />;
+      icon = <Gauge size={14} color="#5cc596" />;
     } else if (actionKey === 'teleport_robot') {
       title = `Teleported Robot to [${(act.position || [0, 0, 0.05]).join(', ')}]`;
-      icon = <Crosshair size={14} color="#f472b6" />;
+      icon = <Crosshair size={14} color="#a9aca7" />;
     } else if (actionKey === 'set_target_position') {
       title = `Moved Target to [${(act.position || []).join(', ')}]`;
-      icon = <Compass size={14} color="#38bdf8" />;
+      icon = <Compass size={14} color="#e8622c" />;
     } else if (actionKey === 'set_physics') {
       title = `Physics Configured (gravity: ${act.gravity_z ?? -9.81})`;
-      icon = <Sliders size={14} color="#60a5fa" />;
+      icon = <Sliders size={14} color="#e8622c" />;
     } else if (actionKey === 'simulation_control') {
       title = `Simulation Command: ${act.command?.toUpperCase()}`;
-      icon = <Play size={14} color="#34d399" />;
+      icon = <Play size={14} color="#5cc596" />;
     } else if (actionKey === 'deploy_swarm') {
       title = `Deployed ${act.count || 4}-Robot Swarm (${act.formation || 'V-Shape'})`;
-      icon = <Layers size={14} color="#c084fc" />;
+      icon = <Layers size={14} color="#a9aca7" />;
     } else if (actionKey === 'disband_swarm') {
       title = 'Disbanded Robot Swarm';
-      icon = <Trash2 size={14} color="#f87171" />;
+      icon = <Trash2 size={14} color="#f07378" />;
     } else if (actionKey === 'plan_and_execute_trajectory') {
       title = `A* Path Executing to [${(act.target_pos || []).join(', ')}]`;
-      icon = <Navigation size={14} color="#06b6d4" />;
+      icon = <Navigation size={14} color="#e8622c" />;
     } else if (actionKey === 'tune_apf_controller') {
       title = `Tuned APF (Safety Margin: ${act.safety_margin ?? 0.85}m)`;
-      icon = <Sliders size={14} color="#38bdf8" />;
+      icon = <Sliders size={14} color="#e8622c" />;
     } else if (actionKey === 'start_autodrive') {
       title = 'Autodrive Engaged';
-      icon = <Play size={14} color="#22c55e" />;
+      icon = <Play size={14} color="#3fb27f" />;
     } else if (actionKey === 'stop_autodrive') {
       title = 'Autodrive Disengaged';
       icon = <RotateCcw size={14} color="#eab308" />;
     } else if (actionKey === 'start_rl_training') {
       title = `RL Training Started (${act.model_name || 'PPO'})`;
-      icon = <BrainCircuit size={14} color="#fb923c" />;
+      icon = <BrainCircuit size={14} color="#d98a3d" />;
     } else if (actionKey === 'cancel_rl_training') {
       title = 'RL Training Cancelled';
-      icon = <RotateCcw size={14} color="#f87171" />;
+      icon = <RotateCcw size={14} color="#f07378" />;
     } else if (actionKey === 'evaluate_rl_policy') {
       title = `Evaluated Policy (Score: ${typeof act.mean_reward === 'number' ? act.mean_reward.toFixed(1) : 'OK'})`;
-      icon = <Activity size={14} color="#a855f7" />;
+      icon = <Activity size={14} color="#a9aca7" />;
     } else if (actionKey === 'deploy_rl_policy') {
       title = `Deployed RL Policy '${act.model_name || 'PPO'}'`;
-      icon = <Cpu size={14} color="#4ade80" />;
+      icon = <Cpu size={14} color="#5cc596" />;
     } else if (actionKey === 'run_scenario_benchmark' || actionKey === 'run_multitrial_batch') {
       title = `Benchmark Completed (${act.scenario_id || `${act.trials_completed || 5} trials`})`;
-      icon = <Microscope size={14} color="#34d399" />;
+      icon = <Microscope size={14} color="#5cc596" />;
     } else if (actionKey === 'start_ros2_bag') {
       title = `ROS 2 Bag Recording Started: ${act.bag_path || 'active'}`;
-      icon = <Radio size={14} color="#818cf8" />;
+      icon = <Radio size={14} color="#a9aca7" />;
     } else if (actionKey === 'stop_ros2_bag') {
       title = 'ROS 2 Bag Recording Stopped';
-      icon = <Radio size={14} color="#f87171" />;
+      icon = <Radio size={14} color="#f07378" />;
     } else if (actionKey === 'configure_lidar_sensor' || actionKey === 'capture_camera_snapshot') {
       title = `Sensor Action: ${actionKey.replace(/_/g, ' ')}`;
-      icon = <Activity size={14} color="#f59e0b" />;
+      icon = <Activity size={14} color="#dca23a" />;
     } else if (actionKey === 'save_scene_snapshot' || actionKey === 'restore_scene_snapshot') {
       title = `Snapshot: ${actionKey.replace(/_/g, ' ')}`;
-      icon = <Layers size={14} color="#38bdf8" />;
+      icon = <Layers size={14} color="#e8622c" />;
     } else if (actionKey === 'control_drone') {
       title = `Drone Flight: ${act.command?.toUpperCase()} (${act.altitude ?? act.target_altitude ?? 1.5}m)`;
-      icon = <Navigation size={14} color="#06b6d4" />;
+      icon = <Navigation size={14} color="#e8622c" />;
     } else if (actionKey === 'train_drone_policy') {
       title = `Started Drone RL Flight Policy Training (${act.task || 'Takeoff/Landing'})`;
-      icon = <BrainCircuit size={14} color="#38bdf8" />;
+      icon = <BrainCircuit size={14} color="#e8622c" />;
     } else if (actionKey === 'deploy_drone_policy') {
       title = `Deployed 6-DOF Flight Policy to ${act.drone_name || 'Drone'}`;
-      icon = <Cpu size={14} color="#22c55e" />;
+      icon = <Cpu size={14} color="#3fb27f" />;
     } else if (actionKey === 'add_drone') {
       title = `Deployed 6-DOF Aerial Drone (${act.drone_name || 'Quadcopter'})`;
-      icon = <Navigation size={14} color="#06b6d4" />;
+      icon = <Navigation size={14} color="#e8622c" />;
     } else if (actionKey === 'control_secondary_robot') {
       title = `Secondary Rover Drive (${act.robot || 'ForgeBot-DD2'})`;
-      icon = <Sliders size={14} color="#60a5fa" />;
+      icon = <Sliders size={14} color="#e8622c" />;
     }
 
     return (
@@ -731,8 +731,8 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
           justifyContent: 'space-between',
           padding: '8px 12px',
           borderRadius: 6,
-          background: 'rgba(56, 189, 248, 0.08)',
-          border: '1px solid rgba(56, 189, 248, 0.25)',
+          background: 'rgba(232, 98, 44, 0.08)',
+          border: '1px solid rgba(232, 98, 44, 0.25)',
           margin: '6px 0',
           gap: 10,
         }}
@@ -743,7 +743,7 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
               width: 26,
               height: 26,
               borderRadius: 6,
-              background: 'rgba(56, 189, 248, 0.15)',
+              background: 'rgba(232, 98, 44, 0.15)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -752,9 +752,9 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
             {icon}
           </div>
           <div>
-            <div style={{ fontSize: 12, fontWeight: 600, color: '#f0f6fc' }}>{title}</div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: '#f4f3ef' }}>{title}</div>
             {act.details && (
-              <div style={{ fontSize: 11, color: '#94a3b8' }}>{act.details}</div>
+              <div style={{ fontSize: 11, color: '#a9aca7' }}>{act.details}</div>
             )}
           </div>
         </div>
@@ -769,7 +769,7 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
             background: 'rgba(34, 197, 94, 0.15)',
             border: '1px solid rgba(34, 197, 94, 0.3)',
             fontSize: 10,
-            color: '#4ade80',
+            color: '#5cc596',
             fontWeight: 600,
             whiteSpace: 'nowrap',
           }}
@@ -819,7 +819,7 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
               border: '1px solid #3b4252',
               borderRadius: '16px 16px 4px 16px',
               padding: '10px 16px',
-              color: '#f8fafc',
+              color: '#f4f3ef',
               fontSize: 13,
               lineHeight: 1.5,
               boxShadow: '0 2px 10px rgba(0, 0, 0, 0.25)',
@@ -869,14 +869,14 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
                       padding: '6px 12px',
                       background: 'transparent',
                       border: 'none',
-                      color: '#94a3b8',
+                      color: '#a9aca7',
                       cursor: 'pointer',
                       fontSize: 12,
                       fontWeight: 500,
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <BrainCircuit size={13} color="#60a5fa" />
+                      <BrainCircuit size={13} color="#e8622c" />
                       <span>
                         Thought process ({thoughts.length} step{thoughts.length > 1 ? 's' : ''})
                       </span>
@@ -889,7 +889,7 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
                       style={{
                         padding: '8px 14px 12px',
                         borderTop: '1px solid rgba(255, 255, 255, 0.05)',
-                        borderLeft: '2px solid #6366f1',
+                        borderLeft: '2px solid #a9aca7',
                         margin: '0 8px 8px',
                         background: 'rgba(15, 23, 42, 0.3)',
                         borderRadius: 4,
@@ -897,19 +897,19 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
                     >
                       {thoughts.map((st, sIdx) => (
                         <div key={sIdx} style={{ marginBottom: sIdx === thoughts.length - 1 ? 0 : 8 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600, color: '#e2e8f0' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600, color: '#ecebe6' }}>
                             <span
                               style={{
                                 width: 6,
                                 height: 6,
                                 borderRadius: '50%',
-                                background: st.status === 'success' ? '#4ade80' : st.status === 'running' ? '#60a5fa' : '#fbbf24',
+                                background: st.status === 'success' ? '#5cc596' : st.status === 'running' ? '#e8622c' : '#dca23a',
                               }}
                             />
                             <span>{st.title}</span>
                           </div>
                           {st.detail && (
-                            <div style={{ fontSize: 11, color: '#94a3b8', marginLeft: 12, marginTop: 2, lineHeight: 1.4 }}>
+                            <div style={{ fontSize: 11, color: '#a9aca7', marginLeft: 12, marginTop: 2, lineHeight: 1.4 }}>
                               {st.detail}
                             </div>
                           )}
@@ -923,9 +923,9 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
                             padding: '10px 12px',
                             borderRadius: 6,
                             background: 'rgba(2, 6, 23, 0.55)',
-                            border: '1px solid rgba(99, 102, 241, 0.25)',
+                            border: '1px solid rgba(255, 255, 255, 0.095)',
                             fontSize: 12,
-                            color: '#cbd5e1',
+                            color: '#d6d5cf',
                             lineHeight: 1.5,
                           }}
                         >
@@ -935,7 +935,7 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
                               alignItems: 'center',
                               gap: 6,
                               marginBottom: 8,
-                              color: '#818cf8',
+                              color: '#a9aca7',
                               fontSize: 11,
                               fontWeight: 600,
                             }}
@@ -969,7 +969,7 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
                       height: 14,
                       marginLeft: 3,
                       verticalAlign: 'middle',
-                      background: '#38bdf8',
+                      background: '#e8622c',
                       borderRadius: 1,
                       animation: 'pulse 1s infinite',
                     }}
@@ -992,7 +992,7 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
                     <ShieldAlert size={15} />
                     <span>Supervised Action Confirmation Required</span>
                   </div>
-                  <div style={{ fontSize: 12, color: '#cbd5e1', marginTop: 4 }}>
+                  <div style={{ fontSize: 12, color: '#d6d5cf', marginTop: 4 }}>
                     {resp.approval_plan.title || 'Controlled Experiment Plan'}
                   </div>
                   {msg.approvalStatus === 'pending' || !msg.approvalStatus ? (
@@ -1002,7 +1002,7 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
                         className="rf-btn rf-btn-primary"
                         onClick={() => handleApproveAction(msg.id, resp.approval_plan.mission_id || '', true)}
                         disabled={isLoading}
-                        style={{ fontSize: 11, padding: '5px 12px', background: '#10b981', border: 'none' }}
+                        style={{ fontSize: 11, padding: '5px 12px', background: '#3fb27f', border: 'none' }}
                       >
                         <Check size={13} />
                         <span>Approve & Execute</span>
@@ -1012,15 +1012,15 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
                         className="rf-btn"
                         onClick={() => handleApproveAction(msg.id, resp.approval_plan.mission_id || '', false)}
                         disabled={isLoading}
-                        style={{ fontSize: 11, padding: '5px 12px', color: '#f87171' }}
+                        style={{ fontSize: 11, padding: '5px 12px', color: '#f07378' }}
                       >
                         <X size={13} />
                         <span>Reject</span>
                       </button>
                     </div>
                   ) : (
-                    <div style={{ marginTop: 8, fontSize: 11, fontWeight: 600, color: msg.approvalStatus === 'approved' ? '#4ade80' : '#f87171' }}>
-                      {msg.approvalStatus === 'approved' ? '✓ Approved' : '✕ Rejected'}
+                    <div style={{ marginTop: 8, fontSize: 11, fontWeight: 600, color: msg.approvalStatus === 'approved' ? '#5cc596' : '#f07378' }}>
+                      {msg.approvalStatus === 'approved' ? 'Approved' : 'Rejected'}
                     </div>
                   )}
                 </div>
@@ -1037,7 +1037,7 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
                     gap: 4,
                     background: 'transparent',
                     border: 'none',
-                    color: copiedMsgId === msg.id ? '#38bdf8' : '#64748b',
+                    color: copiedMsgId === msg.id ? '#e8622c' : '#8a8d89',
                     fontSize: 11,
                     cursor: 'pointer',
                     padding: 0,
@@ -1059,7 +1059,7 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
                       gap: 4,
                       background: 'transparent',
                       border: 'none',
-                      color: '#64748b',
+                      color: '#8a8d89',
                       fontSize: 11,
                       cursor: 'pointer',
                       padding: 0,
@@ -1086,7 +1086,7 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
         height: isExpanded ? '90vh' : '100%',
         background: '#12141a',
         borderRadius: 8,
-        border: '1px solid #232733',
+        border: '1px solid #232729',
         position: isExpanded ? 'fixed' : 'relative',
         top: isExpanded ? '5vh' : 'auto',
         left: isExpanded ? '5vw' : 'auto',
@@ -1103,8 +1103,8 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
           alignItems: 'center',
           justifyContent: 'space-between',
           padding: '10px 16px',
-          background: '#161922',
-          borderBottom: '1px solid #232733',
+          background: '#151718',
+          borderBottom: '1px solid #232729',
           flexWrap: 'wrap',
           gap: 8,
         }}
@@ -1114,7 +1114,7 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
           <AgentAvatar mood="speaking" size={26} />
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontWeight: 600, fontSize: 13, color: '#f8fafc' }}>
+              <span style={{ fontWeight: 600, fontSize: 13, color: '#f4f3ef' }}>
                 RoboForge Assistant
               </span>
               <span
@@ -1126,9 +1126,9 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
                   borderRadius: 12,
                   fontSize: 10,
                   fontWeight: 500,
-                  background: 'rgba(56, 189, 248, 0.12)',
-                  color: '#38bdf8',
-                  border: '1px solid rgba(56, 189, 248, 0.25)',
+                  background: 'rgba(232, 98, 44, 0.12)',
+                  color: '#e8622c',
+                  border: '1px solid rgba(232, 98, 44, 0.25)',
                 }}
               >
                 <span
@@ -1136,8 +1136,8 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
                     width: 5,
                     height: 5,
                     borderRadius: '50%',
-                    background: '#22c55e',
-                    boxShadow: '0 0 6px #22c55e',
+                    background: '#3fb27f',
+                    boxShadow: '0 0 6px #3fb27f',
                   }}
                 />
                 <span>{aiStatus?.model || 'qwen2.5:7b'}</span>
@@ -1155,7 +1155,7 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
               background: '#0d0f14',
               borderRadius: 6,
               padding: 2,
-              border: '1px solid #232733',
+              border: '1px solid #232729',
             }}
           >
             <button
@@ -1171,8 +1171,8 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
                 padding: '4px 10px',
                 borderRadius: 4,
                 border: 'none',
-                background: mode === 'autonomous' ? '#6366f1' : 'transparent',
-                color: mode === 'autonomous' ? '#ffffff' : '#64748b',
+                background: mode === 'autonomous' ? '#a9aca7' : 'transparent',
+                color: mode === 'autonomous' ? '#ffffff' : '#8a8d89',
                 fontSize: 11,
                 fontWeight: 600,
                 cursor: 'pointer',
@@ -1196,8 +1196,8 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
                 padding: '4px 10px',
                 borderRadius: 4,
                 border: 'none',
-                background: mode === 'supervised' ? '#2563eb' : 'transparent',
-                color: mode === 'supervised' ? '#ffffff' : '#64748b',
+                background: mode === 'supervised' ? 'var(--accent-soft)' : 'transparent',
+                color: mode === 'supervised' ? 'var(--accent)' : '#8a8d89',
                 fontSize: 11,
                 fontWeight: 600,
                 cursor: 'pointer',
@@ -1265,22 +1265,22 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
                 gap: 6,
                 padding: '3px 10px',
                 borderRadius: 12,
-                background: 'rgba(56, 189, 248, 0.1)',
-                border: '1px solid rgba(56, 189, 248, 0.25)',
-                color: '#38bdf8',
+                background: 'rgba(232, 98, 44, 0.1)',
+                border: '1px solid rgba(232, 98, 44, 0.25)',
+                color: '#e8622c',
                 fontSize: 11,
                 fontWeight: 600,
                 marginBottom: 10,
               }}
             >
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 6px #22c55e' }} />
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#3fb27f', boxShadow: '0 0 6px #3fb27f' }} />
               ROBOAGENT CO-PILOT ONLINE
             </div>
 
-            <h3 style={{ fontSize: 17, fontWeight: 700, color: '#f8fafc', marginBottom: 6 }}>
+            <h3 style={{ fontSize: 17, fontWeight: 700, color: '#f4f3ef', marginBottom: 6 }}>
               Hey! How can I assist your simulation?
             </h3>
-            <p style={{ fontSize: 13, color: '#94a3b8', maxWidth: 460, lineHeight: 1.5, marginBottom: 24 }}>
+            <p style={{ fontSize: 13, color: '#a9aca7', maxWidth: 460, lineHeight: 1.5, marginBottom: 24 }}>
               I can synthesize physical environments, spawn obstacles, write and train RL policies live in the viewport, tune motor kinematics, and optimize trajectories.
             </p>
 
@@ -1305,26 +1305,26 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
                     alignItems: 'flex-start',
                     padding: '12px 14px',
                     borderRadius: 8,
-                    background: '#161922',
-                    border: '1px solid #232733',
+                    background: '#151718',
+                    border: '1px solid #232729',
                     textAlign: 'left',
                     cursor: 'pointer',
                     transition: 'all 0.15s ease',
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = '#38bdf8';
+                    e.currentTarget.style.borderColor = '#e8622c';
                     e.currentTarget.style.background = '#1a1e2a';
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = '#232733';
-                    e.currentTarget.style.background = '#161922';
+                    e.currentTarget.style.borderColor = '#232729';
+                    e.currentTarget.style.background = '#151718';
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                     {qa.icon}
-                    <span style={{ fontSize: 12, fontWeight: 600, color: '#f0f6fc' }}>{qa.title}</span>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: '#f4f3ef' }}>{qa.title}</span>
                   </div>
-                  <span style={{ fontSize: 11, color: '#64748b', lineHeight: 1.4 }}>{qa.desc}</span>
+                  <span style={{ fontSize: 11, color: '#8a8d89', lineHeight: 1.4 }}>{qa.desc}</span>
                 </button>
               ))}
             </div>
@@ -1343,16 +1343,16 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
               padding: '12px 16px',
               margin: '10px 0',
               borderRadius: 12,
-              background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.7), rgba(15, 23, 42, 0.8))',
-              border: '1px solid rgba(56, 189, 248, 0.3)',
-              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4), 0 0 16px rgba(56, 189, 248, 0.1)',
+              background: 'var(--bg-panel)',
+              border: '1px solid rgba(232, 98, 44, 0.3)',
+              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4), 0 0 16px rgba(232, 98, 44, 0.1)',
               animation: 'fadeIn 0.3s ease-out',
             }}
           >
             <AgentAvatar mood="thinking" size={42} />
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: '#f8fafc' }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#f4f3ef' }}>
                   RoboAgent is Reasoning
                 </span>
                 <span
@@ -1364,8 +1364,8 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
                     fontWeight: 600,
                     padding: '2px 7px',
                     borderRadius: 10,
-                    background: 'rgba(56, 189, 248, 0.15)',
-                    color: '#38bdf8',
+                    background: 'rgba(232, 98, 44, 0.15)',
+                    color: '#e8622c',
                   }}
                 >
                   <span
@@ -1373,14 +1373,14 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
                       width: 5,
                       height: 5,
                       borderRadius: '50%',
-                      background: '#38bdf8',
-                      boxShadow: '0 0 6px #38bdf8',
+                      background: '#e8622c',
+                      boxShadow: '0 0 6px #e8622c',
                     }}
                   />
                   SIMULATION ACTIVE
                 </span>
               </div>
-              <span style={{ fontSize: 11, color: '#94a3b8' }}>
+              <span style={{ fontSize: 11, color: '#a9aca7' }}>
                 Synthesizing MuJoCo physical dynamics, verifying kinematic bounds & orchestrating scene...
               </span>
             </div>
@@ -1394,8 +1394,8 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
       <div
         style={{
           padding: '12px 16px',
-          background: '#161922',
-          borderTop: '1px solid #232733',
+          background: '#151718',
+          borderTop: '1px solid #232729',
         }}
       >
         <div
@@ -1432,7 +1432,7 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
               resize: 'none',
               fontSize: 13,
               lineHeight: 1.5,
-              color: '#f0f6fc',
+              color: '#f4f3ef',
               fontFamily: 'inherit',
             }}
           />
@@ -1447,10 +1447,10 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
               borderTop: '1px solid rgba(255, 255, 255, 0.04)',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: '#64748b' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: '#8a8d89' }}>
               <span>Shift+Enter for newline</span>
               <span>&bull;</span>
-              <span>Mode: {mode === 'autonomous' ? '⚡ Autonomous Tool-Use' : '🛡️ Supervised'}</span>
+              <span>Mode: {mode === 'autonomous' ? 'Autonomous tool use' : 'Supervised'}</span>
             </div>
 
             <button
@@ -1464,8 +1464,8 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                background: inputValue.trim() && !isLoading ? 'linear-gradient(135deg, #6366f1, #38bdf8)' : '#232733',
-                color: inputValue.trim() && !isLoading ? '#ffffff' : '#64748b',
+                background: inputValue.trim() && !isLoading ? '#c4472d' : '#232729',
+                color: inputValue.trim() && !isLoading ? '#ffffff' : '#8a8d89',
                 border: 'none',
                 cursor: inputValue.trim() && !isLoading ? 'pointer' : 'not-allowed',
                 transition: 'all 0.15s ease',

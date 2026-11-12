@@ -14,8 +14,8 @@ const C = {
   graphite: '#17191A',
   black: '#202222',
   red: '#C4472D',
-  cyan: '#00E5FF',
-  pink: '#F43F5E',
+  cyan: '#e8622c',
+  pink: '#d6d5cf',
   muted: '#9A9A96',
 };
 
@@ -220,7 +220,7 @@ function Real3DRoboBuddy({
     ctx.fill();
 
     // Visor sleek inner accent border
-    ctx.strokeStyle = 'rgba(0, 229, 255, 0.28)';
+    ctx.strokeStyle = 'rgba(232, 98, 44, 0.28)';
     ctx.lineWidth = 3;
     ctx.stroke();
     ctx.restore();
@@ -245,8 +245,8 @@ function Real3DRoboBuddy({
     const fillWithHoneycomb = (eyeCenterX: number, eyeCenterY: number) => {
       // Base vibrant gradient fill
       const grad = ctx.createLinearGradient(eyeCenterX, eyeCenterY - 60, eyeCenterX, eyeCenterY + 50);
-      grad.addColorStop(0, '#38bdf8');
-      grad.addColorStop(1, '#00e5ff');
+      grad.addColorStop(0, '#e8622c');
+      grad.addColorStop(1, '#e8622c');
       ctx.fillStyle = grad;
       ctx.fill();
 
@@ -285,9 +285,9 @@ function Real3DRoboBuddy({
       ctx.restore();
 
       // Outer glow border
-      ctx.strokeStyle = '#00e5ff';
+      ctx.strokeStyle = '#e8622c';
       ctx.lineWidth = 4;
-      ctx.shadowColor = '#00e5ff';
+      ctx.shadowColor = '#e8622c';
       ctx.shadowBlur = 24;
       ctx.stroke();
 
@@ -300,8 +300,8 @@ function Real3DRoboBuddy({
         ctx.save();
         ctx.beginPath();
         ctx.roundRect(cx - 65, eyeY - 3, 130, 8, 4);
-        ctx.fillStyle = '#00e5ff';
-        ctx.shadowColor = '#00e5ff';
+        ctx.fillStyle = '#e8622c';
+        ctx.shadowColor = '#e8622c';
         ctx.shadowBlur = 18;
         ctx.fill();
         ctx.restore();
@@ -320,8 +320,8 @@ function Real3DRoboBuddy({
         ctx.moveTo(0, 18);
         ctx.bezierCurveTo(-38, -25, -50, -48, 0, -48);
         ctx.bezierCurveTo(50, -48, 38, -25, 0, 18);
-        ctx.fillStyle = '#f43f5e';
-        ctx.shadowColor = '#f43f5e';
+        ctx.fillStyle = '#d6d5cf';
+        ctx.shadowColor = '#d6d5cf';
         ctx.shadowBlur = 24;
         ctx.fill();
         ctx.restore();
@@ -330,8 +330,8 @@ function Real3DRoboBuddy({
       // Blushing cheeks
       [leftEyeX - 25, rightEyeX + 25].forEach(cx => {
         const blushGrad = ctx.createRadialGradient(cx, eyeY + 75, 4, cx, eyeY + 75, 34);
-        blushGrad.addColorStop(0, 'rgba(244, 63, 94, 0.75)');
-        blushGrad.addColorStop(1, 'rgba(244, 63, 94, 0.0)');
+        blushGrad.addColorStop(0, 'rgba(255, 255, 255, 0.3)');
+        blushGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
         ctx.fillStyle = blushGrad;
         ctx.beginPath();
         ctx.arc(cx, eyeY + 75, 34, 0, Math.PI * 2);
@@ -348,8 +348,8 @@ function Real3DRoboBuddy({
           ctx.lineTo(Math.cos((54 + i * 72) * Math.PI / 180) * 20, -Math.sin((54 + i * 72) * Math.PI / 180) * 20);
         }
         ctx.closePath();
-        ctx.fillStyle = '#00e5ff';
-        ctx.shadowColor = '#00e5ff';
+        ctx.fillStyle = '#e8622c';
+        ctx.shadowColor = '#e8622c';
         ctx.shadowBlur = 28;
         ctx.fill();
         ctx.restore();
@@ -370,9 +370,9 @@ function Real3DRoboBuddy({
         fillWithHoneycomb(cx, eyeY);
         ctx.restore();
 
-        ctx.strokeStyle = '#00e5ff';
+        ctx.strokeStyle = '#e8622c';
         ctx.lineWidth = 4;
-        ctx.shadowColor = '#00e5ff';
+        ctx.shadowColor = '#e8622c';
         ctx.shadowBlur = 20;
         ctx.stroke();
 
@@ -389,10 +389,10 @@ function Real3DRoboBuddy({
       ctx.save();
       ctx.beginPath();
       ctx.arc(rightEyeX, eyeY + 10, 52, Math.PI * 0.2, Math.PI * 0.8, false);
-      ctx.strokeStyle = '#00e5ff';
+      ctx.strokeStyle = '#e8622c';
       ctx.lineWidth = 10;
       ctx.lineCap = 'round';
-      ctx.shadowColor = '#00e5ff';
+      ctx.shadowColor = '#e8622c';
       ctx.shadowBlur = 22;
       ctx.stroke();
       ctx.restore();
@@ -402,8 +402,8 @@ function Real3DRoboBuddy({
         ctx.save();
         ctx.beginPath();
         ctx.roundRect(cx - 55, eyeY - 8, 110, 18, 9);
-        ctx.fillStyle = '#38bdf8';
-        ctx.shadowColor = '#38bdf8';
+        ctx.fillStyle = '#e8622c';
+        ctx.shadowColor = '#e8622c';
         ctx.shadowBlur = 20;
         ctx.fill();
         ctx.restore();
@@ -412,8 +412,8 @@ function Real3DRoboBuddy({
       // Blushing cheeks
       [leftEyeX - 20, rightEyeX + 20].forEach(cx => {
         const blushGrad = ctx.createRadialGradient(cx, eyeY + 60, 4, cx, eyeY + 60, 30);
-        blushGrad.addColorStop(0, 'rgba(244, 63, 94, 0.7)');
-        blushGrad.addColorStop(1, 'rgba(244, 63, 94, 0.0)');
+        blushGrad.addColorStop(0, 'rgba(255, 255, 255, 0.28)');
+        blushGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
         ctx.fillStyle = blushGrad;
         ctx.beginPath();
         ctx.arc(cx, eyeY + 60, 30, 0, Math.PI * 2);
@@ -429,9 +429,9 @@ function Real3DRoboBuddy({
         ctx.clip();
         fillWithHoneycomb(cx, eyeY);
         ctx.restore();
-        ctx.strokeStyle = '#00e5ff';
+        ctx.strokeStyle = '#e8622c';
         ctx.lineWidth = 5;
-        ctx.shadowColor = '#00e5ff';
+        ctx.shadowColor = '#e8622c';
         ctx.shadowBlur = 24;
         ctx.stroke();
         ctx.restore();
@@ -477,7 +477,7 @@ function Real3DRoboBuddy({
 
     // 3. Lighting (Porcelain studio setup)
     // Ambient fill
-    const ambientLight = new THREE.AmbientLight(0xdbeafe, 0.95);
+    const ambientLight = new THREE.AmbientLight(0xf0f0ee, 0.95);
     scene.add(ambientLight);
 
     // Key directional light (creates glossy shine on forehead & torso)
@@ -486,17 +486,17 @@ function Real3DRoboBuddy({
     scene.add(keyLight);
 
     // Fill light (soft blueish fill from left)
-    const fillLight = new THREE.DirectionalLight(0x93c5fd, 0.8);
+    const fillLight = new THREE.DirectionalLight(0xdfe4ea, 0.8);
     fillLight.position.set(-2.6, 1.2, 2.0);
     scene.add(fillLight);
 
     // Rim backlight (cinematic cyan glow rimming robot silhouette)
-    const rimLight = new THREE.DirectionalLight(0x00e5ff, 2.0);
+    const rimLight = new THREE.DirectionalLight(0xe8622c, 2.0);
     rimLight.position.set(0, 1.6, -2.8);
     scene.add(rimLight);
 
     // Neck PointLight (illuminates levitation collar gap)
-    const neckLight = new THREE.PointLight(0x00e5ff, 2.6, 1.6);
+    const neckLight = new THREE.PointLight(0xe8622c, 2.6, 1.6);
     neckLight.position.set(0, -0.07, 0.04);
     scene.add(neckLight);
 
@@ -513,14 +513,14 @@ function Real3DRoboBuddy({
 
     // Dark Accent / Ear Mount Material
     const darkAccentMat = new THREE.MeshStandardMaterial({
-      color: 0x0f172a,
+      color: 0x131516,
       roughness: 0.35,
       metalness: 0.4
     });
 
     // Cyan Levitation Light Material
     const cyanGlowMat = new THREE.MeshBasicMaterial({
-      color: 0x00e5ff
+      color: 0xe8622c
     });
 
     // 5. Build Visor Offscreen Canvas & Texture
@@ -540,7 +540,7 @@ function Real3DRoboBuddy({
     const visorMat = new THREE.MeshStandardMaterial({
       map: visorTexture,
       emissiveMap: visorTexture,
-      emissive: 0x00e5ff,
+      emissive: 0xe8622c,
       emissiveIntensity: 0.85,
       roughness: 0.06,
       metalness: 0.1,
@@ -1075,7 +1075,7 @@ function Real3DRoboBuddy({
           width: '420px',
           height: '420px',
           borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(0, 229, 255, 0.18) 0%, rgba(0, 229, 255, 0.04) 55%, transparent 75%)',
+          background: 'radial-gradient(circle, rgba(232, 98, 44, 0.07) 0%, rgba(232, 98, 44, 0.02) 55%, transparent 75%)',
           filter: 'blur(36px)',
           pointerEvents: 'none'
         }}
@@ -1090,7 +1090,7 @@ function Real3DRoboBuddy({
             left: `calc(50% + ${h.x}px)`,
             top: `calc(45% + ${h.y}px)`,
             fontSize: '22px',
-            color: '#f43f5e',
+            color: '#d6d5cf',
             pointerEvents: 'none',
             zIndex: 30,
             animation: 'float-up 1.6s cubic-bezier(0.2, 0.8, 0.3, 1) forwards'
@@ -1232,7 +1232,7 @@ export function LoginPage() {
       {/* ── Left — Real 3D Companion Robot (Sized & Centered with Breathing Room) ── */}
       <div style={{
         flex: '0 0 60%',
-        background: 'radial-gradient(circle at 48% 44%, #1a2233 0%, #0d121c 70%, #080c14 100%)',
+        background: 'radial-gradient(circle at 48% 44%, #1b1e20 0%, #131516 70%, #0f1112 100%)',
         position: 'relative',
         overflow: 'hidden',
         display: 'flex',
@@ -1264,9 +1264,8 @@ export function LoginPage() {
               fontFamily: 'IBM Plex Mono, monospace',
               fontSize: '13px',
               letterSpacing: '0.22em',
-              color: '#00e5ff',
+              color: '#e8622c',
               fontWeight: 700,
-              textShadow: '0 0 14px rgba(0, 229, 255, 0.45)'
             }}>
               ROBOFORGE
             </span>
@@ -1282,10 +1281,9 @@ export function LoginPage() {
               border: '1px solid rgba(255, 255, 255, 0.16)',
               borderRadius: 20,
               padding: '4px 12px',
-              color: soundOn ? '#00e5ff' : '#94a3b8',
+              color: soundOn ? '#e8622c' : '#a9aca7',
               fontSize: 11,
               cursor: 'pointer',
-              backdropFilter: 'blur(8px)',
               transition: 'all 0.2s'
             }}
             title={soundOn ? 'Mute Robot Sound' : 'Enable Robot Sound'}
@@ -1302,22 +1300,21 @@ export function LoginPage() {
           left: '50%',
           transform: 'translateX(-50%)',
           zIndex: 20,
-          backgroundColor: 'rgba(13, 18, 28, 0.88)',
-          backdropFilter: 'blur(14px)',
-          border: '1px solid rgba(0, 229, 255, 0.4)',
+          backgroundColor: 'rgba(19, 21, 22, 0.88)',
+          border: '1px solid rgba(232, 98, 44, 0.4)',
           borderRadius: 24,
           padding: '8px 20px',
           display: 'flex',
           alignItems: 'center',
           gap: 8,
-          boxShadow: '0 8px 24px rgba(0, 0, 0, 0.45), 0 0 16px rgba(0, 229, 255, 0.25)',
+          boxShadow: '0 8px 24px rgba(0, 0, 0, 0.45)',
           maxWidth: '85%',
           textAlign: 'center'
         }}>
-          <Sparkles size={14} color="#00e5ff" />
+          <Sparkles size={14} color="#e8622c" />
           <span style={{
             fontSize: 12,
-            color: '#f8fafc',
+            color: '#f4f3ef',
             fontWeight: 500,
             letterSpacing: '0.01em'
           }}>
@@ -1335,8 +1332,7 @@ export function LoginPage() {
           display: 'flex',
           alignItems: 'center',
           gap: 8,
-          backgroundColor: 'rgba(13, 18, 28, 0.82)',
-          backdropFilter: 'blur(16px)',
+          backgroundColor: 'rgba(19, 21, 22, 0.82)',
           border: '1px solid rgba(255, 255, 255, 0.12)',
           borderRadius: 30,
           padding: '6px 12px',
@@ -1348,9 +1344,9 @@ export function LoginPage() {
               display: 'flex',
               alignItems: 'center',
               gap: 6,
-              background: 'rgba(244, 63, 94, 0.15)',
-              border: '1px solid rgba(244, 63, 94, 0.35)',
-              color: '#fb7185',
+              background: 'rgba(255, 255, 255, 0.06)',
+              border: '1px solid rgba(255, 255, 255, 0.14)',
+              color: '#d6d5cf',
               padding: '6px 12px',
               borderRadius: 20,
               fontSize: 11,
@@ -1370,9 +1366,9 @@ export function LoginPage() {
               display: 'flex',
               alignItems: 'center',
               gap: 6,
-              background: 'rgba(0, 229, 255, 0.15)',
-              border: '1px solid rgba(0, 229, 255, 0.35)',
-              color: '#00e5ff',
+              background: 'rgba(232, 98, 44, 0.15)',
+              border: '1px solid rgba(232, 98, 44, 0.35)',
+              color: '#e8622c',
               padding: '6px 12px',
               borderRadius: 20,
               fontSize: 11,
@@ -1414,9 +1410,9 @@ export function LoginPage() {
               display: 'flex',
               alignItems: 'center',
               gap: 6,
-              background: 'rgba(34, 197, 94, 0.15)',
-              border: '1px solid rgba(34, 197, 94, 0.35)',
-              color: '#4ade80',
+              background: 'rgba(255, 255, 255, 0.06)',
+              border: '1px solid rgba(255, 255, 255, 0.14)',
+              color: '#d6d5cf',
               padding: '6px 12px',
               borderRadius: 20,
               fontSize: 11,
@@ -1438,10 +1434,10 @@ export function LoginPage() {
           top: '50%',
           width: '3px',
           height: '90px',
-          background: 'linear-gradient(to bottom, #00e5ff, #06b6d4)',
+          background: '#e8622c',
           transform: 'translateY(-50%)',
           borderRadius: '0 2px 2px 0',
-          boxShadow: '0 0 14px #00e5ff'
+          
         }} />
       </div>
 
@@ -1547,7 +1543,7 @@ export function LoginPage() {
               }}>
                 <span>PASSWORD</span>
                 {isCoveringEyes && (
-                  <span style={{ color: '#00e5ff', fontWeight: 600 }}>🙈 NO PEEKING!</span>
+                  <span style={{ color: '#e8622c', fontWeight: 600 }}>🙈 NO PEEKING!</span>
                 )}
               </label>
               <div style={{ position: 'relative' }}>
@@ -1679,7 +1675,7 @@ export function LoginPage() {
 
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
-        input:focus { border-color: rgba(32,34,34,0.45) !important; box-shadow: 0 0 0 3px rgba(0, 229, 255, 0.15); }
+        input:focus { border-color: rgba(32,34,34,0.45) !important; box-shadow: 0 0 0 3px rgba(232, 98, 44, 0.15); }
       `}</style>
     </div>
   );

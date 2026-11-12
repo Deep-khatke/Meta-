@@ -129,15 +129,14 @@ export const MotorControlHUD: React.FC<MotorControlHUDProps> = ({
         left: 14,
         zIndex: 10,
         backgroundColor: 'rgba(15, 18, 26, 0.94)',
-        backdropFilter: 'blur(10px)',
         border: '1px solid #232b3e',
         borderRadius: 10,
-        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(56, 189, 248, 0.15)',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(232, 98, 44, 0.15)',
         width: 320,
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
-        color: '#f8fafc',
+        color: '#f4f3ef',
         fontFamily: 'var(--font-sans)',
       }}
     >
@@ -148,7 +147,7 @@ export const MotorControlHUD: React.FC<MotorControlHUDProps> = ({
           alignItems: 'center',
           justifyContent: 'space-between',
           padding: '8px 12px',
-          background: 'linear-gradient(180deg, #192030 0%, #121622 100%)',
+          background: 'var(--bg-panel)',
           borderBottom: isCollapsed ? 'none' : '1px solid #232b3e',
           cursor: 'pointer',
           userSelect: 'none',
@@ -161,18 +160,19 @@ export const MotorControlHUD: React.FC<MotorControlHUDProps> = ({
               width: 20,
               height: 20,
               borderRadius: 5,
-              background: 'linear-gradient(135deg, #0284c7, #6366f1)',
+              background: 'var(--bg-panel-hover)',
+              border: '1px solid var(--border-strong)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
-            <Sliders size={12} color="#fff" />
+            <Sliders size={12} color="var(--accent)" />
           </div>
           <div>
             <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.4px', display: 'flex', alignItems: 'center', gap: 6 }}>
               <span>MOTOR &amp; JOINT HUD</span>
-              <span style={{ fontSize: 9, background: '#0284c7', color: '#fff', padding: '1px 5px', borderRadius: 10, fontWeight: 600 }}>
+              <span style={{ fontSize: 9, background: '#c4472d', color: '#fff', padding: '1px 5px', borderRadius: 10, fontWeight: 600 }}>
                 {controllableJoints.length} ACTUATORS
               </span>
             </div>
@@ -182,7 +182,7 @@ export const MotorControlHUD: React.FC<MotorControlHUDProps> = ({
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           <button
             className="rf-btn rf-btn-icon"
-            style={{ width: 20, height: 20, padding: 2, background: 'transparent', border: 'none', color: '#94a3b8' }}
+            style={{ width: 20, height: 20, padding: 2, background: 'transparent', border: 'none', color: '#a9aca7' }}
             onClick={(e) => {
               e.stopPropagation();
               setIsCollapsed(!isCollapsed);
@@ -217,15 +217,15 @@ export const MotorControlHUD: React.FC<MotorControlHUDProps> = ({
               <span>Park Pose</span>
             </button>
             <button
-              className={`rf-btn ${isDemoRunning ? 'rf-btn-primary' : ''}`}
+              className={`rf-btn ${isDemoRunning ? 'rf-btn-active' : ''}`}
               onClick={toggleDemoMotion}
               style={{
                 fontSize: 10,
                 padding: '3px 8px',
                 flex: 1,
                 justifyContent: 'center',
-                backgroundColor: isDemoRunning ? '#a855f7' : undefined,
-                borderColor: isDemoRunning ? '#a855f7' : undefined,
+                backgroundColor: isDemoRunning ? '#a9aca7' : undefined,
+                borderColor: isDemoRunning ? '#a9aca7' : undefined,
                 color: isDemoRunning ? '#fff' : undefined,
               }}
               title="Continuous animated sine wave motion across all actuators"
@@ -235,7 +235,7 @@ export const MotorControlHUD: React.FC<MotorControlHUDProps> = ({
             </button>
           </div>
 
-          <div style={{ height: 1, backgroundColor: '#1e2433', margin: '2px 0' }} />
+          <div style={{ height: 1, backgroundColor: '#25292b', margin: '2px 0' }} />
 
           {/* Joint Sliders */}
           {controllableJoints.map((j, idx) => {
@@ -253,7 +253,7 @@ export const MotorControlHUD: React.FC<MotorControlHUDProps> = ({
                   background: 'rgba(26, 31, 46, 0.6)',
                   padding: '6px 8px',
                   borderRadius: 6,
-                  border: '1px solid #1e2433',
+                  border: '1px solid #25292b',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: 3,
@@ -262,12 +262,12 @@ export const MotorControlHUD: React.FC<MotorControlHUDProps> = ({
                 {/* Joint Header */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 11 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <span style={{ color: '#38bdf8', fontWeight: 600, fontSize: 10 }}>J{idx + 1}</span>
-                    <span style={{ fontWeight: 600, color: '#e2e8f0', fontSize: 11 }}>{j.name}</span>
+                    <span style={{ color: '#e8622c', fontWeight: 600, fontSize: 10 }}>J{idx + 1}</span>
+                    <span style={{ fontWeight: 600, color: '#ecebe6', fontSize: 11 }}>{j.name}</span>
                     <span
                       style={{
                         fontSize: 8,
-                        color: '#94a3b8',
+                        color: '#a9aca7',
                         textTransform: 'uppercase',
                         padding: '1px 4px',
                         background: '#151923',
@@ -282,7 +282,7 @@ export const MotorControlHUD: React.FC<MotorControlHUDProps> = ({
                       style={{
                         fontFamily: 'var(--font-mono)',
                         fontSize: 11,
-                        color: '#4ade80',
+                        color: '#5cc596',
                         fontWeight: 600,
                         minWidth: 48,
                         textAlign: 'right',
@@ -321,7 +321,7 @@ export const MotorControlHUD: React.FC<MotorControlHUDProps> = ({
                     onChange={(e) => handleSliderChange(j.name, parseFloat(e.target.value))}
                     style={{
                       flex: 1,
-                      accentColor: '#38bdf8',
+                      accentColor: '#e8622c',
                       cursor: 'pointer',
                       height: 4,
                     }}

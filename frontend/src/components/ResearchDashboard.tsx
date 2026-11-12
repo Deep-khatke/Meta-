@@ -312,7 +312,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({ onShowToas
               padding: '2px 8px',
               borderRadius: 10,
               backgroundColor: currentMission.status === 'completed' ? '#10b98120' : currentMission.status === 'awaiting_approval' ? '#f59e0b25' : '#3b82f620',
-              color: currentMission.status === 'completed' ? '#10b981' : currentMission.status === 'awaiting_approval' ? '#f59e0b' : '#3b82f6',
+              color: currentMission.status === 'completed' ? '#3fb27f' : currentMission.status === 'awaiting_approval' ? '#dca23a' : '#c4472d',
               fontWeight: 600,
               display: 'flex',
               alignItems: 'center',
@@ -334,7 +334,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({ onShowToas
                 fontSize: 11,
                 padding: '4px 10px',
                 borderRadius: 4,
-                backgroundColor: activeSubTab === tab ? 'var(--accent-blue)' : 'transparent',
+                backgroundColor: activeSubTab === tab ? 'var(--accent-soft)' : 'transparent',
                 color: activeSubTab === tab ? '#fff' : 'var(--text-secondary)'
               }}
             >
@@ -390,7 +390,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({ onShowToas
                     onClick={() => setModeInput('autonomous')}
                     style={{
                       fontSize: 11,
-                      backgroundColor: modeInput === 'autonomous' ? 'var(--accent-blue)' : 'var(--bg-secondary)',
+                      backgroundColor: modeInput === 'autonomous' ? 'var(--accent-soft)' : 'var(--bg-secondary)',
                       color: modeInput === 'autonomous' ? '#fff' : 'var(--text-secondary)'
                     }}
                   >
@@ -442,7 +442,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({ onShowToas
                       onClick={handleApprovePlan}
                       disabled={isApproving}
                       style={{
-                        backgroundColor: '#10b981',
+                        backgroundColor: '#3fb27f',
                         color: '#fff',
                         fontSize: 12,
                         padding: '6px 14px',
@@ -459,7 +459,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({ onShowToas
                     className="rf-btn"
                     onClick={handleStartMission}
                     disabled={isLoading}
-                    style={{ backgroundColor: 'var(--accent-blue)', color: '#fff', fontSize: 12, padding: '6px 16px', fontWeight: 600 }}
+                    style={{ backgroundColor: 'var(--text-primary)', color: '#131516', fontSize: 12, padding: '6px 16px', fontWeight: 600 }}
                   >
                     <Play size={14} style={{ marginRight: 4 }} />
                     {isLoading ? 'Investigating...' : 'Start Research Investigation'}
@@ -487,7 +487,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({ onShowToas
                   <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
                       <span>Success:</span>
-                      <strong style={{ color: currentMission.baseline_metrics?.success ? '#10b981' : '#ef4444' }}>
+                      <strong style={{ color: currentMission.baseline_metrics?.success ? '#3fb27f' : '#e5484d' }}>
                         {currentMission.baseline_metrics?.success ? 'TRUE' : 'FALSE (Timeout / Stuck)'}
                       </strong>
                     </div>
@@ -523,7 +523,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({ onShowToas
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
                       <span>Best Candidate:</span>
-                      <span style={{ fontFamily: 'monospace', fontSize: 11, color: '#10b981' }}>{currentMission.best_candidate_plan_id || 'Evaluating'}</span>
+                      <span style={{ fontFamily: 'monospace', fontSize: 11, color: '#3fb27f' }}>{currentMission.best_candidate_plan_id || 'Evaluating'}</span>
                     </div>
                   </div>
                 </div>
@@ -533,7 +533,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({ onShowToas
                   <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
                       <span>Generalization Verdict:</span>
-                      <strong style={{ color: currentMission.validation_report?.generalization_verdict === 'generalized' ? '#10b981' : '#ef4444' }}>
+                      <strong style={{ color: currentMission.validation_report?.generalization_verdict === 'generalized' ? '#3fb27f' : '#e5484d' }}>
                         {currentMission.validation_report?.generalization_verdict?.toUpperCase() || 'PENDING'}
                       </strong>
                     </div>
@@ -573,7 +573,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({ onShowToas
                       borderRadius: 4,
                       fontWeight: 600,
                       backgroundColor: h.status === 'supported' ? '#10b98125' : h.status === 'refuted' ? '#ef444425' : '#6b728025',
-                      color: h.status === 'supported' ? '#10b981' : h.status === 'refuted' ? '#ef4444' : 'var(--text-muted)'
+                      color: h.status === 'supported' ? '#3fb27f' : h.status === 'refuted' ? '#e5484d' : 'var(--text-muted)'
                     }}>
                       {h.status.toUpperCase()}
                     </span>
@@ -598,7 +598,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({ onShowToas
                       <span>{(h.confidence * 100).toFixed(0)}%</span>
                     </div>
                     <div style={{ width: '100%', height: 4, backgroundColor: 'var(--bg-secondary)', borderRadius: 2, overflow: 'hidden' }}>
-                      <div style={{ width: `${h.confidence * 100}%`, height: '100%', backgroundColor: h.confidence > 0.6 ? '#10b981' : h.confidence < 0.4 ? '#ef4444' : 'var(--accent-blue)' }} />
+                      <div style={{ width: `${h.confidence * 100}%`, height: '100%', backgroundColor: h.confidence > 0.6 ? '#3fb27f' : h.confidence < 0.4 ? '#e5484d' : 'var(--accent-blue)' }} />
                     </div>
                   </div>
 
@@ -638,7 +638,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({ onShowToas
                       <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, backgroundColor: 'var(--bg-secondary)', color: 'var(--accent-blue)', fontWeight: 600 }}>
                         Rank #{p.candidate_rank ?? 1} (Score: {p.acquisition_score ?? '0.50'})
                       </span>
-                      <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, backgroundColor: outcome?.empirical_verdict === 'improved' ? '#10b98125' : '#6b728025', color: outcome?.empirical_verdict === 'improved' ? '#10b981' : 'var(--text-secondary)', fontWeight: 600 }}>
+                      <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, backgroundColor: outcome?.empirical_verdict === 'improved' ? '#10b98125' : '#6b728025', color: outcome?.empirical_verdict === 'improved' ? '#3fb27f' : 'var(--text-secondary)', fontWeight: 600 }}>
                         {outcome?.empirical_verdict?.toUpperCase() || p.status.toUpperCase()}
                       </span>
                     </div>
@@ -656,7 +656,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({ onShowToas
                   </div>
 
                   {outcome && (
-                    <div style={{ display: 'flex', gap: 16, fontSize: 11, color: outcome.empirical_verdict === 'improved' ? '#10b981' : 'var(--text-secondary)' }}>
+                    <div style={{ display: 'flex', gap: 16, fontSize: 11, color: outcome.empirical_verdict === 'improved' ? '#3fb27f' : 'var(--text-secondary)' }}>
                       <span>&Delta; Collisions: {outcome.baseline_deltas?.delta_collisions?.toFixed(2) ?? '0.00'}</span>
                       <span>&Delta; Success: {outcome.baseline_deltas?.delta_success_rate ? `${(outcome.baseline_deltas.delta_success_rate * 100).toFixed(0)}%` : '0%'}</span>
                       <span>&Delta; Time: {outcome.baseline_deltas?.delta_time_to_goal?.toFixed(2) ?? '0.00'}s</span>
@@ -683,7 +683,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({ onShowToas
                 className="rf-btn"
                 onClick={handleRunComparativeBenchmark}
                 disabled={isBenchmarking}
-                style={{ backgroundColor: 'var(--accent-blue)', color: '#fff', fontSize: 12, padding: '8px 16px', fontWeight: 600 }}
+                style={{ backgroundColor: 'var(--text-primary)', color: '#131516', fontSize: 12, padding: '8px 16px', fontWeight: 600 }}
               >
                 <Scale size={14} style={{ marginRight: 6 }} />
                 {isBenchmarking ? 'Simulating All Strategies in MuJoCo...' : 'Run 4-Way Comparative Benchmark'}
@@ -699,7 +699,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({ onShowToas
                   padding: 14,
                   borderRadius: 6
                 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#10b981', fontWeight: 600, fontSize: 13 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#3fb27f', fontWeight: 600, fontSize: 13 }}>
                     <Award size={18} />
                     RESEARCH ADVANTAGE VERIFIED: Winner = {benchmarkReport.winner_strategy.toUpperCase()}
                   </div>
@@ -734,10 +734,10 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({ onShowToas
                             }}
                           >
                             <td style={{ padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 6 }}>
-                              {isWinner && <CheckCircle2 size={14} color="#10b981" />}
+                              {isWinner && <CheckCircle2 size={14} color="#3fb27f" />}
                               <span>{res.strategy_name}</span>
                             </td>
-                            <td style={{ padding: '10px 12px', color: res.success_rate > 0.5 ? '#10b981' : '#ef4444' }}>
+                            <td style={{ padding: '10px 12px', color: res.success_rate > 0.5 ? '#3fb27f' : '#e5484d' }}>
                               {(res.success_rate * 100).toFixed(0)}%
                             </td>
                             <td style={{ padding: '10px 12px' }}>
@@ -749,7 +749,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({ onShowToas
                             <td style={{ padding: '10px 12px' }}>
                               {res.evaluations_used} / {benchmarkReport.evaluation_budget}
                             </td>
-                            <td style={{ padding: '10px 12px', color: res.held_out_generalization_rate >= 0.5 ? '#10b981' : 'var(--text-muted)' }}>
+                            <td style={{ padding: '10px 12px', color: res.held_out_generalization_rate >= 0.5 ? '#3fb27f' : 'var(--text-muted)' }}>
                               {(res.held_out_generalization_rate * 100).toFixed(0)}%
                             </td>
                           </tr>
@@ -773,7 +773,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({ onShowToas
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>REPRODUCIBLE RESEARCH REPORT (Markdown)</span>
               <button className="rf-btn" onClick={handleCopyReport} style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}>
-                {copiedReport ? <Check size={12} color="#10b981" /> : <Copy size={12} />}
+                {copiedReport ? <Check size={12} color="#3fb27f" /> : <Copy size={12} />}
                 {copiedReport ? 'Copied!' : 'Copy Markdown'}
               </button>
             </div>

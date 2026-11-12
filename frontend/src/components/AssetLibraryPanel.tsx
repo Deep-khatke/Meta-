@@ -137,15 +137,15 @@ export const AssetLibraryPanel: React.FC<AssetLibraryPanelProps> = ({
 
   const getCategoryIcon = (cat: AssetCategory, hint?: string) => {
     if (cat === 'robot') {
-      return hint === 'arm' ? <Cpu size={14} color="#10b981" /> : <Bot size={14} color="#3b82f6" />;
+      return hint === 'arm' ? <Cpu size={14} color="#3fb27f" /> : <Bot size={14} color="#c4472d" />;
     }
     if (cat === 'obstacle') {
       return <Layers size={14} color="#e06c75" />;
     }
     if (cat === 'sensor') {
-      return hint === 'video' ? <Video size={14} color="#38bdf8" /> : <Radio size={14} color="#c084fc" />;
+      return hint === 'video' ? <Video size={14} color="#e8622c" /> : <Radio size={14} color="#a9aca7" />;
     }
-    return <LayoutTemplate size={14} color="#f59e0b" />;
+    return <LayoutTemplate size={14} color="#dca23a" />;
   };
 
   // Collect all unique tags from currently loaded assets
@@ -177,7 +177,7 @@ export const AssetLibraryPanel: React.FC<AssetLibraryPanelProps> = ({
           <span style={{ fontWeight: 700, fontSize: isDocked ? 12 : 13, letterSpacing: '0.5px' }}>
             {isDocked ? 'ASSETS' : 'ASSET & SCENE LIBRARY'}
           </span>
-          <span style={{ fontSize: 10, padding: '1px 5px', backgroundColor: 'rgba(59, 130, 246, 0.15)', color: 'var(--accent-blue)', borderRadius: 4 }}>
+          <span style={{ fontSize: 10, padding: '1px 5px', backgroundColor: 'rgba(232, 98, 44, 0.15)', color: 'var(--accent-blue)', borderRadius: 4 }}>
             {assets.length}
           </span>
         </div>
@@ -191,7 +191,7 @@ export const AssetLibraryPanel: React.FC<AssetLibraryPanelProps> = ({
                 style={{
                   fontSize: 10,
                   padding: '2px 8px',
-                  background: dockView === 'catalog' ? 'var(--accent-blue)' : 'transparent',
+                  background: dockView === 'catalog' ? 'var(--accent-soft)' : 'transparent',
                   color: dockView === 'catalog' ? '#fff' : 'var(--text-secondary)',
                   border: 'none',
                   borderRadius: 4
@@ -205,7 +205,7 @@ export const AssetLibraryPanel: React.FC<AssetLibraryPanelProps> = ({
                 style={{
                   fontSize: 10,
                   padding: '2px 8px',
-                  background: dockView === 'inspector' ? 'var(--accent-blue)' : 'transparent',
+                  background: dockView === 'inspector' ? 'var(--accent-soft)' : 'transparent',
                   color: dockView === 'inspector' ? '#fff' : 'var(--text-secondary)',
                   border: 'none',
                   borderRadius: 4
@@ -255,7 +255,7 @@ export const AssetLibraryPanel: React.FC<AssetLibraryPanelProps> = ({
               }}
               title="Save the entire current scene (robot, obstacles, boundaries, sensors) as a reusable template"
             >
-              <LayoutTemplate size={12} color="#f59e0b" />
+              <LayoutTemplate size={12} color="#dca23a" />
               <span>Save Template</span>
             </button>
 
@@ -306,7 +306,7 @@ export const AssetLibraryPanel: React.FC<AssetLibraryPanelProps> = ({
           ].map((cat) => (
             <button
               key={cat.id}
-              className={`rf-btn ${selectedCategory === cat.id ? 'rf-btn-primary' : ''}`}
+              className={`rf-btn ${selectedCategory === cat.id ? 'rf-btn-active' : ''}`}
               style={{ fontSize: 10, padding: '2px 8px', whiteSpace: 'nowrap' }}
               onClick={() => setSelectedCategory(cat.id)}
             >
@@ -378,7 +378,7 @@ export const AssetLibraryPanel: React.FC<AssetLibraryPanelProps> = ({
                     flexDirection: 'column',
                     gap: 8,
                     transition: 'border-color 0.15s, background-color 0.15s',
-                    boxShadow: isSelected ? '0 0 12px rgba(59, 130, 246, 0.2)' : 'none'
+                    boxShadow: isSelected ? '0 0 12px rgba(232, 98, 44, 0.2)' : 'none'
                   }}
                 >
                   {/* Card Header */}
@@ -409,7 +409,7 @@ export const AssetLibraryPanel: React.FC<AssetLibraryPanelProps> = ({
                       padding: '2px 5px',
                       borderRadius: 3,
                       fontWeight: 600,
-                      backgroundColor: asset.is_built_in ? 'rgba(59, 130, 246, 0.15)' : 'rgba(34, 197, 94, 0.15)',
+                      backgroundColor: asset.is_built_in ? 'rgba(232, 98, 44, 0.15)' : 'rgba(34, 197, 94, 0.15)',
                       color: asset.is_built_in ? 'var(--accent-blue)' : 'var(--accent-green)'
                     }}>
                       {asset.is_built_in ? 'SYSTEM' : 'CUSTOM'}
@@ -707,9 +707,9 @@ export const AssetLibraryPanel: React.FC<AssetLibraryPanelProps> = ({
                       padding: '7px 12px',
                       fontSize: 11,
                       gap: 6,
-                      background: 'rgba(59, 130, 246, 0.15)',
-                      borderColor: 'rgba(59, 130, 246, 0.4)',
-                      color: '#60a5fa',
+                      background: 'rgba(232, 98, 44, 0.15)',
+                      borderColor: 'rgba(232, 98, 44, 0.4)',
+                      color: '#e8622c',
                       fontWeight: 600,
                     }}
                     onClick={() => {
@@ -756,7 +756,6 @@ export const AssetLibraryPanel: React.FC<AssetLibraryPanelProps> = ({
           right: 0,
           bottom: 0,
           backgroundColor: 'rgba(0,0,0,0.7)',
-          backdropFilter: 'blur(4px)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',

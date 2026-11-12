@@ -50,7 +50,7 @@ export const EnvironmentCreatorModal: React.FC<EnvironmentCreatorModalProps> = (
       mass: 500.0,
       friction: [0.8, 0.005, 0.0001],
       is_static: true,
-      color: '#3b82f6',
+      color: '#c4472d',
       visible: true,
     },
     {
@@ -63,7 +63,7 @@ export const EnvironmentCreatorModal: React.FC<EnvironmentCreatorModalProps> = (
       mass: 500.0,
       friction: [0.8, 0.005, 0.0001],
       is_static: true,
-      color: '#3b82f6',
+      color: '#c4472d',
       visible: true,
     },
     {
@@ -89,7 +89,7 @@ export const EnvironmentCreatorModal: React.FC<EnvironmentCreatorModalProps> = (
       mass: 8.0,
       friction: [0.7, 0.005, 0.0001],
       is_static: false,
-      color: '#ef4444',
+      color: '#e5484d',
       visible: true,
     },
   ]);
@@ -123,7 +123,7 @@ export const EnvironmentCreatorModal: React.FC<EnvironmentCreatorModalProps> = (
       mass: 10.0,
       friction: [0.7, 0.005, 0.0001],
       is_static: false,
-      color: '#10b981',
+      color: '#3fb27f',
       visible: true,
     };
     setObjects([...objects, newObs]);
@@ -159,7 +159,7 @@ export const EnvironmentCreatorModal: React.FC<EnvironmentCreatorModalProps> = (
         mass: 500,
         friction: [0.8, 0.005, 0.0001],
         is_static: true,
-        color: '#2563eb',
+        color: '#c4472d',
         visible: true,
       },
       {
@@ -172,7 +172,7 @@ export const EnvironmentCreatorModal: React.FC<EnvironmentCreatorModalProps> = (
         mass: 500,
         friction: [0.8, 0.005, 0.0001],
         is_static: true,
-        color: '#2563eb',
+        color: '#c4472d',
         visible: true,
       },
       {
@@ -185,7 +185,7 @@ export const EnvironmentCreatorModal: React.FC<EnvironmentCreatorModalProps> = (
         mass: 500,
         friction: [0.8, 0.005, 0.0001],
         is_static: true,
-        color: '#2563eb',
+        color: '#c4472d',
         visible: true,
       },
       {
@@ -198,7 +198,7 @@ export const EnvironmentCreatorModal: React.FC<EnvironmentCreatorModalProps> = (
         mass: 500,
         friction: [0.8, 0.005, 0.0001],
         is_static: true,
-        color: '#2563eb',
+        color: '#c4472d',
         visible: true,
       },
     ];
@@ -324,9 +324,9 @@ export const EnvironmentCreatorModal: React.FC<EnvironmentCreatorModalProps> = (
 
   return (
     <div className="fixed inset-0 z-50 bg-black/25 backdrop-blur-[2px] flex items-center justify-center p-4">
-      <div className="bg-[#12141a] border border-[#2a2e39] rounded-xl shadow-2xl w-full max-w-5xl h-[88vh] flex flex-col overflow-hidden text-gray-200">
+      <div className="bg-[#12141a] border border-[#2f3436] rounded-xl shadow-2xl w-full max-w-5xl h-[88vh] flex flex-col overflow-hidden text-gray-200">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#2a2e39] bg-[#161922]">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#2f3436] bg-[#151718]">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
               <Globe size={20} />
@@ -381,7 +381,7 @@ export const EnvironmentCreatorModal: React.FC<EnvironmentCreatorModalProps> = (
           )}
 
           {/* Section 1: World Dimensions & Bounds */}
-          <div className="bg-[#181c26] border border-[#262c3a] rounded-xl p-5 space-y-4">
+          <div className="bg-[#1b1e20] border border-[#25292b] rounded-xl p-5 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-white flex items-center gap-2">
                 <Box size={16} className="text-indigo-400" />
@@ -410,7 +410,7 @@ export const EnvironmentCreatorModal: React.FC<EnvironmentCreatorModalProps> = (
                     setWorldWidth(Math.max(1, parseFloat(e.target.value) || 10));
                     setValidationResult(null);
                   }}
-                  className="w-full bg-[#12141c] border border-[#2d3345] rounded-lg px-3 py-2 text-white font-mono focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-[#131516] border border-[#2f3436] rounded-lg px-3 py-2 text-white font-mono focus:outline-none focus:border-indigo-500"
                 />
               </div>
 
@@ -426,7 +426,7 @@ export const EnvironmentCreatorModal: React.FC<EnvironmentCreatorModalProps> = (
                     setWorldDepth(Math.max(1, parseFloat(e.target.value) || 10));
                     setValidationResult(null);
                   }}
-                  className="w-full bg-[#12141c] border border-[#2d3345] rounded-lg px-3 py-2 text-white font-mono focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-[#131516] border border-[#2f3436] rounded-lg px-3 py-2 text-white font-mono focus:outline-none focus:border-indigo-500"
                 />
               </div>
 
@@ -442,13 +442,13 @@ export const EnvironmentCreatorModal: React.FC<EnvironmentCreatorModalProps> = (
                     setGroundFriction(Math.max(0.01, parseFloat(e.target.value) || 0.8));
                     setValidationResult(null);
                   }}
-                  className="w-full bg-[#12141c] border border-[#2d3345] rounded-lg px-3 py-2 text-white font-mono focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-[#131516] border border-[#2f3436] rounded-lg px-3 py-2 text-white font-mono focus:outline-none focus:border-indigo-500"
                 />
               </div>
 
               <div>
                 <label className="text-gray-400 block mb-1">Floor Area (Total)</label>
-                <div className="w-full bg-[#12141c] border border-[#2d3345] rounded-lg px-3 py-2 text-indigo-400 font-mono font-medium">
+                <div className="w-full bg-[#131516] border border-[#2f3436] rounded-lg px-3 py-2 text-indigo-400 font-mono font-medium">
                   {(worldWidth * worldDepth).toFixed(1)} m²
                 </div>
               </div>
@@ -456,7 +456,7 @@ export const EnvironmentCreatorModal: React.FC<EnvironmentCreatorModalProps> = (
           </div>
 
           {/* Section 2: Gravity & Physics Constants */}
-          <div className="bg-[#181c26] border border-[#262c3a] rounded-xl p-5 space-y-4">
+          <div className="bg-[#1b1e20] border border-[#25292b] rounded-xl p-5 space-y-4">
             <h3 className="text-sm font-semibold text-white flex items-center gap-2">
               <Zap size={16} className="text-amber-400" />
               Gravity & Environmental Physics
@@ -471,14 +471,14 @@ export const EnvironmentCreatorModal: React.FC<EnvironmentCreatorModalProps> = (
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium capitalize transition ${
                     gravityPreset === preset
                       ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm'
-                      : 'bg-[#12141c] text-gray-400 border border-[#2b3040] hover:text-white'
+                      : 'bg-[#131516] text-gray-400 border border-[#2b3040] hover:text-white'
                   }`}
                 >
-                  {preset === 'earth' && '🌍 Earth (-9.81 m/s²)'}
-                  {preset === 'moon' && '🌑 Moon (-1.62 m/s²)'}
-                  {preset === 'mars' && '🔴 Mars (-3.72 m/s²)'}
-                  {preset === 'zero' && '✨ Zero-G (0.0 m/s²)'}
-                  {preset === 'custom' && '⚙ Custom Gravity'}
+                  {preset === 'earth' && 'Earth (-9.81 m/s²)'}
+                  {preset === 'moon' && 'Moon (-1.62 m/s²)'}
+                  {preset === 'mars' && 'Mars (-3.72 m/s²)'}
+                  {preset === 'zero' && 'Zero-G (0.0 m/s²)'}
+                  {preset === 'custom' && 'Custom gravity'}
                 </button>
               ))}
             </div>
@@ -490,7 +490,7 @@ export const EnvironmentCreatorModal: React.FC<EnvironmentCreatorModalProps> = (
                   type="number"
                   disabled
                   value={0}
-                  className="w-full bg-[#12141c] opacity-60 border border-[#2d3345] rounded-lg px-3 py-2 text-gray-400 font-mono"
+                  className="w-full bg-[#131516] opacity-60 border border-[#2f3436] rounded-lg px-3 py-2 text-gray-400 font-mono"
                 />
               </div>
               <div>
@@ -499,7 +499,7 @@ export const EnvironmentCreatorModal: React.FC<EnvironmentCreatorModalProps> = (
                   type="number"
                   disabled
                   value={0}
-                  className="w-full bg-[#12141c] opacity-60 border border-[#2d3345] rounded-lg px-3 py-2 text-gray-400 font-mono"
+                  className="w-full bg-[#131516] opacity-60 border border-[#2f3436] rounded-lg px-3 py-2 text-gray-400 font-mono"
                 />
               </div>
               <div>
@@ -513,14 +513,14 @@ export const EnvironmentCreatorModal: React.FC<EnvironmentCreatorModalProps> = (
                     setGravityPreset('custom');
                     setValidationResult(null);
                   }}
-                  className="w-full bg-[#12141c] border border-[#2d3345] rounded-lg px-3 py-2 text-white font-mono focus:outline-none focus:border-amber-500"
+                  className="w-full bg-[#131516] border border-[#2f3436] rounded-lg px-3 py-2 text-white font-mono focus:outline-none focus:border-amber-500"
                 />
               </div>
             </div>
           </div>
 
           {/* Section 3: Obstacle Layout Designer */}
-          <div className="bg-[#181c26] border border-[#262c3a] rounded-xl p-5 space-y-4">
+          <div className="bg-[#1b1e20] border border-[#25292b] rounded-xl p-5 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-white flex items-center gap-2">
                 <Layers size={16} className="text-cyan-400" />
@@ -540,7 +540,7 @@ export const EnvironmentCreatorModal: React.FC<EnvironmentCreatorModalProps> = (
               {objects.map((obs, idx) => (
                 <div
                   key={obs.id || idx}
-                  className="bg-[#12141c] border border-[#2a3040] rounded-xl p-3 text-xs space-y-2 hover:border-[#384055] transition"
+                  className="bg-[#131516] border border-[#2a3040] rounded-xl p-3 text-xs space-y-2 hover:border-[#384055] transition"
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2 flex-1">
@@ -561,7 +561,7 @@ export const EnvironmentCreatorModal: React.FC<EnvironmentCreatorModalProps> = (
                         onChange={(e) =>
                           handleUpdateObstacle(idx, { type: e.target.value as 'box' | 'cylinder' | 'sphere' })
                         }
-                        className="bg-[#181c26] border border-[#2d3345] rounded-md px-2 py-1 text-gray-300 text-xs focus:outline-none"
+                        className="bg-[#1b1e20] border border-[#2f3436] rounded-md px-2 py-1 text-gray-300 text-xs focus:outline-none"
                       >
                         <option value="box">Box</option>
                         <option value="cylinder">Cylinder</option>
@@ -573,7 +573,7 @@ export const EnvironmentCreatorModal: React.FC<EnvironmentCreatorModalProps> = (
                           type="checkbox"
                           checked={obs.is_static}
                           onChange={(e) => handleUpdateObstacle(idx, { is_static: e.target.checked })}
-                          className="rounded border-[#2d3345] bg-[#181c26] text-cyan-500"
+                          className="rounded border-[#2f3436] bg-[#1b1e20] text-cyan-500"
                         />
                         <span>Static</span>
                       </label>
@@ -602,7 +602,7 @@ export const EnvironmentCreatorModal: React.FC<EnvironmentCreatorModalProps> = (
                               position: [parseFloat(e.target.value) || 0, obs.position[1], obs.position[2]],
                             })
                           }
-                          className="w-1/3 bg-[#181c26] border border-[#2d3345] rounded px-1.5 py-1 text-white text-[11px]"
+                          className="w-1/3 bg-[#1b1e20] border border-[#2f3436] rounded px-1.5 py-1 text-white text-[11px]"
                         />
                         <input
                           type="number"
@@ -613,7 +613,7 @@ export const EnvironmentCreatorModal: React.FC<EnvironmentCreatorModalProps> = (
                               position: [obs.position[0], parseFloat(e.target.value) || 0, obs.position[2]],
                             })
                           }
-                          className="w-1/3 bg-[#181c26] border border-[#2d3345] rounded px-1.5 py-1 text-white text-[11px]"
+                          className="w-1/3 bg-[#1b1e20] border border-[#2f3436] rounded px-1.5 py-1 text-white text-[11px]"
                         />
                         <input
                           type="number"
@@ -624,7 +624,7 @@ export const EnvironmentCreatorModal: React.FC<EnvironmentCreatorModalProps> = (
                               position: [obs.position[0], obs.position[1], parseFloat(e.target.value) || 0],
                             })
                           }
-                          className="w-1/3 bg-[#181c26] border border-[#2d3345] rounded px-1.5 py-1 text-white text-[11px]"
+                          className="w-1/3 bg-[#1b1e20] border border-[#2f3436] rounded px-1.5 py-1 text-white text-[11px]"
                         />
                       </div>
                     </div>
@@ -652,7 +652,7 @@ export const EnvironmentCreatorModal: React.FC<EnvironmentCreatorModalProps> = (
                               ],
                             })
                           }
-                          className="w-1/3 bg-[#181c26] border border-[#2d3345] rounded px-1.5 py-1 text-white text-[11px]"
+                          className="w-1/3 bg-[#1b1e20] border border-[#2f3436] rounded px-1.5 py-1 text-white text-[11px]"
                         />
                         {obs.type !== 'sphere' && (
                           <input
@@ -669,7 +669,7 @@ export const EnvironmentCreatorModal: React.FC<EnvironmentCreatorModalProps> = (
                                 ],
                               })
                             }
-                            className="w-1/3 bg-[#181c26] border border-[#2d3345] rounded px-1.5 py-1 text-white text-[11px]"
+                            className="w-1/3 bg-[#1b1e20] border border-[#2f3436] rounded px-1.5 py-1 text-white text-[11px]"
                           />
                         )}
                         {obs.type === 'box' && (
@@ -687,7 +687,7 @@ export const EnvironmentCreatorModal: React.FC<EnvironmentCreatorModalProps> = (
                                 ],
                               })
                             }
-                            className="w-1/3 bg-[#181c26] border border-[#2d3345] rounded px-1.5 py-1 text-white text-[11px]"
+                            className="w-1/3 bg-[#1b1e20] border border-[#2f3436] rounded px-1.5 py-1 text-white text-[11px]"
                           />
                         )}
                       </div>
@@ -703,7 +703,7 @@ export const EnvironmentCreatorModal: React.FC<EnvironmentCreatorModalProps> = (
                         onChange={(e) =>
                           handleUpdateObstacle(idx, { mass: Math.max(0.01, parseFloat(e.target.value) || 1.0) })
                         }
-                        className="w-full bg-[#181c26] border border-[#2d3345] rounded px-2 py-1 text-white font-mono text-[11px]"
+                        className="w-full bg-[#1b1e20] border border-[#2f3436] rounded px-2 py-1 text-white font-mono text-[11px]"
                       />
                     </div>
 
@@ -720,7 +720,7 @@ export const EnvironmentCreatorModal: React.FC<EnvironmentCreatorModalProps> = (
                             friction: [Math.max(0.01, parseFloat(e.target.value) || 0.7), 0.005, 0.0001],
                           })
                         }
-                        className="w-full bg-[#181c26] border border-[#2d3345] rounded px-2 py-1 text-white font-mono text-[11px]"
+                        className="w-full bg-[#1b1e20] border border-[#2f3436] rounded px-2 py-1 text-white font-mono text-[11px]"
                       />
                     </div>
                   </div>
@@ -730,7 +730,7 @@ export const EnvironmentCreatorModal: React.FC<EnvironmentCreatorModalProps> = (
           </div>
 
           {/* Section 4: Save as Reusable Template */}
-          <div className="bg-[#181c26] border border-[#262c3a] rounded-xl p-5 space-y-3">
+          <div className="bg-[#1b1e20] border border-[#25292b] rounded-xl p-5 space-y-3">
             <h3 className="text-sm font-semibold text-white flex items-center gap-2">
               <Save size={16} className="text-amber-400" />
               Save Environment as Asset Library Template
@@ -742,7 +742,7 @@ export const EnvironmentCreatorModal: React.FC<EnvironmentCreatorModalProps> = (
                   type="text"
                   value={templateName}
                   onChange={(e) => setTemplateName(e.target.value)}
-                  className="w-full bg-[#12141c] border border-[#2d3345] rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-amber-500"
+                  className="w-full bg-[#131516] border border-[#2f3436] rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-amber-500"
                 />
               </div>
               <div>
@@ -751,7 +751,7 @@ export const EnvironmentCreatorModal: React.FC<EnvironmentCreatorModalProps> = (
                   type="text"
                   value={templateDesc}
                   onChange={(e) => setTemplateDesc(e.target.value)}
-                  className="w-full bg-[#12141c] border border-[#2d3345] rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-amber-500"
+                  className="w-full bg-[#131516] border border-[#2f3436] rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-amber-500"
                 />
               </div>
             </div>
@@ -770,7 +770,7 @@ export const EnvironmentCreatorModal: React.FC<EnvironmentCreatorModalProps> = (
         </div>
 
         {/* Footer Actions */}
-        <div className="flex items-center justify-between px-6 py-4 border-t border-[#2a2e39] bg-[#161922]">
+        <div className="flex items-center justify-between px-6 py-4 border-t border-[#2f3436] bg-[#151718]">
           <button
             type="button"
             onClick={handleValidate}

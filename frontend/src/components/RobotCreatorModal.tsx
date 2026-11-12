@@ -51,14 +51,14 @@ export const RobotCreatorModal: React.FC<RobotCreatorModalProps> = ({
     links: [
       {
         name: 'base_link',
-        visual: { type: 'cylinder', size: [0.18, 0.05], origin_pos: [0, 0, 0.05], origin_rpy: [0, 0, 0], color: '#334155' },
-        collision: { type: 'cylinder', size: [0.18, 0.05], origin_pos: [0, 0, 0.05], origin_rpy: [0, 0, 0], color: '#334155' },
+        visual: { type: 'cylinder', size: [0.18, 0.05], origin_pos: [0, 0, 0.05], origin_rpy: [0, 0, 0], color: '#363b3e' },
+        collision: { type: 'cylinder', size: [0.18, 0.05], origin_pos: [0, 0, 0.05], origin_rpy: [0, 0, 0], color: '#363b3e' },
         inertial: { mass: 4.0, origin_pos: [0, 0, 0.05], ixx: 0.05, iyy: 0.05, izz: 0.05 }
       },
       {
         name: 'arm_link_1',
-        visual: { type: 'box', size: [0.22, 0.04, 0.04], origin_pos: [0.22, 0, 0], origin_rpy: [0, 0, 0], color: '#2563eb' },
-        collision: { type: 'box', size: [0.22, 0.04, 0.04], origin_pos: [0.22, 0, 0], origin_rpy: [0, 0, 0], color: '#2563eb' },
+        visual: { type: 'box', size: [0.22, 0.04, 0.04], origin_pos: [0.22, 0, 0], origin_rpy: [0, 0, 0], color: '#c4472d' },
+        collision: { type: 'box', size: [0.22, 0.04, 0.04], origin_pos: [0.22, 0, 0], origin_rpy: [0, 0, 0], color: '#c4472d' },
         inertial: { mass: 1.5, origin_pos: [0.22, 0, 0], ixx: 0.02, iyy: 0.02, izz: 0.02 }
       }
     ],
@@ -115,8 +115,8 @@ export const RobotCreatorModal: React.FC<RobotCreatorModalProps> = ({
 
     const newLink: LinkModel = {
       name: newLinkName,
-      visual: { type: 'box', size: [0.18, 0.035, 0.03], origin_pos: [0.18, 0, 0], origin_rpy: [0, 0, 0], color: '#f97316' },
-      collision: { type: 'box', size: [0.18, 0.035, 0.03], origin_pos: [0.18, 0, 0], origin_rpy: [0, 0, 0], color: '#f97316' },
+      visual: { type: 'box', size: [0.18, 0.035, 0.03], origin_pos: [0.18, 0, 0], origin_rpy: [0, 0, 0], color: '#d98a3d' },
+      collision: { type: 'box', size: [0.18, 0.035, 0.03], origin_pos: [0.18, 0, 0], origin_rpy: [0, 0, 0], color: '#d98a3d' },
       inertial: { mass: 1.0, origin_pos: [0.18, 0, 0], ixx: 0.01, iyy: 0.01, izz: 0.01 }
     };
 
@@ -209,7 +209,6 @@ export const RobotCreatorModal: React.FC<RobotCreatorModalProps> = ({
       right: 0,
       bottom: 0,
       backgroundColor: 'rgba(0,0,0,0.25)',
-      backdropFilter: 'blur(2px)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -237,7 +236,7 @@ export const RobotCreatorModal: React.FC<RobotCreatorModalProps> = ({
           justifyContent: 'space-between'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ padding: 6, borderRadius: 6, backgroundColor: 'rgba(59, 130, 246, 0.2)' }}>
+            <div style={{ padding: 6, borderRadius: 6, backgroundColor: 'rgba(232, 98, 44, 0.2)' }}>
               <Bot size={16} color="var(--accent-blue)" />
             </div>
             <div>
@@ -264,7 +263,7 @@ export const RobotCreatorModal: React.FC<RobotCreatorModalProps> = ({
           gap: 10
         }}>
           <button
-            className={`rf-btn ${robotType === 'mobile' ? 'rf-btn-primary' : ''}`}
+            className={`rf-btn ${robotType === 'mobile' ? 'rf-btn-active' : ''}`}
             style={{ fontSize: 11, padding: '4px 14px', gap: 6 }}
             onClick={() => {
               setRobotType('mobile');
@@ -276,7 +275,7 @@ export const RobotCreatorModal: React.FC<RobotCreatorModalProps> = ({
           </button>
 
           <button
-            className={`rf-btn ${robotType === 'articulated' ? 'rf-btn-primary' : ''}`}
+            className={`rf-btn ${robotType === 'articulated' ? 'rf-btn-active' : ''}`}
             style={{ fontSize: 11, padding: '4px 14px', gap: 6 }}
             onClick={() => {
               setRobotType('articulated');
@@ -560,7 +559,7 @@ export const RobotCreatorModal: React.FC<RobotCreatorModalProps> = ({
                             type="color"
                             className="rf-input"
                             style={{ width: '100%', height: 26, padding: 2 }}
-                            value={link.visual?.color || '#3b82f6'}
+                            value={link.visual?.color || '#c4472d'}
                             onChange={(e) => {
                               const updatedLinks = [...articulatedConfig.links];
                               if (updatedLinks[idx].visual) {

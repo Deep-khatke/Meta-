@@ -3,13 +3,14 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js';
 import { Project, SimulationState, SceneObject, JointModel } from '../types';
-import {
-  Camera, Compass, Crosshair, ArrowUp, ArrowDown, ArrowLeft, ArrowRight,
-  Move, RotateCw, Maximize2, X, Eye, EyeOff, Radio, Magnet, Video, Zap,
-  GitFork, Layers, Route, FileUp, Trash2, Cpu, Sparkles, Square
-} from 'lucide-react';
+import { Camera, Compass, Crosshair, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Move, RotateCw, Maximize2, X, Eye, EyeOff, Radio, Magnet, Video, Zap, GitFork, Layers, Route, FileUp, Trash2, Cpu, Sparkles, Square, Plane, Hand, Car } from 'lucide-react';
 import { importURDF, importMJCF, trainDroneLive, trainArmLive, trainRoverLive, stopAllRl } from '../services/api';
 import { MotorControlHUD } from './MotorControlHUD';
+import { createRoverModel, RoverModel } from './robots/roverModel';
+import { createDroneModel } from './robots/droneModel';
+import { createArmLinkVisual } from './robots/armModel';
+import { createRobotMaterials } from './robots/palette';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 
 interface Viewport3DProps {
   project: Project;
@@ -160,7 +161,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
         if (obj.type === 'sphere') geo = new THREE.SphereGeometry(obj.size[0] || 0.2, 24, 24);
         else if (obj.type === 'cylinder') geo = new THREE.CylinderGeometry(obj.size[0] || 0.2, obj.size[0] || 0.2, (obj.size[1] || 0.3) * 2, 24);
         else geo = new THREE.BoxGeometry((obj.size[0] || 0.2) * 2, (obj.size[1] || 0.2) * 2, (obj.size[2] || 0.2) * 2);
-        const mat = new THREE.MeshStandardMaterial({ color: new THREE.Color(obj.color || '#8892b0'), roughness: 0.4, metalness: 0.2 });
+        const mat = new THREE.MeshStandardMaterial({ color: new THREE.Color(obj.color || '#8a8d89'), roughness: 0.4, metalness: 0.2 });
         mesh = new THREE.Mesh(geo, mat);
         mesh.name = `obj_${obj.id}`;
         (mesh as any).userData = { id: obj.id, isObstacle: true };
@@ -174,7 +175,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
         mesh.rotation.set((obj.rotation[0] * Math.PI) / 180, (obj.rotation[1] * Math.PI) / 180, (obj.rotation[2] * Math.PI) / 180);
       }
       const m = (mesh as any).material;
-      if (m && m.color) m.color.set(obj.color || '#8892b0');
+      if (m && m.color) m.color.set(obj.color || '#8a8d89');
       mesh.visible = obj.visible !== false;
     });
   }, [project?.objects]);
@@ -189,6 +190,8 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
   // Kinematic Visualization Overlays Toggle State (off by default -- show a clean robot, not a
   // debug diagram; the user can enable frames/axes/limits from the Kinematics panel).
   const [showKinematicFrames, setShowKinematicFrames] = useState<boolean>(false);
+  const showFramesRef = useRef<boolean>(false);
+  useEffect(() => { showFramesRef.current = showKinematicFrames; }, [showKinematicFrames]);
   const [showJointAxes, setShowJointAxes] = useState<boolean>(false);
   const [showJointLimits, setShowJointLimits] = useState<boolean>(false);
   const [showLinkHierarchy, setShowLinkHierarchy] = useState<boolean>(false);
@@ -204,13 +207,14 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     yaw: number;
   } | null>(null);
 
-  const leftWheelRef = useRef<THREE.Mesh | null>(null);
-  const rightWheelRef = useRef<THREE.Mesh | null>(null);
+  const leftWheelRef = useRef<THREE.Object3D | null>(null);
+  const rightWheelRef = useRef<THREE.Object3D | null>(null);
   const objectMeshesRef = useRef<Map<string, THREE.Mesh | THREE.Group>>(new Map());
-  const droneRotorsRef = useRef<THREE.Mesh[]>([]);
+  const droneRotorsRef = useRef<THREE.Object3D[]>([]);
 
   // Sensors and visualization refs
-  const lidarTurretRef = useRef<THREE.Mesh | null>(null);
+  const lidarTurretRef = useRef<THREE.Object3D | null>(null);
+  const roverModelRef = useRef<RoverModel | null>(null);
   const cameraMountGroupRef = useRef<THREE.Group | null>(null);
   const lidarLinesRef = useRef<THREE.LineSegments | null>(null);
   const contactMarkersGroupRef = useRef<THREE.Group | null>(null);
@@ -279,146 +283,29 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     robotGroup.name = 'robot';
     (robotGroup as any).userData = { id: 'robot', isRobot: true };
 
-    const [hx, hy, hz] = rConfig.chassis_size;
-    const wr = rConfig.wheel_radius;
-    const ww = rConfig.wheel_width;
-    const wb = rConfig.wheel_base;
-    const cr = rConfig.caster_radius;
-
-    // Main Chassis Box
-    const chassisGeo = new THREE.BoxGeometry(hx * 2, hy * 2, hz * 2);
-    const chassisMat = new THREE.MeshStandardMaterial({
-      color: 0x2563eb,
-      metalness: 0.3,
-      roughness: 0.4,
-    });
-    const chassisMesh = new THREE.Mesh(chassisGeo, chassisMat);
-    chassisMesh.castShadow = true;
-    chassisMesh.receiveShadow = true;
-    robotGroup.add(chassisMesh);
-
-    // Forward Direction Arrow / Nose
-    const noseGeo = new THREE.BoxGeometry(hx * 0.5, hy * 0.5, hz * 0.8);
-    const noseMat = new THREE.MeshStandardMaterial({
-      color: 0xf97316,
-      roughness: 0.3,
-    });
-    const noseMesh = new THREE.Mesh(noseGeo, noseMat);
-    noseMesh.position.set(hx * 0.85, 0, hz * 0.3);
-    noseMesh.castShadow = true;
-    robotGroup.add(noseMesh);
-
-    // Local Robot Base Axes Helper (RGB Coordinate Frame)
-    const robotAxes = new THREE.AxesHelper(0.35);
-    robotAxes.position.set(0, 0, hz + 0.02);
-    robotGroup.add(robotAxes);
-
-    // Left Wheel (Cylinder)
-    const wheelGeo = new THREE.CylinderGeometry(wr, wr, ww, 24);
-    const wheelMat = new THREE.MeshStandardMaterial({
-      color: 0x22242a,
-      roughness: 0.8,
-      metalness: 0.2,
-    });
-    const leftWheel = new THREE.Mesh(wheelGeo, wheelMat);
-    leftWheel.rotation.x = Math.PI / 2;
-    leftWheel.position.set(0, wb * 0.5, -0.01);
-    leftWheel.castShadow = true;
-    robotGroup.add(leftWheel);
-    leftWheelRef.current = leftWheel;
-
-    // Right Wheel (Cylinder)
-    const rightWheel = new THREE.Mesh(wheelGeo, wheelMat);
-    rightWheel.rotation.x = Math.PI / 2;
-    rightWheel.position.set(0, -wb * 0.5, -0.01);
-    rightWheel.castShadow = true;
-    robotGroup.add(rightWheel);
-    rightWheelRef.current = rightWheel;
-
-    // 4 Corner Stabilizer Casters
-    const casterGeo = new THREE.SphereGeometry(cr, 16, 16);
-    const casterMat = new THREE.MeshStandardMaterial({ color: 0x4a4d56, roughness: 0.5 });
-    const casterX = hx * 0.75;
-    const casterY = wb * 0.35;
-    const casterZ = -0.01 - wr + cr;
-
-    const casterFL = new THREE.Mesh(casterGeo, casterMat);
-    casterFL.position.set(casterX, casterY, casterZ);
-    robotGroup.add(casterFL);
-
-    const casterFR = new THREE.Mesh(casterGeo, casterMat);
-    casterFR.position.set(casterX, -casterY, casterZ);
-    robotGroup.add(casterFR);
-
-    const casterRL = new THREE.Mesh(casterGeo, casterMat);
-    casterRL.position.set(-casterX, casterY, casterZ);
-    robotGroup.add(casterRL);
-
-    const casterRR = new THREE.Mesh(casterGeo, casterMat);
-    casterRR.position.set(-casterX, -casterY, casterZ);
-    robotGroup.add(casterRR);
-
-    // Visible Simulated LiDAR Sensor Placement (Toggleable)
+    // Designed rover model (strictly white and grey), built to the physics dimensions so the wheels
+    // sit exactly on the ground. See components/robots/roverModel.ts.
     const lidarCfg = proj.sensors?.lidar;
-    const lidarMount = lidarCfg?.mount_pos || [0.10, 0.0, 0.09];
-    const lidarTurretGeo = new THREE.CylinderGeometry(0.035, 0.035, 0.03, 16);
-    const lidarTurretMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.7, roughness: 0.3 });
-    const lidarMesh = new THREE.Mesh(lidarTurretGeo, lidarTurretMat);
-    lidarMesh.rotation.x = Math.PI / 2;
-    lidarMesh.position.set(lidarMount[0], lidarMount[1], lidarMount[2]);
-    const lidarLens = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.025, 0.025, 0.01, 16),
-      new THREE.MeshBasicMaterial({ color: 0x0284c7 })
-    );
-    lidarLens.position.set(0, 0.016, 0);
-    lidarMesh.add(lidarLens);
-    const lidarAxes = new THREE.AxesHelper(0.12);
-    lidarMesh.add(lidarAxes);
-    if (lidarCfg && lidarCfg.enabled === false) {
-      lidarMesh.visible = false;
-    }
-    robotGroup.add(lidarMesh);
-    lidarTurretRef.current = lidarMesh;
-
-    // Visible Simulated IMU Sensor Placement (Toggleable)
-    const imuCfg = proj.sensors?.imu;
-    const imuMount = imuCfg?.mount_pos || [0.0, 0.0, 0.05];
-    const imuChipGeo = new THREE.BoxGeometry(0.025, 0.025, 0.01);
-    const imuChipMat = new THREE.MeshStandardMaterial({ color: 0x15803d, roughness: 0.5 });
-    const imuMesh = new THREE.Mesh(imuChipGeo, imuChipMat);
-    imuMesh.position.set(imuMount[0], imuMount[1], imuMount[2]);
-    const imuAxes = new THREE.AxesHelper(0.08);
-    imuMesh.add(imuAxes);
-    if (imuCfg && imuCfg.enabled === false) {
-      imuMesh.visible = false;
-    }
-    robotGroup.add(imuMesh);
-
-    // Visible Camera Sensor Placement & Onboard Camera (Toggleable)
     const camCfg = proj.sensors?.camera;
+    const lidarMount = (lidarCfg?.mount_pos || [0.10, 0.0, 0.09]) as [number, number, number];
     const camMount = camCfg?.mount_pos || [0.18, 0.0, 0.08];
-    const camGroup = new THREE.Group();
-    camGroup.name = 'camera_sensor';
-    camGroup.position.set(camMount[0], camMount[1], camMount[2]);
-
-    const camHousingGeo = new THREE.CylinderGeometry(0.018, 0.022, 0.035, 16);
-    const camHousingMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.8, roughness: 0.2 });
-    const camHousingMesh = new THREE.Mesh(camHousingGeo, camHousingMat);
-    camHousingMesh.rotation.z = Math.PI / 2;
-    camGroup.add(camHousingMesh);
-
-    const camLensGeo = new THREE.CylinderGeometry(0.014, 0.014, 0.005, 16);
-    const camLensMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, metalness: 0.9, roughness: 0.1 });
-    const camLensMesh = new THREE.Mesh(camLensGeo, camLensMat);
-    camLensMesh.position.set(0.019, 0, 0);
-    camLensMesh.rotation.z = Math.PI / 2;
-    camGroup.add(camLensMesh);
-
-    if (camCfg && camCfg.enabled === false) {
-      camGroup.visible = false;
-    }
-    robotGroup.add(camGroup);
-    cameraMountGroupRef.current = camGroup;
+    const rover = createRoverModel({
+      chassisSize: rConfig.chassis_size as [number, number, number],
+      wheelRadius: rConfig.wheel_radius,
+      wheelWidth: rConfig.wheel_width,
+      wheelBase: rConfig.wheel_base,
+      casterRadius: rConfig.caster_radius,
+      lidarMount,
+      cameraMount: camMount as [number, number, number],
+      lidarEnabled: !(lidarCfg && lidarCfg.enabled === false),
+      cameraEnabled: !(camCfg && camCfg.enabled === false),
+    });
+    robotGroup.add(rover.root);
+    leftWheelRef.current = rover.leftWheel;
+    rightWheelRef.current = rover.rightWheel;
+    lidarTurretRef.current = rover.lidarAssembly;
+    cameraMountGroupRef.current = rover.cameraAssembly;
+    roverModelRef.current = rover;
 
     // Attach Three.js perspective camera to robot body for vision navigation
     const robotEye = new THREE.PerspectiveCamera(camCfg?.fov_deg || 65, 4 / 3, 0.05, 40);
@@ -492,6 +379,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
           .map((l) => l.name)
       );
 
+      const armMats = createRobotMaterials();
       const buildLinkNode = (linkName: string): THREE.Group => {
         const linkGroup = new THREE.Group();
         linkGroup.name = `link_${linkName}`;
@@ -502,59 +390,20 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
         if (linkData) {
           const geom = linkData.visual || linkData.collision;
           if (geom) {
-            let gGeo: THREE.BufferGeometry;
-            if (geom.type === 'box') {
-              gGeo = new THREE.BoxGeometry(
-                Math.max(0.01, (geom.size[0] || 0.1) * 2),
-                Math.max(0.01, (geom.size[1] || 0.1) * 2),
-                Math.max(0.01, (geom.size[2] || 0.1) * 2)
-              );
-            } else if (geom.type === 'sphere') {
-              gGeo = new THREE.SphereGeometry(Math.max(0.01, geom.size[0] || 0.1), 16, 16);
-            } else {
-              gGeo = new THREE.CylinderGeometry(
-                Math.max(0.005, geom.size[0] || 0.05),
-                Math.max(0.005, geom.size[0] || 0.05),
-                Math.max(0.01, (geom.size[1] || 0.15) * 2),
-                20
-              );
-              // Three.js cylinders extend along local +Y, but MuJoCo/URDF cylinders (and our arm
-              // segments) extend along local +Z. Bake a +90deg X rotation into the geometry so the
-              // segment points up the kinematic chain (along Z) instead of lying sideways. This is
-              // why the arm previously looked like disconnected, misaligned blobs.
-              gGeo.rotateX(Math.PI / 2);
-            }
-            const baseColor = new THREE.Color(geom.color || '#5b6b7f');
-            const mat = new THREE.MeshStandardMaterial({
-              color: baseColor,
-              metalness: 0.82,
-              roughness: 0.32,
-              envMapIntensity: 1.1,
+            const parentJoint = parentJointByChild.get(linkName);
+            const jointAxis = parentJoint
+              ? new THREE.Vector3(parentJoint.axis?.[0] ?? 0, parentJoint.axis?.[1] ?? 0, parentJoint.axis?.[2] ?? 1)
+              : undefined;
+            const visual = createArmLinkVisual(
+              geom,
+              { isRoot: linkName === rootLinkName, index: gr.links.findIndex((l) => l.name === linkName), jointAxis },
+              armMats,
+            );
+            visual.traverse((c: any) => {
+              c.userData = { id: 'generic_robot', linkName, isRobot: true };
+              if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; }
             });
-            const mesh = new THREE.Mesh(gGeo, mat);
-            mesh.castShadow = true;
-            mesh.receiveShadow = true;
-            mesh.position.set(geom.origin_pos[0] || 0, geom.origin_pos[1] || 0, geom.origin_pos[2] || 0);
-            if (geom.origin_rpy) {
-              mesh.rotation.set(geom.origin_rpy[0] || 0, geom.origin_rpy[1] || 0, geom.origin_rpy[2] || 0);
-            }
-            (mesh as any).userData = { id: 'generic_robot', linkName, isRobot: true };
-            linkGroup.add(mesh);
-
-            // Small dark joint hub at the link's pivot (origin), so consecutive segments read as
-            // connected by a joint rather than as floating primitives. Kept small so it doesn't
-            // swamp the segment (the old large hub made the arm look like stacked balls).
-            if (linkName !== rootLinkName) {
-              const hubR = Math.max(0.028, (geom.type === 'cylinder' ? (geom.size[0] || 0.05) : 0.04) * 1.15);
-              const hub = new THREE.Mesh(
-                new THREE.SphereGeometry(hubR, 20, 16),
-                new THREE.MeshStandardMaterial({ color: 0x1f2937, metalness: 0.9, roughness: 0.35 })
-              );
-              hub.castShadow = true; hub.receiveShadow = true;
-              // Hub sits at the link frame origin (the joint pivot), NOT at the geom midpoint.
-              hub.position.set(0, 0, 0);
-              linkGroup.add(hub);
-            }
+            linkGroup.add(visual);
           }
         }
 
@@ -630,7 +479,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
               arcPoints.push(pt);
             }
             const arcGeo = new THREE.BufferGeometry().setFromPoints(arcPoints);
-            const arcMat = new THREE.LineBasicMaterial({ color: 0x06b6d4, linewidth: 2, transparent: true, opacity: 0.8 });
+            const arcMat = new THREE.LineBasicMaterial({ color: 0xe8622c, linewidth: 2, transparent: true, opacity: 0.8 });
             const arcLine = new THREE.Line(arcGeo, arcMat);
             (arcLine as any).userData = { isJointLimit: true };
             arcLine.visible = showJointLimits;
@@ -643,7 +492,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
               new THREE.Vector3().copy(axisDir).multiplyScalar(upper),
             ];
             const pGeo = new THREE.BufferGeometry().setFromPoints(pPoints);
-            const pMat = new THREE.LineBasicMaterial({ color: 0xa855f7, linewidth: 2, transparent: true, opacity: 0.8 });
+            const pMat = new THREE.LineBasicMaterial({ color: 0xa9aca7, linewidth: 2, transparent: true, opacity: 0.8 });
             const pLine = new THREE.Line(pGeo, pMat);
             (pLine as any).userData = { isJointLimit: true };
             pLine.visible = showJointLimits;
@@ -702,7 +551,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
       const midZ = (b[4] + b[5]) * 0.5;
 
       const boundGeo = new THREE.BoxGeometry(bx, by, bz);
-      const wireMat = new THREE.LineBasicMaterial({ color: 0x3b82f6, transparent: true, opacity: 0.35 });
+      const wireMat = new THREE.LineBasicMaterial({ color: 0x6b6e6a, transparent: true, opacity: 0.45 });
       const wireMesh = new THREE.LineSegments(new THREE.EdgesGeometry(boundGeo), wireMat);
       wireMesh.name = 'boundary_wireframe';
       wireMesh.position.set(midX, midY, midZ);
@@ -742,7 +591,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
         rob.name = `obj_${obj.id}`;
         (rob as any).userData = { id: obj.id, isSecondaryRobot: true, isObstacle: false };
 
-        const chassisColor = new THREE.Color(obj.color || '#06b6d4');
+        const chassisColor = new THREE.Color(obj.color || '#e8622c');
 
         // 1. Sleek Main Chassis
         const hx = 0.18, hy = 0.12, hz = 0.08;
@@ -831,87 +680,21 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
         drone.name = `obj_${obj.id}`;
         (drone as any).userData = { id: obj.id, isDrone: true, isObstacle: false };
 
-        // 1. Central Avionics Fuselage
-        const bodyGeo = new THREE.BoxGeometry(0.18, 0.18, 0.07);
-        const bodyMat = new THREE.MeshStandardMaterial({
-          color: 0x0f172a,
-          metalness: 0.85,
-          roughness: 0.25,
-        });
-        const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
-        bodyMesh.castShadow = true;
-        drone.add(bodyMesh);
-
-        // Glowing Drone Status Core
-        const coreGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.02, 16);
-        const coreMat = new THREE.MeshStandardMaterial({
-          color: 0x38bdf8,
-          emissive: 0x38bdf8,
-          emissiveIntensity: 0.8,
-        });
-        const coreMesh = new THREE.Mesh(coreGeo, coreMat);
-        coreMesh.position.set(0, 0, 0.045);
-        drone.add(coreMesh);
-
-        // 2. Diagonal Carbon Fiber Arms & 4 Propeller Rotors
-        const armLength = 0.24;
-        const armGeo = new THREE.BoxGeometry(armLength * 2, 0.02, 0.015);
-        const armMat = new THREE.MeshStandardMaterial({
-          color: 0x334155,
-          metalness: 0.7,
-          roughness: 0.4,
-        });
-
-        const arm1 = new THREE.Mesh(armGeo, armMat);
-        arm1.rotation.z = Math.PI / 4;
-        drone.add(arm1);
-
-        const arm2 = new THREE.Mesh(armGeo, armMat);
-        arm2.rotation.z = -Math.PI / 4;
-        drone.add(arm2);
-
-        // Motor Hubs & Rotors at 4 corners
-        const dOffset = armLength * Math.cos(Math.PI / 4);
-        const motorPositions = [
-          [dOffset, dOffset],
-          [-dOffset, dOffset],
-          [-dOffset, -dOffset],
-          [dOffset, -dOffset],
-        ];
-
-        motorPositions.forEach(([mx, my]) => {
-          // Motor can
-          const motorGeo = new THREE.CylinderGeometry(0.02, 0.02, 0.03, 12);
-          const motorMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, metalness: 0.9, roughness: 0.2 });
-          const motor = new THREE.Mesh(motorGeo, motorMat);
-          motor.position.set(mx, my, 0.02);
-          motor.rotation.x = Math.PI / 2;
-          drone.add(motor);
-
-          // Translucent Spinning Rotor Disc
-          const rotorGeo = new THREE.CircleGeometry(0.12, 16);
-          const rotorMat = new THREE.MeshStandardMaterial({
-            color: 0x38bdf8,
-            transparent: true,
-            opacity: 0.45,
-            side: THREE.DoubleSide,
-          });
-          const rotorMesh = new THREE.Mesh(rotorGeo, rotorMat);
-          rotorMesh.position.set(mx, my, 0.04);
-          drone.add(rotorMesh);
-          droneRotorsRef.current.push(rotorMesh);
-        });
+        // Designed quadcopter model (strictly white and grey); see components/robots/droneModel.ts
+        const droneModel = createDroneModel();
+        drone.add(droneModel.root);
+        droneModel.rotors.forEach((rotor) => droneRotorsRef.current.push(rotor));
 
         // 3. Ground Altitude Line & Landing Shadow
         const altPoints = [new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, -obj.position[2])];
         const altGeo = new THREE.BufferGeometry().setFromPoints(altPoints);
-        const altMat = new THREE.LineDashedMaterial({ color: 0x38bdf8, dashSize: 0.05, gapSize: 0.04, transparent: true, opacity: 0.6 });
+        const altMat = new THREE.LineDashedMaterial({ color: 0x8a8d89, dashSize: 0.05, gapSize: 0.04, transparent: true, opacity: 0.6 });
         const altLine = new THREE.Line(altGeo, altMat);
         altLine.computeLineDistances();
         drone.add(altLine);
 
         const shadowGeo = new THREE.RingGeometry(0.15, 0.22, 24);
-        const shadowMat = new THREE.MeshBasicMaterial({ color: 0x0284c7, transparent: true, opacity: 0.4, side: THREE.DoubleSide });
+        const shadowMat = new THREE.MeshBasicMaterial({ color: 0x8a8d89, transparent: true, opacity: 0.35, side: THREE.DoubleSide });
         const shadowMesh = new THREE.Mesh(shadowGeo, shadowMat);
         shadowMesh.position.set(0, 0, -obj.position[2] + 0.005);
         drone.add(shadowMesh);
@@ -958,7 +741,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
           // Standard obstacle mesh
           const geo = createGeometry();
           const mat = new THREE.MeshStandardMaterial({
-            color: new THREE.Color(obj.color || '#8892b0'),
+            color: new THREE.Color(obj.color || '#8a8d89'),
             roughness: 0.4,
             metalness: 0.2,
           });
@@ -984,7 +767,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
         // Update color and visibility
         if ((mesh as any).material) {
           const mat = (mesh as any).material as THREE.MeshStandardMaterial;
-          mat.color?.set(obj.color || '#8892b0');
+          mat.color?.set(obj.color || '#8a8d89');
         }
         mesh.visible = obj.visible !== false;
 
@@ -1042,13 +825,13 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     const height = container.clientHeight || 600;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x0e0f13);
+    scene.background = new THREE.Color(0x0c0d0e);
     sceneRef.current = scene;
     setSceneInstance(scene);
 
     const camera = new THREE.PerspectiveCamera(50, width / height, 0.05, 100);
     camera.up.set(0, 0, 1);
-    camera.position.set(3.5, -3.5, 3.0);
+    camera.position.set(1.75, -1.75, 1.3);
     cameraRef.current = camera;
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
@@ -1277,7 +1060,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     scene.add(ambientLight);
 
     // Sky/ground hemisphere fill for soft, natural shading
-    const hemiLight = new THREE.HemisphereLight(0x9bb8ff, 0x1a1c22, 0.55);
+    const hemiLight = new THREE.HemisphereLight(0xe4e6e8, 0x1a1c1d, 0.55);
     hemiLight.position.set(0, 0, 10);
     scene.add(hemiLight);
 
@@ -1298,7 +1081,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     scene.add(dirLight);
 
     // Cool fill light from the opposite side to lift shadows
-    const fillLight = new THREE.DirectionalLight(0xaecbff, 0.5);
+    const fillLight = new THREE.DirectionalLight(0xdfe4ea, 0.5);
     fillLight.position.set(-9, 8, 6);
     scene.add(fillLight);
 
@@ -1308,13 +1091,20 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     scene.add(rimLight);
 
     // Subtle depth fog matching the background
-    scene.fog = new THREE.Fog(0x0e0f13, 22, 55);
+    scene.fog = new THREE.Fog(0x0c0d0e, 24, 60);
+
+    // Image-based lighting: soft studio reflections are what make white plastic and satin metal read as
+    // real materials. Kept low so it supports, rather than replaces, the key/fill lights above.
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    (scene as unknown as { environmentIntensity: number }).environmentIntensity = 0.55;
+    pmrem.dispose();
 
     // Ground Plane
     const groundGeo = new THREE.PlaneGeometry(100, 100);
     const groundMat = new THREE.MeshStandardMaterial({
-      color: 0x15161a,
-      roughness: 0.92,
+      color: 0x1a1d1e,
+      roughness: 0.95,
       metalness: 0.0,
     });
     const groundMesh = new THREE.Mesh(groundGeo, groundMat);
@@ -1322,15 +1112,25 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     scene.add(groundMesh);
 
     // Grid Helper rotated into XY plane
-    const gridHelper = new THREE.GridHelper(50, 50, 0x3d4452, 0x242831);
+    const gridHelper = new THREE.GridHelper(50, 50, 0x454b4e, 0x2a2f31);
     gridHelper.rotation.x = Math.PI / 2;
-    gridHelper.position.z = 0.001;
+    gridHelper.position.z = 0.004;
     (gridHelper.material as THREE.Material).transparent = true;
-    (gridHelper.material as any).opacity = 0.55;
+    (gridHelper.material as any).opacity = 0.85;
+    (gridHelper.material as any).depthWrite = false;
     scene.add(gridHelper);
 
     // Coordinate Axes at World Origin
-    const worldAxes = new THREE.AxesHelper(0.8);
+    // Quiet neutral reference lines (X and Y lighter than Z) instead of the saturated RGB helper.
+    const axisPts = [
+      new THREE.Vector3(0, 0, 0), new THREE.Vector3(0.5, 0, 0),
+      new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0.5, 0),
+      new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, 0.35),
+    ];
+    const worldAxes = new THREE.LineSegments(
+      new THREE.BufferGeometry().setFromPoints(axisPts),
+      new THREE.LineBasicMaterial({ color: 0x8a8d89, transparent: true, opacity: 0.5 }),
+    );
     worldAxes.position.set(0, 0, 0.002);
     scene.add(worldAxes);
 
@@ -1358,6 +1158,10 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
         }
         if (rightWheelRef.current) {
           rightWheelRef.current.rotation.y += rightWheelVelocityRef.current * 0.02;
+        }
+        if (roverModelRef.current) {
+          roverModelRef.current.lidarHead.rotation.z += 0.09;
+          roverModelRef.current.frameAxes.visible = showFramesRef.current;
         }
       }
 
@@ -1412,9 +1216,9 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
 
             // Speed color gradient: green (<0.25 m/s) -> yellow (0.25-0.7 m/s) -> red (>0.7 m/s)
             const spd = (p1.speed + p2.speed) * 0.5;
-            let r = 0.13, g = 0.77, b = 0.37; // #22c55e green
+            let r = 0.13, g = 0.77, b = 0.37; // #3fb27f green
             if (spd > 0.7) {
-              r = 0.94; g = 0.27; b = 0.27; // #ef4444 red
+              r = 0.94; g = 0.27; b = 0.27; // #e5484d red
             } else if (spd > 0.25) {
               r = 0.92; g = 0.70; b = 0.03; // #eab308 yellow
             }
@@ -1452,7 +1256,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
 
           if (!horizonMeshRef.current || horizonMeshRef.current.parent !== scene) {
             const hGeo = new THREE.BufferGeometry().setFromPoints(hPositions);
-            const hMat = new THREE.LineDashedMaterial({ color: 0x38bdf8, dashSize: 0.06, gapSize: 0.04, linewidth: 2 });
+            const hMat = new THREE.LineDashedMaterial({ color: 0x8a8d89, dashSize: 0.06, gapSize: 0.04, linewidth: 2 });
             const hLine = new THREE.Line(hGeo, hMat);
             hLine.name = 'robot_prediction_horizon';
             hLine.computeLineDistances();
@@ -1814,9 +1618,9 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
       let lidarGroup = sceneInstance.getObjectByName('lidar_rays') as THREE.LineSegments;
       if (!lidarGroup) {
         const mat = new THREE.LineBasicMaterial({
-          color: 0x06b6d4,
+          color: 0xd6d5cf,
           transparent: true,
-          opacity: 0.55,
+          opacity: 0.2,
         });
         lidarGroup = new THREE.LineSegments(new THREE.BufferGeometry(), mat);
         lidarGroup.name = 'lidar_rays';
@@ -2058,8 +1862,8 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
           left: 0,
           width: '100%',
           height: '100%',
-          backgroundColor: 'rgba(6, 182, 212, 0.25)',
-          border: '3px dashed #06b6d4',
+          backgroundColor: 'rgba(232, 98, 44, 0.25)',
+          border: '3px dashed #e8622c',
           borderRadius: 8,
           zIndex: 50,
           display: 'flex',
@@ -2068,9 +1872,8 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
           justifyContent: 'center',
           gap: 12,
           pointerEvents: 'none',
-          backdropFilter: 'blur(4px)'
         }}>
-          <FileUp size={48} color="#06b6d4" />
+          <FileUp size={48} color="#e8622c" />
           <div style={{ fontSize: 18, fontWeight: 700, color: '#fff' }}>
             Drop Robot Model to Instantiate
           </div>
@@ -2088,10 +1891,10 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
           left: '50%',
           transform: 'translateX(-50%)',
           backgroundColor: 'rgba(15, 23, 42, 0.95)',
-          border: '1px solid #06b6d4',
+          border: '1px solid #e8622c',
           borderRadius: 6,
           padding: '8px 16px',
-          color: '#06b6d4',
+          color: '#e8622c',
           fontSize: 12,
           fontWeight: 600,
           zIndex: 60,
@@ -2118,7 +1921,6 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
           alignItems: 'center',
           gap: 6,
           backgroundColor: 'rgba(20, 22, 28, 0.92)',
-          backdropFilter: 'blur(8px)',
           border: '1px solid var(--border-subtle)',
           borderRadius: 8,
           padding: '6px 12px',
@@ -2136,7 +1938,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
           </span>
           <div style={{ width: 1, height: 18, backgroundColor: 'var(--border-subtle)', margin: '0 4px' }} />
           <button
-            className={`rf-btn ${transformMode === 'translate' ? 'rf-btn-primary' : ''}`}
+            className={`rf-btn ${transformMode === 'translate' ? 'rf-btn-active' : ''}`}
             style={{ padding: '4px 10px', fontSize: 11 }}
             onClick={(e) => { e.stopPropagation(); setTransformMode('translate'); }}
             title="Translate / Move in 3D"
@@ -2147,7 +1949,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
           {selectedObjectId !== 'target' && (
             <>
               <button
-                className={`rf-btn ${transformMode === 'rotate' ? 'rf-btn-primary' : ''}`}
+                className={`rf-btn ${transformMode === 'rotate' ? 'rf-btn-active' : ''}`}
                 style={{ padding: '4px 10px', fontSize: 11 }}
                 onClick={(e) => { e.stopPropagation(); setTransformMode('rotate'); }}
                 title="Rotate in 3D"
@@ -2156,7 +1958,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
                 <span>Rotate</span>
               </button>
               <button
-                className={`rf-btn ${transformMode === 'scale' ? 'rf-btn-primary' : ''}`}
+                className={`rf-btn ${transformMode === 'scale' ? 'rf-btn-active' : ''}`}
                 style={{ padding: '4px 10px', fontSize: 11 }}
                 onClick={(e) => { e.stopPropagation(); setTransformMode('scale'); }}
                 title="Scale Object in 3D"
@@ -2170,7 +1972,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
           {/* Snapping controls */}
           <div style={{ width: 1, height: 18, backgroundColor: 'var(--border-subtle)', margin: '0 4px' }} />
           <button
-            className={`rf-btn ${snapTranslate > 0 ? 'rf-btn-primary' : ''}`}
+            className={`rf-btn ${snapTranslate > 0 ? 'rf-btn-active' : ''}`}
             style={{ padding: '4px 8px', fontSize: 11 }}
             onClick={(e) => {
               e.stopPropagation();
@@ -2183,7 +1985,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
           </button>
 
           <button
-            className={`rf-btn ${surfaceSnap ? 'rf-btn-primary' : ''}`}
+            className={`rf-btn ${surfaceSnap ? 'rf-btn-active' : ''}`}
             style={{ padding: '4px 8px', fontSize: 11 }}
             onClick={(e) => {
               e.stopPropagation();
@@ -2196,7 +1998,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
           </button>
 
           <button
-            className={`rf-btn ${attachmentSnap ? 'rf-btn-primary' : ''}`}
+            className={`rf-btn ${attachmentSnap ? 'rf-btn-active' : ''}`}
             style={{ padding: '4px 8px', fontSize: 11 }}
             onClick={(e) => {
               e.stopPropagation();
@@ -2228,11 +2030,10 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
             left: '50%',
             transform: 'translateX(-50%)',
             backgroundColor: 'rgba(15, 23, 42, 0.90)',
-            backdropFilter: 'blur(8px)',
             border: '1px solid var(--accent-blue)',
             borderRadius: 8,
             padding: '6px 14px',
-            color: '#38bdf8',
+            color: '#e8622c',
             fontSize: 12,
             fontWeight: 600,
             display: 'flex',
@@ -2243,7 +2044,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
             animation: 'fadeIn 0.2s ease-in-out'
           }}
         >
-          <Magnet size={14} color="#38bdf8" />
+          <Magnet size={14} color="#e8622c" />
           <span>{snapNotification}</span>
         </div>
       )}
@@ -2259,7 +2060,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
             padding: '4px 10px',
             backgroundColor: autoDriveEnabled ? 'rgba(16, 185, 129, 0.25)' : 'var(--bg-panel)',
             borderColor: autoDriveEnabled ? 'var(--accent-green)' : 'var(--border-subtle)',
-            color: autoDriveEnabled ? '#10b981' : 'var(--text-secondary)'
+            color: autoDriveEnabled ? '#3fb27f' : 'var(--text-secondary)'
           }}
           title="Toggle Autonomous Waypoint Navigation (Robot navigates to target)"
           onClick={(e) => {
@@ -2281,15 +2082,15 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
               fontSize: 11,
               padding: '4px 10px',
               borderRadius: 6,
-              background: 'rgba(168, 85, 247, 0.25)',
-              border: '1px solid rgba(168, 85, 247, 0.6)',
-              color: '#c084fc',
+              background: 'rgba(255, 255, 255, 0.095)',
+              border: '1px solid rgba(255, 255, 255, 0.228)',
+              color: '#a9aca7',
               fontWeight: 600,
-              boxShadow: '0 0 10px rgba(168, 85, 247, 0.25)'
+              boxShadow: '0 0 10px rgba(255, 255, 255, 0.095)'
             }}
             title={`Active PPO Neural Network Policy: ${simState.active_rl_policy_name || 'Policy Active'}`}
           >
-            <Cpu size={13} color="#c084fc" />
+            <Cpu size={13} color="#a9aca7" />
             <span>RL Policy: {simState.active_rl_policy_name || 'Active'}</span>
             <button
               onClick={handleStopRl}
@@ -2304,7 +2105,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
                 fontSize: 10,
                 fontWeight: 700,
                 color: '#fff',
-                background: stoppingRl ? 'rgba(248,113,113,0.4)' : 'linear-gradient(90deg, #ef4444, #b91c1c)',
+                background: stoppingRl ? 'rgba(248,113,113,0.4)' : '#c93a3f',
                 border: '1px solid rgba(248,113,113,0.7)',
                 borderRadius: 5,
                 cursor: stoppingRl ? 'default' : 'pointer',
@@ -2316,126 +2117,91 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
           </div>
         )}
 
-        {/* Live Isaac Lab Multi-Robot RL Training Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          {/* Stop Training — shown whenever a live training run is active (incl. chat-initiated),
-              so there is always a visible way to stop it even when no policy is deployed yet and
-              the Mission Planner panel is closed. */}
+        {/* Live RL training: one quiet segmented control (drone / arm / rover) */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {/* Stop is shown whenever a live training run is active (including chat-started runs). */}
           {simState?.rl_training_active && (
             <button
-              className="rf-btn"
+              className="rf-btn rf-btn-danger"
               onClick={async (e) => {
                 e.stopPropagation();
                 await handleStopRl();
               }}
               disabled={stoppingRl}
               title="Stop the live RL training run"
-              style={{
-                fontSize: 11,
-                padding: '3px 10px',
-                borderRadius: 6,
-                fontWeight: 700,
-                color: '#fff',
-                background: stoppingRl ? 'rgba(248,113,113,0.4)' : 'linear-gradient(90deg, #ef4444, #b91c1c)',
-                border: '1px solid rgba(248,113,113,0.7)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 4,
-                cursor: stoppingRl ? 'default' : 'pointer',
-                boxShadow: '0 0 10px rgba(239,68,68,0.3)',
-              }}
             >
-              <Square size={11} fill="#fff" />
-              <span>{stoppingRl ? 'Stopping…' : 'Stop Training'}</span>
+              <Square size={11} fill="currentColor" />
+              <span>{stoppingRl ? 'Stopping…' : 'Stop training'}</span>
             </button>
           )}
-          <button
-            className="rf-btn"
+          <div
+            role="group"
+            aria-label="Train with reinforcement learning"
             style={{
-              fontSize: 11,
-              padding: '3px 8px',
-              borderRadius: 6,
-              backgroundColor: simState?.rl_training_active ? 'rgba(239, 68, 68, 0.25)' : 'rgba(56, 189, 248, 0.2)',
-              border: simState?.rl_training_active ? '1px solid rgba(239, 68, 68, 0.6)' : '1px solid rgba(56, 189, 248, 0.6)',
-              color: simState?.rl_training_active ? '#fca5a5' : '#38bdf8',
-              fontWeight: 600,
               display: 'flex',
               alignItems: 'center',
-              gap: 4
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 8,
+              background: 'var(--bg-surface)',
+              overflow: 'hidden',
             }}
-            onClick={async (e) => {
-              e.stopPropagation();
-              try {
-                await trainDroneLive(4);
-              } catch (err) {
-                console.error('Failed to trigger live drone training:', err);
-              }
-            }}
-            title="Train Drone Hover live in 3D scene (Isaac Lab curriculum: fail, retry, converge to hover, store PPO model)"
           >
-            <Sparkles size={12} color={simState?.rl_training_active ? '#fca5a5' : '#38bdf8'} />
-            <span>{simState?.rl_training_active ? 'Training...' : '🚁 Drone RL'}</span>
-          </button>
-
-          <button
-            className="rf-btn"
-            style={{
-              fontSize: 11,
-              padding: '3px 8px',
-              borderRadius: 6,
-              backgroundColor: 'rgba(168, 85, 247, 0.18)',
-              border: '1px solid rgba(168, 85, 247, 0.5)',
-              color: '#c084fc',
-              fontWeight: 600,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4
-            }}
-            onClick={async (e) => {
-              e.stopPropagation();
-              try {
-                await trainArmLive(4);
-              } catch (err) {
-                console.error('Failed to trigger live arm training:', err);
-              }
-            }}
-            title="Train Robotic Arm Pick & Place live in 3D scene (overshoot, slip, align, lift, store PPO model)"
-          >
-            <span>🦾 Arm RL</span>
-          </button>
-
-          <button
-            className="rf-btn"
-            style={{
-              fontSize: 11,
-              padding: '3px 8px',
-              borderRadius: 6,
-              backgroundColor: 'rgba(34, 197, 94, 0.18)',
-              border: '1px solid rgba(34, 197, 94, 0.5)',
-              color: '#4ade80',
-              fontWeight: 600,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4
-            }}
-            onClick={async (e) => {
-              e.stopPropagation();
-              try {
-                await trainRoverLive(4);
-              } catch (err) {
-                console.error('Failed to trigger live rover training:', err);
-              }
-            }}
-            title="Train Ground Rover Navigation live in 3D scene (crash, oversteer, LiDAR avoidance, goal beacon, store PPO model)"
-          >
-            <span>🚗 Rover RL</span>
-          </button>
+            <span
+              style={{
+                padding: '0 10px',
+                height: 28,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                fontSize: 11.5,
+                fontWeight: 700,
+                color: simState?.rl_training_active ? 'var(--accent)' : 'var(--text-muted)',
+                borderRight: '1px solid var(--border-subtle)',
+              }}
+            >
+              <Sparkles size={12} />
+              {simState?.rl_training_active ? 'Training' : 'Train'}
+            </span>
+            {([
+              { key: 'drone', label: 'Drone', Icon: Plane, run: () => trainDroneLive(4),
+                title: 'Train drone hover live in the 3D scene (fail, retry, converge, store PPO model)' },
+              { key: 'arm', label: 'Arm', Icon: Hand, run: () => trainArmLive(4),
+                title: 'Train robotic-arm pick and place live in the 3D scene' },
+              { key: 'rover', label: 'Rover', Icon: Car, run: () => trainRoverLive(4),
+                title: 'Train ground-rover navigation live in the 3D scene (LiDAR avoidance, goal beacon)' },
+            ] as const).map(({ key, label, Icon, run, title }) => (
+              <button
+                key={key}
+                className="rf-btn"
+                style={{
+                  border: 'none',
+                  borderRadius: 0,
+                  borderRight: key === 'rover' ? 'none' : '1px solid var(--border-subtle)',
+                  background: 'transparent',
+                  color: 'var(--text-secondary)',
+                  height: 28,
+                }}
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  try {
+                    await run();
+                  } catch (err) {
+                    console.error(`Failed to trigger live ${key} training:`, err);
+                  }
+                }}
+                title={title}
+              >
+                <Icon size={13} />
+                <span>{label}</span>
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* 3D Trajectory Ribbon & Prediction Horizon Controls */}
         <div style={{ display: 'flex', alignItems: 'center', background: 'var(--bg-panel)', padding: 2, borderRadius: 6, border: '1px solid var(--border-subtle)', gap: 2 }}>
           <button
-            className={`rf-btn ${showTrajectoryTrail ? 'rf-btn-primary' : ''}`}
+            className={`rf-btn ${showTrajectoryTrail ? 'rf-btn-active' : ''}`}
             style={{ fontSize: 11, padding: '3px 8px' }}
             onClick={(e) => {
               e.stopPropagation();
@@ -2501,7 +2267,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
           className="rf-btn"
           style={{
             fontSize: 11,
-            backgroundColor: followRobot ? 'rgba(59, 130, 246, 0.25)' : 'var(--bg-panel)',
+            backgroundColor: followRobot ? 'rgba(232, 98, 44, 0.25)' : 'var(--bg-panel)',
             borderColor: followRobot ? 'var(--accent-blue)' : 'var(--border-subtle)',
             color: followRobot ? '#fff' : 'var(--text-secondary)',
           }}
@@ -2538,7 +2304,6 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
             gap: 4,
             alignItems: 'center',
             backgroundColor: 'rgba(20, 22, 28, 0.90)',
-            backdropFilter: 'blur(6px)',
             border: '1px solid var(--border-subtle)',
             borderRadius: 6,
             padding: '3px 8px',
@@ -2564,7 +2329,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
             <span>Kinematics:</span>
           </span>
           <button
-            className={`rf-btn ${showKinematicFrames ? 'rf-btn-primary' : ''}`}
+            className={`rf-btn ${showKinematicFrames ? 'rf-btn-active' : ''}`}
             style={{ fontSize: 10, padding: '2px 7px' }}
             onClick={(e) => {
               e.stopPropagation();
@@ -2575,7 +2340,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
             Frames
           </button>
           <button
-            className={`rf-btn ${showJointAxes ? 'rf-btn-primary' : ''}`}
+            className={`rf-btn ${showJointAxes ? 'rf-btn-active' : ''}`}
             style={{ fontSize: 10, padding: '2px 7px' }}
             onClick={(e) => {
               e.stopPropagation();
@@ -2586,7 +2351,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
             Axes
           </button>
           <button
-            className={`rf-btn ${showJointLimits ? 'rf-btn-primary' : ''}`}
+            className={`rf-btn ${showJointLimits ? 'rf-btn-active' : ''}`}
             style={{ fontSize: 10, padding: '2px 7px' }}
             onClick={(e) => {
               e.stopPropagation();
@@ -2597,7 +2362,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
             Limits
           </button>
           <button
-            className={`rf-btn ${showLinkHierarchy ? 'rf-btn-primary' : ''}`}
+            className={`rf-btn ${showLinkHierarchy ? 'rf-btn-active' : ''}`}
             style={{ fontSize: 10, padding: '2px 7px' }}
             onClick={(e) => {
               e.stopPropagation();
@@ -2608,7 +2373,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
             Hierarchy
           </button>
           <button
-            className={`rf-btn ${showEndEffectorMarker ? 'rf-btn-primary' : ''}`}
+            className={`rf-btn ${showEndEffectorMarker ? 'rf-btn-active' : ''}`}
             style={{ fontSize: 10, padding: '2px 7px' }}
             onClick={(e) => {
               e.stopPropagation();
@@ -2632,7 +2397,6 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
             flexDirection: 'column',
             gap: 4,
             backgroundColor: 'rgba(20, 22, 28, 0.92)',
-            backdropFilter: 'blur(8px)',
             border: '1px solid var(--border-subtle)',
             borderRadius: 6,
             padding: '7px 11px',
@@ -2676,20 +2440,19 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
             minWidth: 340,
             maxWidth: 460,
             backgroundColor: 'rgba(12, 14, 20, 0.92)',
-            backdropFilter: 'blur(10px)',
-            border: '1px solid rgba(168, 85, 247, 0.6)',
+            border: '1px solid rgba(255, 255, 255, 0.228)',
             borderRadius: 12,
             padding: '12px 16px',
-            boxShadow: '0 8px 32px rgba(168, 85, 247, 0.35)',
+            boxShadow: '0 8px 32px rgba(255, 255, 255, 0.133)',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontWeight: 700, fontSize: 13, color: '#e9d5ff' }}>
-              <Cpu size={15} color="#c084fc" />
+              <Cpu size={15} color="#a9aca7" />
               <span>Live PPO Training{simState.rl_training_model_name ? ` — ${simState.rl_training_model_name}` : ''}</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontSize: 12, fontWeight: 700, color: '#c084fc' }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: '#a9aca7' }}>
                 {Math.round(simState.rl_training_percent ?? 0)}%
               </span>
               <button
@@ -2706,7 +2469,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
                   color: '#fff',
                   background: stoppingRl
                     ? 'rgba(248, 113, 113, 0.4)'
-                    : 'linear-gradient(90deg, #ef4444, #b91c1c)',
+                    : '#c93a3f',
                   border: '1px solid rgba(248,113,113,0.7)',
                   borderRadius: 7,
                   cursor: stoppingRl ? 'default' : 'pointer',
@@ -2724,29 +2487,28 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
               style={{
                 height: '100%',
                 width: `${Math.max(2, Math.min(100, simState.rl_training_percent ?? 0))}%`,
-                background: 'linear-gradient(90deg, #a855f7, #38bdf8)',
+                background: 'var(--accent)',
                 transition: 'width 0.3s ease',
-                boxShadow: '0 0 12px rgba(168,85,247,0.7)',
               }}
             />
           </div>
           <div style={{ display: 'flex', gap: 16, marginTop: 8, fontSize: 11, color: 'var(--text-secondary, #9ca3af)' }}>
-            <span>Chunk: <b style={{ color: '#e5e7eb' }}>{simState.rl_training_episode ?? 0}/{simState.rl_training_total_episodes ?? 0}</b></span>
-            <span>Steps: <b style={{ color: '#e5e7eb' }}>{(simState.rl_training_step ?? 0).toLocaleString()}</b></span>
-            <span>Reward: <b style={{ color: (simState.rl_training_reward ?? 0) >= 0 ? '#34d399' : '#f87171' }}>{(simState.rl_training_reward ?? 0).toFixed(1)}</b></span>
+            <span>Chunk: <b style={{ color: '#ecebe6' }}>{simState.rl_training_episode ?? 0}/{simState.rl_training_total_episodes ?? 0}</b></span>
+            <span>Steps: <b style={{ color: '#ecebe6' }}>{(simState.rl_training_step ?? 0).toLocaleString()}</b></span>
+            <span>Reward: <b style={{ color: (simState.rl_training_reward ?? 0) >= 0 ? '#5cc596' : '#f07378' }}>{(simState.rl_training_reward ?? 0).toFixed(1)}</b></span>
           </div>
           {(simState.rl_swarm_size ?? 0) > 0 && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6, fontSize: 11, color: '#cbd5e1' }}>
-              <span>Swarm: <b style={{ color: '#22c55e' }}>{simState.rl_swarm_success ?? 0}</b>/{simState.rl_swarm_size} reached goal</span>
-              <span style={{ display: 'flex', gap: 8, fontSize: 10, color: '#94a3b8' }}>
-                <span><span style={{ color: '#60a5fa' }}>■</span> trying</span>
-                <span><span style={{ color: '#22c55e' }}>■</span> goal</span>
-                <span><span style={{ color: '#ef4444' }}>■</span> crash</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6, fontSize: 11, color: '#d6d5cf' }}>
+              <span>Swarm: <b style={{ color: '#3fb27f' }}>{simState.rl_swarm_success ?? 0}</b>/{simState.rl_swarm_size} reached goal</span>
+              <span style={{ display: 'flex', gap: 8, fontSize: 10, color: '#a9aca7' }}>
+                <span><span style={{ color: '#e8622c' }}>■</span> trying</span>
+                <span><span style={{ color: '#3fb27f' }}>■</span> goal</span>
+                <span><span style={{ color: '#e5484d' }}>■</span> crash</span>
               </span>
             </div>
           )}
           {simState.rl_training_status && (
-            <div style={{ marginTop: 6, fontSize: 10.5, color: '#8b5cf6', fontFamily: 'monospace', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <div style={{ marginTop: 6, fontSize: 10.5, color: '#a9aca7', fontFamily: 'monospace', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {simState.rl_training_status}
             </div>
           )}
@@ -2756,27 +2518,27 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
       {/* Real-time Telemetry HUD (Top Left) */}
       {project?.robot_active !== false && (
       <div
+        className="rf-pop"
         style={{
           position: 'absolute',
-          top: 12,
+          top: 58,
           left: 12,
-          backgroundColor: 'rgba(20, 22, 28, 0.88)',
-          backdropFilter: 'blur(6px)',
+          backgroundColor: 'var(--bg-surface)',
           border: '1px solid var(--border-subtle)',
-          borderRadius: 8,
-          padding: '8px 14px',
+          borderRadius: 10,
+          padding: '9px 14px',
           display: 'flex',
           flexDirection: 'column',
           gap: 6,
           pointerEvents: 'none',
           fontSize: 11,
           fontFamily: 'var(--font-mono)',
-          boxShadow: '0 4px 16px rgba(0,0,0,0.4)'
+          boxShadow: 'var(--shadow-float)'
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-secondary)' }}>
-          <Compass size={13} color="var(--accent-blue)" />
-          <span style={{ fontWeight: 600 }}>ROBOT TELEMETRY</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-secondary)', fontFamily: 'var(--font-sans)' }}>
+          <Compass size={13} color="var(--text-muted)" />
+          <span style={{ fontWeight: 700 }}>Telemetry</span>
         </div>
         <div style={{ display: 'flex', gap: 14, color: 'var(--text-primary)' }}>
           <span>X: {rPose?.position ? rPose.position[0].toFixed(3) : '0.000'}m</span>
@@ -2788,7 +2550,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
           <span>Turn: {rPose?.angular_speed !== undefined ? rPose.angular_speed.toFixed(2) : '0.00'} rad/s</span>
         </div>
         {simState.contacts && simState.contacts.length > 0 && (
-          <div style={{ color: '#ef4444', fontWeight: 600 }}>
+          <div style={{ color: '#e5484d', fontWeight: 600 }}>
             Contacts: {simState.contacts.length}
           </div>
         )}
@@ -2804,7 +2566,6 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
             right: 14,
             width: 260,
             backgroundColor: 'rgba(15, 17, 23, 0.92)',
-            backdropFilter: 'blur(8px)',
             border: '1px solid var(--border-subtle)',
             borderRadius: 8,
             overflow: 'hidden',
@@ -2826,12 +2587,12 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
             fontWeight: 600,
             color: 'var(--text-secondary)'
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#38bdf8' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#e8622c' }}>
               <Video size={12} />
               <span>ROBOT EYE (RGB CAMERA)</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontSize: 9, padding: '1px 4px', backgroundColor: 'rgba(56, 189, 248, 0.2)', color: '#38bdf8', borderRadius: 3 }}>
+              <span style={{ fontSize: 9, padding: '1px 4px', backgroundColor: 'rgba(232, 98, 44, 0.2)', color: '#e8622c', borderRadius: 3 }}>
                 FOV {project.sensors?.camera?.fov_deg || 65}°
               </span>
               <button
@@ -2866,7 +2627,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
                 transform: 'translate(-50%, -50%)',
                 width: 24,
                 height: 24,
-                border: '1px dashed rgba(56, 189, 248, 0.4)',
+                border: '1px dashed rgba(232, 98, 44, 0.4)',
                 borderRadius: '50%'
               }} />
               <div style={{
@@ -2895,7 +2656,6 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
             bottom: 14,
             left: 14,
             backgroundColor: 'rgba(20, 22, 28, 0.92)',
-            backdropFilter: 'blur(6px)',
             border: '1px solid var(--border-subtle)',
             borderRadius: 8,
             padding: '8px 12px',
@@ -2914,7 +2674,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
           <button
             className="rf-btn rf-btn-icon"
             style={{
-              backgroundColor: isW ? 'var(--accent-blue)' : 'var(--bg-panel)',
+              backgroundColor: isW ? 'var(--accent-soft)' : 'var(--bg-panel)',
               borderColor: isW ? 'var(--accent-blue)' : 'var(--border-subtle)',
               color: isW ? '#fff' : 'var(--text-primary)',
             }}
@@ -2928,7 +2688,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
             <button
               className="rf-btn rf-btn-icon"
               style={{
-                backgroundColor: isA ? 'var(--accent-blue)' : 'var(--bg-panel)',
+                backgroundColor: isA ? 'var(--accent-soft)' : 'var(--bg-panel)',
                 borderColor: isA ? 'var(--accent-blue)' : 'var(--border-subtle)',
                 color: isA ? '#fff' : 'var(--text-primary)',
               }}
@@ -2940,7 +2700,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
             <button
               className="rf-btn rf-btn-icon"
               style={{
-                backgroundColor: isS ? 'var(--accent-blue)' : 'var(--bg-panel)',
+                backgroundColor: isS ? 'var(--accent-soft)' : 'var(--bg-panel)',
                 borderColor: isS ? 'var(--accent-blue)' : 'var(--border-subtle)',
                 color: isS ? '#fff' : 'var(--text-primary)',
               }}
@@ -2952,7 +2712,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
             <button
               className="rf-btn rf-btn-icon"
               style={{
-                backgroundColor: isD ? 'var(--accent-blue)' : 'var(--bg-panel)',
+                backgroundColor: isD ? 'var(--accent-soft)' : 'var(--bg-panel)',
                 borderColor: isD ? 'var(--accent-blue)' : 'var(--border-subtle)',
                 color: isD ? '#fff' : 'var(--text-primary)',
               }}
@@ -2985,13 +2745,12 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
             flexDirection: 'column',
             gap: 7,
             backgroundColor: 'rgba(15, 17, 23, 0.94)',
-            backdropFilter: 'blur(10px)',
-            border: simState?.rl_training_active ? '1px solid rgba(56, 189, 248, 0.6)' : '1px solid rgba(34, 197, 94, 0.6)',
+            border: simState?.rl_training_active ? '1px solid rgba(232, 98, 44, 0.6)' : '1px solid rgba(34, 197, 94, 0.6)',
             borderRadius: 10,
             padding: '10px 16px',
             zIndex: 10,
             boxShadow: simState?.rl_training_active
-              ? '0 0 20px rgba(56, 189, 248, 0.35), 0 8px 32px rgba(0,0,0,0.6)'
+              ? '0 0 20px rgba(232, 98, 44, 0.35), 0 8px 32px rgba(0,0,0,0.6)'
               : '0 0 20px rgba(34, 197, 94, 0.35), 0 8px 32px rgba(0,0,0,0.6)',
             minWidth: 420,
             maxWidth: 620,
@@ -3006,12 +2765,12 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
                   width: 8,
                   height: 8,
                   borderRadius: '50%',
-                  backgroundColor: simState?.rl_training_active ? '#38bdf8' : '#22c55e',
-                  boxShadow: simState?.rl_training_active ? '0 0 8px #38bdf8' : '0 0 8px #22c55e',
+                  backgroundColor: simState?.rl_training_active ? '#e8622c' : '#3fb27f',
+                  boxShadow: simState?.rl_training_active ? '0 0 8px #e8622c' : '0 0 8px #3fb27f',
                 }}
               />
-              <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.8px', color: '#f8fafc', textTransform: 'uppercase' }}>
-                ⚡ ISAAC LAB — LIVE PPO TRAINING
+              <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.8px', color: '#f4f3ef', textTransform: 'uppercase' }}>
+                Live PPO training
               </span>
             </div>
             <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
@@ -3021,7 +2780,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
 
           {/* Episode, Step, Reward Stats */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, fontSize: 11, fontFamily: 'var(--font-mono)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#38bdf8' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#e8622c' }}>
               <span style={{ color: 'var(--text-muted)' }}>EPISODE:</span>
               <span style={{ fontWeight: 700 }}>
                 {simState?.rl_training_episode || 0} / {simState?.rl_training_total_episodes || 4}
@@ -3038,7 +2797,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
               <span
                 style={{
                   fontWeight: 700,
-                  color: (simState?.rl_training_reward || 0) >= 0 ? '#4ade80' : '#f87171'
+                  color: (simState?.rl_training_reward || 0) >= 0 ? '#5cc596' : '#f07378'
                 }}
               >
                 {(simState?.rl_training_reward || 0) > 0 ? '+' : ''}
@@ -3058,14 +2817,14 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
                 ? 'rgba(239, 68, 68, 0.25)'
                 : (simState?.rl_training_status?.includes('CONVERGED') || simState?.rl_training_status?.includes('SAVED') || simState?.rl_training_status?.includes('DEPLOYED'))
                 ? 'rgba(34, 197, 94, 0.25)'
-                : 'rgba(56, 189, 248, 0.15)',
+                : 'rgba(232, 98, 44, 0.15)',
               border: (simState?.rl_training_status?.includes('CRASH') || simState?.rl_training_status?.includes('FAIL'))
                 ? '1px solid rgba(239, 68, 68, 0.5)'
                 : (simState?.rl_training_status?.includes('CONVERGED') || simState?.rl_training_status?.includes('SAVED') || simState?.rl_training_status?.includes('DEPLOYED'))
                 ? '1px solid rgba(34, 197, 94, 0.5)'
-                : '1px solid rgba(56, 189, 248, 0.3)',
+                : '1px solid rgba(232, 98, 44, 0.3)',
               color: (simState?.rl_training_status?.includes('CRASH') || simState?.rl_training_status?.includes('FAIL'))
-                ? '#fca5a5'
+                ? '#f4a1a4'
                 : (simState?.rl_training_status?.includes('CONVERGED') || simState?.rl_training_status?.includes('SAVED') || simState?.rl_training_status?.includes('DEPLOYED'))
                 ? '#86efac'
                 : '#bae6fd',
@@ -3081,7 +2840,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
               style={{
                 height: '100%',
                 width: `${Math.min(100, Math.max(5, ((simState?.rl_training_episode || 0) / (simState?.rl_training_total_episodes || 4)) * 100))}%`,
-                backgroundColor: simState?.rl_training_active ? '#38bdf8' : '#22c55e',
+                backgroundColor: simState?.rl_training_active ? '#e8622c' : '#3fb27f',
                 transition: 'width 0.3s ease-out'
               }}
             />

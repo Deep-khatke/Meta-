@@ -1,8 +1,5 @@
 import React, { useState, useRef } from 'react';
-import {
-  X, Layers, Upload, FileCode, Cpu, Sparkles, Check, ArrowRight,
-  Bot, RefreshCw, Shield, AlertCircle, FileText, CheckCircle2
-} from 'lucide-react';
+import { X, Layers, Upload, FileCode, Cpu, Sparkles, Check, ArrowRight, Bot, RefreshCw, Shield, AlertCircle, FileText, CheckCircle2, Box, Cog, Wrench, Car } from 'lucide-react';
 import { Project, GenericRobotModel } from '../types';
 import { createNewProject, importURDF, setGenericRobotModel } from '../services/api';
 
@@ -251,7 +248,6 @@ export const WorkspaceSetupModal: React.FC<WorkspaceSetupModalProps> = ({
         position: 'fixed',
         inset: 0,
         backgroundColor: 'rgba(5, 7, 12, 0.85)',
-        backdropFilter: 'blur(12px)',
         zIndex: 9999,
         display: 'flex',
         alignItems: 'center',
@@ -265,10 +261,10 @@ export const WorkspaceSetupModal: React.FC<WorkspaceSetupModalProps> = ({
           width: '100%',
           maxWidth: 860,
           maxHeight: '90vh',
-          backgroundColor: '#0f1117',
+          backgroundColor: '#0f1112',
           borderRadius: 12,
-          border: '1px solid #1e2433',
-          boxShadow: '0 24px 64px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(56, 189, 248, 0.1)',
+          border: '1px solid #25292b',
+          boxShadow: '0 24px 64px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(232, 98, 44, 0.1)',
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
@@ -280,11 +276,11 @@ export const WorkspaceSetupModal: React.FC<WorkspaceSetupModalProps> = ({
         <div
           style={{
             padding: '16px 20px',
-            borderBottom: '1px solid #1e2433',
+            borderBottom: '1px solid #25292b',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            background: 'linear-gradient(180deg, #161922 0%, #0f1117 100%)',
+            background: 'var(--bg-panel)',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -293,20 +289,21 @@ export const WorkspaceSetupModal: React.FC<WorkspaceSetupModalProps> = ({
                 width: 32,
                 height: 32,
                 borderRadius: 8,
-                background: 'linear-gradient(135deg, #0284c7, #6366f1)',
+                background: 'var(--bg-raised)',
+                color: 'var(--accent)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                boxShadow: '0 0 16px rgba(2, 132, 199, 0.4)',
+                border: '1px solid var(--border-strong)',
               }}
             >
-              <Cpu size={18} color="#fff" />
+              <Cpu size={18} strokeWidth={1.75} />
             </div>
             <div>
-              <div style={{ fontWeight: 700, fontSize: 15, color: '#f8fafc', letterSpacing: '0.4px' }}>
-                RoboForge Studio <span style={{ color: '#38bdf8', fontWeight: 500 }}>&bull; Workspace Setup</span>
+              <div style={{ fontWeight: 700, fontSize: 15, color: '#f4f3ef' }}>
+                RoboForge Studio <span style={{ color: '#8a8d89', fontWeight: 600 }}>&middot; Workspace setup</span>
               </div>
-              <div style={{ fontSize: 11, color: '#94a3b8' }}>
+              <div style={{ fontSize: 11, color: '#a9aca7' }}>
                 Create a fresh clean workspace, select precision models, or import custom URDF/C++ architectures
               </div>
             </div>
@@ -314,7 +311,7 @@ export const WorkspaceSetupModal: React.FC<WorkspaceSetupModalProps> = ({
           <button
             className="rf-btn rf-btn-icon"
             onClick={onClose}
-            style={{ width: 28, height: 28, borderRadius: '50%', color: '#94a3b8' }}
+            style={{ width: 28, height: 28, borderRadius: '50%', color: '#a9aca7' }}
           >
             <X size={15} />
           </button>
@@ -333,7 +330,7 @@ export const WorkspaceSetupModal: React.FC<WorkspaceSetupModalProps> = ({
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, maxWidth: 360 }}>
-            <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}>Workspace:</span>
+            <span style={{ fontSize: 11, color: '#8a8d89', fontWeight: 600, textTransform: 'uppercase' }}>Workspace:</span>
             <input
               type="text"
               className="rf-input"
@@ -346,7 +343,7 @@ export const WorkspaceSetupModal: React.FC<WorkspaceSetupModalProps> = ({
 
           <div style={{ display: 'flex', gap: 4, background: '#141824', padding: 3, borderRadius: 8 }}>
             <button
-              className={`rf-btn ${activeTab === 'templates' ? 'rf-btn-primary' : ''}`}
+              className={`rf-btn ${activeTab === 'templates' ? 'rf-btn-active' : ''}`}
               onClick={() => setActiveTab('templates')}
               style={{ fontSize: 11, padding: '4px 12px', borderRadius: 6 }}
             >
@@ -354,7 +351,7 @@ export const WorkspaceSetupModal: React.FC<WorkspaceSetupModalProps> = ({
               <span>Presets &amp; Clean Scene</span>
             </button>
             <button
-              className={`rf-btn ${activeTab === 'import_urdf' ? 'rf-btn-primary' : ''}`}
+              className={`rf-btn ${activeTab === 'import_urdf' ? 'rf-btn-active' : ''}`}
               onClick={() => setActiveTab('import_urdf')}
               style={{ fontSize: 11, padding: '4px 12px', borderRadius: 6 }}
             >
@@ -362,7 +359,7 @@ export const WorkspaceSetupModal: React.FC<WorkspaceSetupModalProps> = ({
               <span>Import URDF / MJCF</span>
             </button>
             <button
-              className={`rf-btn ${activeTab === 'import_cpp' ? 'rf-btn-primary' : ''}`}
+              className={`rf-btn ${activeTab === 'import_cpp' ? 'rf-btn-active' : ''}`}
               onClick={() => setActiveTab('import_cpp')}
               style={{ fontSize: 11, padding: '4px 12px', borderRadius: 6 }}
             >
@@ -375,7 +372,7 @@ export const WorkspaceSetupModal: React.FC<WorkspaceSetupModalProps> = ({
         {/* Tab 1: Presets & Clean Empty Scene */}
         {activeTab === 'templates' && (
           <div style={{ padding: 20, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div style={{ fontSize: 12, color: '#94a3b8' }}>
+            <div style={{ fontSize: 12, color: '#a9aca7' }}>
               Choose your starting point. You can start with a <strong>completely empty scene</strong> with zero robots and zero clutter, or pick an industrial manipulator architecture:
             </div>
 
@@ -387,8 +384,8 @@ export const WorkspaceSetupModal: React.FC<WorkspaceSetupModalProps> = ({
                   padding: 16,
                   borderRadius: 10,
                   cursor: 'pointer',
-                  border: selectedTemplate === 'empty' ? '2px solid #38bdf8' : '1px solid #1e2433',
-                  background: selectedTemplate === 'empty' ? 'rgba(56, 189, 248, 0.08)' : '#131722',
+                  border: selectedTemplate === 'empty' ? '1px solid #e8622c' : '1px solid #25292b',
+                  background: selectedTemplate === 'empty' ? 'rgba(232, 98, 44, 0.07)' : '#131516',
                   transition: 'all 0.15s ease',
                   display: 'flex',
                   flexDirection: 'column',
@@ -396,18 +393,18 @@ export const WorkspaceSetupModal: React.FC<WorkspaceSetupModalProps> = ({
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: 18 }}>🌟</span>
+                  <Box size={20} strokeWidth={1.75} />
                   {selectedTemplate === 'empty' && (
-                    <span style={{ color: '#38bdf8', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{ color: '#e8622c', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
                       <CheckCircle2 size={13} /> Selected
                     </span>
                   )}
                 </div>
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: 13, color: '#f8fafc' }}>Clean Empty Workspace</div>
-                  <div style={{ fontSize: 10, color: '#38bdf8', fontWeight: 600, marginTop: 2 }}>ZERO DEFAULT ROBOTS</div>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: '#f4f3ef' }}>Clean Empty Workspace</div>
+                  <div style={{ fontSize: 10.5, color: '#8a8d89', fontWeight: 600, marginTop: 2 }}>ZERO DEFAULT ROBOTS</div>
                 </div>
-                <div style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.4 }}>
+                <div style={{ fontSize: 11, color: '#a9aca7', lineHeight: 1.4 }}>
                   Starts with a pristine, completely empty 3D scene grid. No default rover, no obstacles. Perfect for URDF loading or custom AI scene generation.
                 </div>
               </div>
@@ -419,8 +416,8 @@ export const WorkspaceSetupModal: React.FC<WorkspaceSetupModalProps> = ({
                   padding: 16,
                   borderRadius: 10,
                   cursor: 'pointer',
-                  border: selectedTemplate === 'kr6' ? '2px solid #f97316' : '1px solid #1e2433',
-                  background: selectedTemplate === 'kr6' ? 'rgba(249, 115, 22, 0.08)' : '#131722',
+                  border: selectedTemplate === 'kr6' ? '1px solid #e8622c' : '1px solid #25292b',
+                  background: selectedTemplate === 'kr6' ? 'rgba(232, 98, 44, 0.07)' : '#131516',
                   transition: 'all 0.15s ease',
                   display: 'flex',
                   flexDirection: 'column',
@@ -428,18 +425,18 @@ export const WorkspaceSetupModal: React.FC<WorkspaceSetupModalProps> = ({
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: 18 }}>🦾</span>
+                  <Cog size={20} strokeWidth={1.75} />
                   {selectedTemplate === 'kr6' && (
-                    <span style={{ color: '#f97316', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{ color: '#e8622c', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
                       <CheckCircle2 size={13} /> Selected
                     </span>
                   )}
                 </div>
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: 13, color: '#f8fafc' }}>KR-6 Pro Articulated</div>
-                  <div style={{ fontSize: 10, color: '#f97316', fontWeight: 600, marginTop: 2 }}>6-AXIS INDUSTRIAL MANIPULATOR</div>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: '#f4f3ef' }}>KR-6 Pro Articulated</div>
+                  <div style={{ fontSize: 10.5, color: '#8a8d89', fontWeight: 600, marginTop: 2 }}>6-AXIS INDUSTRIAL MANIPULATOR</div>
                 </div>
-                <div style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.4 }}>
+                <div style={{ fontSize: 11, color: '#a9aca7', lineHeight: 1.4 }}>
                   Payload: <strong>6.0 kg</strong> &bull; Cycle: <strong>0.42 s</strong><br />
                   6 revolute joints (J1 Yaw, J2 Shoulder, J3 Elbow, J4-J6 Wrist) with individual motor sliders and RL pick-and-place policy readiness.
                 </div>
@@ -452,8 +449,8 @@ export const WorkspaceSetupModal: React.FC<WorkspaceSetupModalProps> = ({
                   padding: 16,
                   borderRadius: 10,
                   cursor: 'pointer',
-                  border: selectedTemplate === 'scara' ? '2px solid #10b981' : '1px solid #1e2433',
-                  background: selectedTemplate === 'scara' ? 'rgba(16, 185, 129, 0.08)' : '#131722',
+                  border: selectedTemplate === 'scara' ? '1px solid #e8622c' : '1px solid #25292b',
+                  background: selectedTemplate === 'scara' ? 'rgba(232, 98, 44, 0.07)' : '#131516',
                   transition: 'all 0.15s ease',
                   display: 'flex',
                   flexDirection: 'column',
@@ -461,18 +458,18 @@ export const WorkspaceSetupModal: React.FC<WorkspaceSetupModalProps> = ({
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: 18 }}>⚡</span>
+                  <Wrench size={20} strokeWidth={1.75} />
                   {selectedTemplate === 'scara' && (
-                    <span style={{ color: '#10b981', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{ color: '#e8622c', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
                       <CheckCircle2 size={13} /> Selected
                     </span>
                   )}
                 </div>
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: 13, color: '#f8fafc' }}>3-Axis SCARA Manipulator</div>
-                  <div style={{ fontSize: 10, color: '#10b981', fontWeight: 600, marginTop: 2 }}>HIGH-SPEED PICK &amp; PLACE</div>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: '#f4f3ef' }}>3-Axis SCARA Manipulator</div>
+                  <div style={{ fontSize: 10.5, color: '#8a8d89', fontWeight: 600, marginTop: 2 }}>HIGH-SPEED PICK &amp; PLACE</div>
                 </div>
-                <div style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.4 }}>
+                <div style={{ fontSize: 11, color: '#a9aca7', lineHeight: 1.4 }}>
                   Planar selective compliance geometry for rapid assembly, sorting, and high-frequency pick-and-place manipulation.
                 </div>
               </div>
@@ -484,8 +481,8 @@ export const WorkspaceSetupModal: React.FC<WorkspaceSetupModalProps> = ({
                   padding: 16,
                   borderRadius: 10,
                   cursor: 'pointer',
-                  border: selectedTemplate === 'rover' ? '2px solid #818cf8' : '1px solid #1e2433',
-                  background: selectedTemplate === 'rover' ? 'rgba(129, 140, 248, 0.08)' : '#131722',
+                  border: selectedTemplate === 'rover' ? '1px solid #e8622c' : '1px solid #25292b',
+                  background: selectedTemplate === 'rover' ? 'rgba(232, 98, 44, 0.07)' : '#131516',
                   transition: 'all 0.15s ease',
                   display: 'flex',
                   flexDirection: 'column',
@@ -493,18 +490,18 @@ export const WorkspaceSetupModal: React.FC<WorkspaceSetupModalProps> = ({
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: 18 }}>🏎️</span>
+                  <Car size={20} strokeWidth={1.75} />
                   {selectedTemplate === 'rover' && (
-                    <span style={{ color: '#818cf8', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{ color: '#e8622c', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
                       <CheckCircle2 size={13} /> Selected
                     </span>
                   )}
                 </div>
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: 13, color: '#f8fafc' }}>ForgeBot Ground AMR</div>
-                  <div style={{ fontSize: 10, color: '#818cf8', fontWeight: 600, marginTop: 2 }}>DIFFERENTIAL-DRIVE ROVER</div>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: '#f4f3ef' }}>ForgeBot Ground AMR</div>
+                  <div style={{ fontSize: 10.5, color: '#8a8d89', fontWeight: 600, marginTop: 2 }}>DIFFERENTIAL-DRIVE ROVER</div>
                 </div>
-                <div style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.4 }}>
+                <div style={{ fontSize: 11, color: '#a9aca7', lineHeight: 1.4 }}>
                   Standard dual-motor mobile base with synthetic LiDAR and 6-DOF IMU. Clean arena without demo obstacles.
                 </div>
               </div>
@@ -521,8 +518,7 @@ export const WorkspaceSetupModal: React.FC<WorkspaceSetupModalProps> = ({
                   fontWeight: 600,
                   fontSize: 13,
                   gap: 8,
-                  background: 'linear-gradient(135deg, #0284c7, #2563eb)',
-                  boxShadow: '0 4px 14px rgba(2, 132, 199, 0.3)',
+                  height: 36,
                 }}
               >
                 <span>{isSubmitting ? 'Initializing Workspace...' : 'Initialize Workspace'}</span>
@@ -536,7 +532,7 @@ export const WorkspaceSetupModal: React.FC<WorkspaceSetupModalProps> = ({
         {activeTab === 'import_urdf' && (
           <div style={{ padding: 20, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: 12, color: '#94a3b8' }}>
+              <span style={{ fontSize: 12, color: '#a9aca7' }}>
                 Paste your robot URDF XML specification below, or upload a <code>.urdf</code> / <code>.xml</code> file:
               </span>
               <button
@@ -564,8 +560,8 @@ export const WorkspaceSetupModal: React.FC<WorkspaceSetupModalProps> = ({
                 fontFamily: 'var(--font-mono)',
                 fontSize: 11,
                 background: '#090a0f',
-                color: '#38bdf8',
-                border: '1px solid #1e2433',
+                color: '#e8622c',
+                border: '1px solid #25292b',
                 borderRadius: 8,
                 padding: 12,
                 width: '100%',
@@ -576,7 +572,7 @@ export const WorkspaceSetupModal: React.FC<WorkspaceSetupModalProps> = ({
             />
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ fontSize: 11, color: '#64748b' }}>
+              <div style={{ fontSize: 11, color: '#8a8d89' }}>
                 Clean scene will load with <strong>only your imported URDF model</strong> at origin [0, 0, 0].
               </div>
               <button
@@ -596,7 +592,7 @@ export const WorkspaceSetupModal: React.FC<WorkspaceSetupModalProps> = ({
         {activeTab === 'import_cpp' && (
           <div style={{ padding: 20, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: 12, color: '#94a3b8' }}>
+              <span style={{ fontSize: 12, color: '#a9aca7' }}>
                 Load robot model from modern C++ kinematic tree definition:
               </span>
               <button
@@ -617,8 +613,8 @@ export const WorkspaceSetupModal: React.FC<WorkspaceSetupModalProps> = ({
                 fontFamily: 'var(--font-mono)',
                 fontSize: 11,
                 background: '#090a0f',
-                color: '#a78bfa',
-                border: '1px solid #1e2433',
+                color: '#a9aca7',
+                border: '1px solid #25292b',
                 borderRadius: 8,
                 padding: 12,
                 width: '100%',
@@ -629,7 +625,7 @@ export const WorkspaceSetupModal: React.FC<WorkspaceSetupModalProps> = ({
             />
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ fontSize: 11, color: '#64748b' }}>
+              <div style={{ fontSize: 11, color: '#8a8d89' }}>
                 Translates C++ robot class definitions into live MuJoCo physics actuators with zero default clutter.
               </div>
               <button

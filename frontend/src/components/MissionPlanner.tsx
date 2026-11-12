@@ -19,15 +19,15 @@ interface Props {
   onDeleteObstacle: (id: string) => void;
 }
 
-const btn = (active: boolean, color = '#3b82f6'): React.CSSProperties => ({
+const btn = (active: boolean, color = '#c4472d'): React.CSSProperties => ({
   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
   padding: '7px 8px', fontSize: 11.5, fontWeight: 600, borderRadius: 7, cursor: 'pointer',
   border: `1px solid ${active ? color : 'rgba(255,255,255,0.12)'}`,
   background: active ? `${color}33` : 'rgba(255,255,255,0.04)',
-  color: active ? '#fff' : '#cbd5e1',
+  color: active ? '#fff' : '#d6d5cf',
 });
 const section: React.CSSProperties = { borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 10, marginTop: 10 };
-const label: React.CSSProperties = { fontSize: 10.5, fontWeight: 700, color: '#94a3b8', letterSpacing: 0.4, marginBottom: 6, display: 'block' };
+const label: React.CSSProperties = { fontSize: 10.5, fontWeight: 700, color: '#a9aca7', letterSpacing: 0.4, marginBottom: 6, display: 'block' };
 
 export const MissionPlanner: React.FC<Props> = ({
   project, simState, waypoints, setWaypoints, mode, setMode, loop, setLoop, onShowToast, onClose, onDeleteObstacle,
@@ -109,46 +109,46 @@ export const MissionPlanner: React.FC<Props> = ({
   };
 
   return (
-    <div style={{
+    <div className="rf-pop" style={{
       position: 'absolute', top: 56, right: 12, width: 300, maxHeight: 'calc(100% - 70px)', overflowY: 'auto',
-      zIndex: 30, background: 'rgba(12,14,20,0.95)', border: '1px solid rgba(59,130,246,0.5)', borderRadius: 12,
-      padding: 14, boxShadow: '0 10px 30px rgba(0,0,0,0.5)', color: '#e2e8f0', fontSize: 12,
+      zIndex: 30, background: 'var(--bg-surface)', border: '1px solid var(--border-strong)', borderRadius: 12,
+      padding: 14, boxShadow: 'var(--shadow-float)', color: '#ecebe6', fontSize: 12,
     }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
         <span style={{ fontWeight: 800, fontSize: 13.5, display: 'flex', alignItems: 'center', gap: 6 }}>
-          <Crosshair size={15} color="#60a5fa" /> Mission Planner
-          <span style={{ fontSize: 9.5, fontWeight: 700, padding: '1px 6px', borderRadius: 4, background: isDrone ? 'rgba(56,189,248,0.2)' : 'rgba(34,197,94,0.2)', color: isDrone ? '#38bdf8' : '#22c55e' }}>
+          <Crosshair size={15} color="#e8622c" /> Mission Planner
+          <span style={{ fontSize: 9.5, fontWeight: 700, padding: '1px 6px', borderRadius: 4, background: isDrone ? 'rgba(232, 98, 44, 0.2)' : 'rgba(34,197,94,0.2)', color: isDrone ? '#e8622c' : '#3fb27f' }}>
             {isDrone ? 'DRONE' : 'ROVER'}
           </span>
         </span>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }} aria-label="Close mission planner"><X size={16} /></button>
+        <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#a9aca7', cursor: 'pointer' }} aria-label="Close mission planner"><X size={16} /></button>
       </div>
 
       {/* 1. Place */}
       <span style={label}>1 · PLACE (click in the 3D view)</span>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
-        <button style={btn(mode === 'waypoint', '#f59e0b')} onClick={() => setMode(mode === 'waypoint' ? null : 'waypoint')}><MapPin size={13} />Waypoint</button>
-        <button style={btn(mode === 'box', '#ef4444')} onClick={() => setMode(mode === 'box' ? null : 'box')}><Box size={13} />Box</button>
-        <button style={btn(mode === 'cylinder', '#ef4444')} onClick={() => setMode(mode === 'cylinder' ? null : 'cylinder')}><Cylinder size={13} />Cylinder</button>
-        <button style={btn(mode === 'sphere', '#ef4444')} onClick={() => setMode(mode === 'sphere' ? null : 'sphere')}><Circle size={13} />Sphere</button>
+        <button style={btn(mode === 'waypoint', '#dca23a')} onClick={() => setMode(mode === 'waypoint' ? null : 'waypoint')}><MapPin size={13} />Waypoint</button>
+        <button style={btn(mode === 'box', '#e5484d')} onClick={() => setMode(mode === 'box' ? null : 'box')}><Box size={13} />Box</button>
+        <button style={btn(mode === 'cylinder', '#e5484d')} onClick={() => setMode(mode === 'cylinder' ? null : 'cylinder')}><Cylinder size={13} />Cylinder</button>
+        <button style={btn(mode === 'sphere', '#e5484d')} onClick={() => setMode(mode === 'sphere' ? null : 'sphere')}><Circle size={13} />Sphere</button>
         <button style={btn(mode === 'delete', '#f43f5e')} onClick={() => setMode(mode === 'delete' ? null : 'delete')}><Trash2 size={13} />Delete</button>
-        <button style={btn(mode === null, '#64748b')} onClick={() => setMode(null)}><MousePointer size={13} />Select</button>
+        <button style={btn(mode === null, '#8a8d89')} onClick={() => setMode(null)}><MousePointer size={13} />Select</button>
       </div>
-      <div style={{ marginTop: 6, fontSize: 11, color: mode ? '#fbbf24' : '#64748b', minHeight: 15 }}>
+      <div style={{ marginTop: 6, fontSize: 11, color: mode ? '#dca23a' : '#8a8d89', minHeight: 15 }}>
         {mode ? hint[mode] : 'Pick a tool, then click the ground.'}
       </div>
 
       {/* 2. Waypoints */}
       <div style={section}>
         <span style={label}>2 · PATH ({waypoints.length} waypoints)</span>
-        {waypoints.length === 0 && <div style={{ color: '#64748b', fontSize: 11 }}>No waypoints yet. Choose Waypoint and click the ground.</div>}
+        {waypoints.length === 0 && <div style={{ color: '#8a8d89', fontSize: 11 }}>No waypoints yet. Choose Waypoint and click the ground.</div>}
         {waypoints.map(([x, y], i) => (
           <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 0' }}>
-            <span style={{ width: 20, height: 20, borderRadius: 10, background: i === 0 ? '#22c55e' : '#f59e0b', color: '#000', fontWeight: 800, fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{i + 1}</span>
+            <span style={{ width: 20, height: 20, borderRadius: 10, background: i === 0 ? '#3fb27f' : '#dca23a', color: '#000', fontWeight: 800, fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{i + 1}</span>
             <span style={{ flex: 1, fontFamily: 'monospace', fontSize: 11 }}>({x.toFixed(2)}, {y.toFixed(2)})</span>
-            <button onClick={() => move(i, -1)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }} aria-label="Move up"><ArrowUp size={13} /></button>
-            <button onClick={() => move(i, 1)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }} aria-label="Move down"><ArrowDown size={13} /></button>
-            <button onClick={() => setWaypoints(waypoints.filter((_, k) => k !== i))} style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer' }} aria-label="Remove waypoint"><X size={13} /></button>
+            <button onClick={() => move(i, -1)} style={{ background: 'none', border: 'none', color: '#a9aca7', cursor: 'pointer' }} aria-label="Move up"><ArrowUp size={13} /></button>
+            <button onClick={() => move(i, 1)} style={{ background: 'none', border: 'none', color: '#a9aca7', cursor: 'pointer' }} aria-label="Move down"><ArrowDown size={13} /></button>
+            <button onClick={() => setWaypoints(waypoints.filter((_, k) => k !== i))} style={{ background: 'none', border: 'none', color: '#f07378', cursor: 'pointer' }} aria-label="Remove waypoint"><X size={13} /></button>
           </div>
         ))}
         <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
@@ -174,24 +174,24 @@ export const MissionPlanner: React.FC<Props> = ({
           </label>
           {loop && (<label style={{ display: 'flex', alignItems: 'center', gap: 5 }}>Laps
             <input type="number" min={1} max={50} value={laps} onChange={(e) => setLaps(Math.max(1, parseInt(e.target.value) || 1))}
-              style={{ width: 48, background: '#0f172a', color: '#fff', border: '1px solid #334155', borderRadius: 5, padding: '2px 4px' }} />
+              style={{ width: 48, background: '#101213', color: '#fff', border: '1px solid #363b3e', borderRadius: 5, padding: '2px 4px' }} />
           </label>)}
         </div>
         <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, cursor: 'pointer' }} title="Randomize friction, mass, gravity & add sensor noise each episode so the trained policy survives real-world variation (sim-to-real).">
           <input type="checkbox" checked={domainRandomize} onChange={(e) => setDomainRandomize(e.target.checked)} />
-          <span>Domain randomize <span style={{ color: '#64748b' }}>(robust sim-to-real training)</span></span>
+          <span>Domain randomize <span style={{ color: '#8a8d89' }}>(robust sim-to-real training)</span></span>
         </label>
       </div>
 
       {/* Obstacles */}
       <div style={section}>
         <span style={label}>OBSTACLES ({obstacleObjs.length})</span>
-        {obstacleObjs.length === 0 && <div style={{ color: '#64748b', fontSize: 11 }}>None. Use Box / Cylinder / Sphere above.</div>}
+        {obstacleObjs.length === 0 && <div style={{ color: '#8a8d89', fontSize: 11 }}>None. Use Box / Cylinder / Sphere above.</div>}
         {obstacleObjs.map((o) => (
           <div key={o.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '2px 0' }}>
             <span style={{ width: 10, height: 10, borderRadius: 2, background: o.color }} />
-            <span style={{ flex: 1, fontSize: 11, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{o.name} <span style={{ color: '#64748b' }}>({o.position[0].toFixed(1)}, {o.position[1].toFixed(1)})</span></span>
-            <button onClick={() => onDeleteObstacle(o.id)} style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer' }} aria-label={`Delete ${o.name}`}><Trash2 size={12} /></button>
+            <span style={{ flex: 1, fontSize: 11, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{o.name} <span style={{ color: '#8a8d89' }}>({o.position[0].toFixed(1)}, {o.position[1].toFixed(1)})</span></span>
+            <button onClick={() => onDeleteObstacle(o.id)} style={{ background: 'none', border: 'none', color: '#f07378', cursor: 'pointer' }} aria-label={`Delete ${o.name}`}><Trash2 size={12} /></button>
           </div>
         ))}
       </div>
@@ -201,14 +201,14 @@ export const MissionPlanner: React.FC<Props> = ({
         <span style={label}>4 · SAVE SCENE + PATH</span>
         <div style={{ display: 'flex', gap: 6 }}>
           <input value={name} onChange={(e) => setName(e.target.value)} aria-label="Mission name"
-            style={{ flex: 1, background: '#0f172a', color: '#fff', border: '1px solid #334155', borderRadius: 6, padding: '5px 7px', fontSize: 11.5 }} />
-          <button style={btn(false, '#22c55e')} onClick={save}><Save size={13} />Save</button>
+            style={{ flex: 1, background: '#101213', color: '#fff', border: '1px solid #363b3e', borderRadius: 6, padding: '5px 7px', fontSize: 11.5 }} />
+          <button style={btn(false, '#3fb27f')} onClick={save}><Save size={13} />Save</button>
         </div>
         {saved.length > 0 && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
-            <FolderOpen size={13} color="#94a3b8" />
+            <FolderOpen size={13} color="#a9aca7" />
             <select defaultValue="" onChange={(e) => load(e.target.value)} aria-label="Load mission"
-              style={{ flex: 1, background: '#0f172a', color: '#fff', border: '1px solid #334155', borderRadius: 6, padding: '4px', fontSize: 11.5 }}>
+              style={{ flex: 1, background: '#101213', color: '#fff', border: '1px solid #363b3e', borderRadius: 6, padding: '4px', fontSize: 11.5 }}>
               <option value="" disabled>Load saved mission…</option>
               {saved.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
@@ -220,14 +220,14 @@ export const MissionPlanner: React.FC<Props> = ({
       <div style={section}>
         <span style={label}>5 · RUN</span>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-          <button disabled={!!busy || training} style={{ ...btn(true, '#3b82f6'), opacity: busy || training ? 0.5 : 1 }} onClick={() => run('run')}><Play size={13} />Run Path</button>
-          <button disabled={!!busy || training} style={{ ...btn(true, '#a855f7'), opacity: busy || training ? 0.5 : 1 }} onClick={() => run('train')}><Brain size={13} />Train &amp; Run</button>
+          <button disabled={!!busy || training} style={{ ...btn(true, '#c4472d'), opacity: busy || training ? 0.5 : 1 }} onClick={() => run('run')}><Play size={13} />Run Path</button>
+          <button disabled={!!busy || training} style={{ ...btn(true, '#a9aca7'), opacity: busy || training ? 0.5 : 1 }} onClick={() => run('train')}><Brain size={13} />Train &amp; Run</button>
         </div>
-        <button style={{ ...btn(true, '#ef4444'), width: '100%', marginTop: 6 }} onClick={() => stopMission().then(() => onShowToast('Stopped.'))}><Square size={12} />Stop</button>
-        <div style={{ marginTop: 8, fontSize: 10.5, color: '#94a3b8', lineHeight: 1.4 }}>
+        <button style={{ ...btn(true, '#e5484d'), width: '100%', marginTop: 6 }} onClick={() => stopMission().then(() => onShowToast('Stopped.'))}><Square size={12} />Stop</button>
+        <div style={{ marginTop: 8, fontSize: 10.5, color: '#a9aca7', lineHeight: 1.4 }}>
           <b>Run Path</b> drives it now. <b>Train &amp; Run</b> trains a PPO policy live (saved to the PPO tab), then follows your path.
         </div>
-        {status && <div style={{ marginTop: 6, fontSize: 10.5, color: '#c084fc', fontFamily: 'monospace' }}>{status}</div>}
+        {status && <div style={{ marginTop: 6, fontSize: 10.5, color: '#a9aca7', fontFamily: 'monospace' }}>{status}</div>}
       </div>
     </div>
   );

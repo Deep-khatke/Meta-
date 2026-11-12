@@ -9,11 +9,11 @@ interface SensorsPanelProps {
 }
 
 const TYPE_META: Record<string, { icon: React.ReactNode; label: string }> = {
-  imu: { icon: <Cpu size={13} color="#4ade80" />, label: 'IMU (6-DOF)' },
-  lidar: { icon: <Radio size={13} color="#38bdf8" />, label: 'LiDAR' },
-  rangefinder: { icon: <Radio size={13} color="#38bdf8" />, label: 'Rangefinder' },
-  camera: { icon: <Camera size={13} color="#f59e0b" />, label: 'Camera' },
-  contact: { icon: <Zap size={13} color="#f472b6" />, label: 'Contact' },
+  imu: { icon: <Cpu size={13} color="#5cc596" />, label: 'IMU (6-DOF)' },
+  lidar: { icon: <Radio size={13} color="#e8622c" />, label: 'LiDAR' },
+  rangefinder: { icon: <Radio size={13} color="#e8622c" />, label: 'Rangefinder' },
+  camera: { icon: <Camera size={13} color="#dca23a" />, label: 'Camera' },
+  contact: { icon: <Zap size={13} color="#a9aca7" />, label: 'Contact' },
 };
 
 export const SensorsPanel: React.FC<SensorsPanelProps> = ({ simState, onShowToast }) => {
@@ -67,7 +67,7 @@ export const SensorsPanel: React.FC<SensorsPanelProps> = ({ simState, onShowToas
   const renderReading = (s: any) => {
     const r = readings[s.id];
     if (!r) return <span style={{ color: 'var(--text-muted)' }}>no data</span>;
-    if (r.attached === false) return <span style={{ color: '#fb923c' }}>detached ({r.parent})</span>;
+    if (r.attached === false) return <span style={{ color: '#d98a3d' }}>detached ({r.parent})</span>;
     if (r.type === 'imu') {
       const a = r.linear_acceleration || [0, 0, 0];
       const g = r.angular_velocity || [0, 0, 0];
@@ -77,7 +77,7 @@ export const SensorsPanel: React.FC<SensorsPanelProps> = ({ simState, onShowToas
       return <span>closest {r.closest != null ? `${r.closest}m` : '—'} · {r.num_beams} beams</span>;
     }
     if (r.type === 'contact') {
-      return <span style={{ color: r.in_contact ? '#f472b6' : 'var(--text-muted)' }}>{r.in_contact ? `IN CONTACT (${r.contacts})` : 'clear'}</span>;
+      return <span style={{ color: r.in_contact ? '#a9aca7' : 'var(--text-muted)' }}>{r.in_contact ? `IN CONTACT (${r.contacts})` : 'clear'}</span>;
     }
     if (r.type === 'camera') return <span>{(r.resolution || []).join('×')} @ {r.fov_deg}°</span>;
     return <span>{r.type}</span>;

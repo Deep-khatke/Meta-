@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import {
-  Rocket, FolderOpen, Bot, Boxes, Upload, FileCode, ArrowRight, Cpu, Sparkles,
+  Rocket, FolderOpen, Bot, Boxes, Upload, FileCode, ArrowRight, ArrowLeft, Cpu, Sparkles,
 } from 'lucide-react';
 
 export type WorkspaceChoice =
@@ -15,10 +15,19 @@ interface LandingScreenProps {
   onChoose: (choice: WorkspaceChoice) => void;
 }
 
+type StartRow = {
+  key: string;
+  title: string;
+  desc: string;
+  Icon: React.ComponentType<{ size?: number; strokeWidth?: number }>;
+  tag?: string;
+  onClick: () => void;
+};
+
 /**
  * First-run / new-workspace chooser. Opens before the main workspace so the user starts from a
- * deliberate project (empty + import your own robot, a starter rover, open a saved file, or
- * continue the last session) instead of always landing on a pre-loaded robot.
+ * deliberate project (a starter rover, an empty scene to import a robot into, a saved file, or
+ * the last session) instead of always landing on a pre-loaded robot.
  */
 export const LandingScreen: React.FC<LandingScreenProps> = ({ hasLastSession, onChoose }) => {
   const [mode, setMode] = useState<'home' | 'empty' | 'import'>('home');
@@ -39,220 +48,214 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({ hasLastSession, on
     reader.readAsText(file);
   };
 
-  const card: React.CSSProperties = {
-    background: 'linear-gradient(145deg, rgba(30,34,45,0.9), rgba(20,23,31,0.95))',
-    border: '1px solid rgba(99,102,241,0.18)',
-    borderRadius: 14,
-    padding: '22px 22px',
-    cursor: 'pointer',
-    transition: 'transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 10,
-  };
+  const rows: StartRow[] = [];
+  if (hasLastSession) {
+    rows.push({
+      key: 'continue', title: 'Continue last session', Icon: Rocket,
+      desc: 'Pick up where you left off with the last autosaved workspace.',
+      onClick: () => onChoose({ kind: 'continue' }),
+    });
+  }
+  rows.push(
+    {
+      key: 'rover', title: 'Differential-drive starter', Icon: Bot, tag: 'Quick start',
+      desc: 'A ready-to-drive rover with LiDAR, IMU and encoders in an empty arena. The fastest way to try navigation and RL.',
+      onClick: () => onChoose({ kind: 'diff_drive', name: projectName || 'Rover Workspace' }),
+    },
+    {
+      key: 'empty', title: 'New empty workspace', Icon: Boxes,
+      desc: 'Start from an empty scene and import your own robot as URDF or MJCF.',
+      onClick: () => setMode('empty'),
+    },
+    {
+      key: 'open', title: 'Open project file', Icon: FolderOpen,
+      desc: 'Load a saved .rfproj.json workspace and restore the robot, scene and sensors exactly.',
+      onClick: () => fileInputRef.current?.click(),
+    },
+  );
 
-  const hover = (e: React.MouseEvent<HTMLDivElement>, on: boolean) => {
-    const el = e.currentTarget;
-    el.style.transform = on ? 'translateY(-3px)' : 'none';
-    el.style.borderColor = on ? 'rgba(99,102,241,0.6)' : 'rgba(99,102,241,0.18)';
-    el.style.boxShadow = on ? '0 12px 30px rgba(49,46,129,0.35)' : 'none';
-  };
+  const capabilities = ['MuJoCo physics', 'PPO training', 'ONNX + ROS 2 export'];
 
   return (
     <div
+      className="rf-start"
       style={{
-        position: 'fixed', inset: 0, zIndex: 10000,
-        background:
-          'radial-gradient(1200px 600px at 20% -10%, rgba(56,189,248,0.10), transparent), radial-gradient(1000px 500px at 100% 110%, rgba(168,85,247,0.12), transparent), #0b0d12',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: 24, overflowY: 'auto',
+        position: 'fixed', inset: 0, zIndex: 10000, overflowY: 'auto',
+        background: 'var(--bg-app)', color: 'var(--text-primary)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 28px',
       }}
     >
-      <div style={{ width: '100%', maxWidth: 920 }}>
-        {/* Brand header */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 6 }}>
-          <div
-            style={{
-              width: 44, height: 44, borderRadius: 12,
-              background: 'linear-gradient(135deg, #6366f1, #38bdf8)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 6px 20px rgba(56,189,248,0.4)',
-            }}
-          >
-            <Cpu size={24} color="#fff" />
+      <div className="rf-start-grid" aria-hidden="true" />
+
+      <div
+        style={{
+          position: 'relative', width: '100%', maxWidth: 1040,
+          display: 'flex', flexWrap: 'wrap', gap: '48px 72px', alignItems: 'center',
+        }}
+      >
+        {/* Left: brand + promise */}
+        <div style={{ flex: '1 1 380px', minWidth: 300 }}>
+          <div className="rf-rise" style={{ ['--i' as string]: 0, display: 'flex', alignItems: 'center', gap: 12, marginBottom: 36 } as React.CSSProperties}>
+            <div
+              style={{
+                width: 38, height: 38, borderRadius: 10, background: 'var(--bg-raised)',
+                border: '1px solid var(--border-strong)', color: 'var(--accent)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
+            >
+              <Cpu size={20} strokeWidth={1.75} />
+            </div>
+            <span style={{ fontSize: 17, fontWeight: 800, letterSpacing: '0.02em' }}>RoboForge</span>
           </div>
-          <div>
-            <div style={{ fontSize: 24, fontWeight: 800, color: '#f8fafc', letterSpacing: -0.5 }}>
-              RoboForge
-            </div>
-            <div style={{ fontSize: 12, color: '#94a3b8' }}>
-              Robotics simulation &amp; RL training studio — MuJoCo physics, AI training co-pilot
-            </div>
+
+          <h1
+            className="rf-rise"
+            style={{
+              ['--i' as string]: 1,
+              fontSize: 'clamp(30px, 4vw, 44px)', lineHeight: 1.1, fontWeight: 700,
+              letterSpacing: '-0.025em', marginBottom: 18,
+            } as React.CSSProperties}
+          >
+            Build, train and test robots in your browser.
+          </h1>
+          <p className="rf-rise" style={{ ['--i' as string]: 2, fontSize: 15, lineHeight: 1.6, color: 'var(--text-secondary)', maxWidth: 440, marginBottom: 28 } as React.CSSProperties}>
+            Simulate on real physics, watch reinforcement learning improve a policy live, and
+            export the result to a real ROS 2 robot.
+          </p>
+
+          <div className="rf-rise" style={{ ['--i' as string]: 3, display: 'flex', flexWrap: 'wrap', gap: 8 } as React.CSSProperties}>
+            {capabilities.map((c) => (
+              <span
+                key={c}
+                className="rf-mono"
+                style={{
+                  fontSize: 11.5, padding: '5px 10px', borderRadius: 999,
+                  border: '1px solid var(--border-strong)', color: 'var(--text-secondary)',
+                }}
+              >
+                {c}
+              </span>
+            ))}
           </div>
         </div>
 
-        <div style={{ height: 1, background: 'rgba(255,255,255,0.06)', margin: '18px 0 24px' }} />
-
-        {mode === 'home' && (
-          <>
-            <div style={{ fontSize: 15, color: '#cbd5e1', marginBottom: 16, fontWeight: 600 }}>
-              Start a workspace
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-              {/* Empty workspace -> import your own robot */}
-              <div style={card} onClick={() => setMode('empty')}
-                   onMouseEnter={(e) => hover(e, true)} onMouseLeave={(e) => hover(e, false)}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <Boxes size={22} color="#38bdf8" />
-                  <span style={{ fontSize: 16, fontWeight: 700, color: '#f1f5f9' }}>New Empty Workspace</span>
+        {/* Right: actions */}
+        <div style={{ flex: '1 1 440px', minWidth: 300, maxWidth: 520 }}>
+          <div className="rf-float" style={{ padding: 8 }}>
+            {mode === 'home' && (
+              <>
+                <div style={{ padding: '12px 14px 8px', fontSize: 12, fontWeight: 700, color: 'var(--text-muted)' }}>
+                  Start a workspace
                 </div>
-                <div style={{ fontSize: 12.5, color: '#94a3b8', lineHeight: 1.5 }}>
-                  Start with an empty scene and import your own robot (URDF / MJCF). Arm, rover,
-                  gripper, or custom kinematic tree — per-joint controls are generated automatically.
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#38bdf8', fontSize: 12, fontWeight: 600, marginTop: 4 }}>
-                  <span>Choose &amp; import</span><ArrowRight size={14} />
-                </div>
-              </div>
-
-              {/* Diff-drive starter */}
-              <div style={card} onClick={() => onChoose({ kind: 'diff_drive', name: projectName || 'Rover Workspace' })}
-                   onMouseEnter={(e) => hover(e, true)} onMouseLeave={(e) => hover(e, false)}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <Bot size={22} color="#4ade80" />
-                  <span style={{ fontSize: 16, fontWeight: 700, color: '#f1f5f9' }}>Differential-Drive Starter</span>
-                </div>
-                <div style={{ fontSize: 12.5, color: '#94a3b8', lineHeight: 1.5 }}>
-                  A ready-to-drive mobile rover (LiDAR, IMU, encoders) in an empty arena. Great for
-                  navigation RL and obstacle-avoidance experiments out of the box.
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#4ade80', fontSize: 12, fontWeight: 600, marginTop: 4 }}>
-                  <span>Create &amp; open</span><ArrowRight size={14} />
-                </div>
-              </div>
-
-              {/* Open saved project */}
-              <div style={card} onClick={() => fileInputRef.current?.click()}
-                   onMouseEnter={(e) => hover(e, true)} onMouseLeave={(e) => hover(e, false)}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <FolderOpen size={22} color="#fbbf24" />
-                  <span style={{ fontSize: 16, fontWeight: 700, color: '#f1f5f9' }}>Open Project File</span>
-                </div>
-                <div style={{ fontSize: 12.5, color: '#94a3b8', lineHeight: 1.5 }}>
-                  Load a saved <code style={{ color: '#fbbf24' }}>.rfproj.json</code> workspace from disk,
-                  restoring the robot, scene, sensors, and settings exactly.
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#fbbf24', fontSize: 12, fontWeight: 600, marginTop: 4 }}>
-                  <span>Browse file</span><ArrowRight size={14} />
-                </div>
+                {rows.map(({ key, title, desc, Icon, tag, onClick }, idx) => (
+                  <button
+                    key={key}
+                    type="button"
+                    className="rf-start-row"
+                    style={{ ['--i' as string]: idx } as React.CSSProperties}
+                    onClick={onClick}
+                  >
+                    <span className="rf-start-icon"><Icon size={18} strokeWidth={1.75} /></span>
+                    <span style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 700 }}>
+                        {title}
+                        {tag && (
+                          <span
+                            style={{
+                              fontSize: 10.5, fontWeight: 700, padding: '2px 7px', borderRadius: 999,
+                              color: 'var(--accent)', background: 'var(--accent-soft)',
+                              border: '1px solid var(--accent-line)',
+                            }}
+                          >
+                            {tag}
+                          </span>
+                        )}
+                      </span>
+                      <span style={{ display: 'block', marginTop: 3, fontSize: 12.5, lineHeight: 1.5, color: 'var(--text-secondary)', fontWeight: 500 }}>
+                        {desc}
+                      </span>
+                    </span>
+                    <ArrowRight size={16} className="rf-start-arrow" />
+                  </button>
+                ))}
                 <input ref={fileInputRef} type="file" accept=".json" style={{ display: 'none' }}
                        onChange={(e) => e.target.files?.[0] && handleOpenFile(e.target.files[0])} />
-              </div>
+              </>
+            )}
 
-              {/* Continue last session */}
-              <div
-                style={{ ...card, opacity: hasLastSession ? 1 : 0.5, cursor: hasLastSession ? 'pointer' : 'not-allowed' }}
-                onClick={() => hasLastSession && onChoose({ kind: 'continue' })}
-                onMouseEnter={(e) => hasLastSession && hover(e, true)} onMouseLeave={(e) => hover(e, false)}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <Rocket size={22} color="#a78bfa" />
-                  <span style={{ fontSize: 16, fontWeight: 700, color: '#f1f5f9' }}>Continue Last Session</span>
+            {mode === 'empty' && (
+              <div style={{ padding: 16 }}>
+                <button type="button" onClick={() => setMode('home')} className="rf-start-back">
+                  <ArrowLeft size={14} /> Back
+                </button>
+                <div style={{ fontSize: 18, fontWeight: 700, margin: '14px 0 6px' }}>New empty workspace</div>
+                <div style={{ fontSize: 12.5, color: 'var(--text-secondary)', marginBottom: 18, lineHeight: 1.5 }}>
+                  Name your workspace and optionally import a robot now. You can also import later from the toolbar.
                 </div>
-                <div style={{ fontSize: 12.5, color: '#94a3b8', lineHeight: 1.5 }}>
-                  {hasLastSession
-                    ? 'Pick up exactly where you left off — the last autosaved workspace.'
-                    : 'No previous session found yet. Create a workspace to begin.'}
+                <label htmlFor="rf-ws-name" style={fieldLabel}>Workspace name</label>
+                <input id="rf-ws-name" className="rf-input" value={projectName}
+                       onChange={(e) => setProjectName(e.target.value)} style={{ width: '100%', height: 36 }} />
+
+                <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+                  <button
+                    className="rf-btn rf-btn-primary"
+                    style={{ flex: 1, height: 36 }}
+                    onClick={() => onChoose({ kind: 'empty', name: projectName || 'Empty Workspace' })}
+                  >
+                    <Boxes size={15} /> Create empty scene
+                  </button>
+                  <button className="rf-btn" style={{ flex: 1, height: 36 }} onClick={() => setMode('import')}>
+                    <FileCode size={15} /> Import robot now
+                  </button>
                 </div>
-                {hasLastSession && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#a78bfa', fontSize: 12, fontWeight: 600, marginTop: 4 }}>
-                    <span>Resume</span><ArrowRight size={14} />
-                  </div>
-                )}
               </div>
-            </div>
+            )}
 
-            <div style={{ marginTop: 20, display: 'flex', alignItems: 'center', gap: 8, color: '#64748b', fontSize: 11.5 }}>
-              <Sparkles size={13} color="#6366f1" />
-              <span>Tip: once your robot is in the scene, ask the AI co-pilot to write a reward and train it for you.</span>
-            </div>
-          </>
-        )}
-
-        {mode === 'empty' && (
-          <div style={{ maxWidth: 560 }}>
-            <button onClick={() => setMode('home')} style={backBtn}>← Back</button>
-            <div style={{ fontSize: 18, fontWeight: 700, color: '#f1f5f9', margin: '12px 0 6px' }}>
-              New Empty Workspace
-            </div>
-            <div style={{ fontSize: 12.5, color: '#94a3b8', marginBottom: 16 }}>
-              Name your workspace and (optionally) import a robot now. You can also import later from the toolbar.
-            </div>
-            <label style={label}>Workspace name</label>
-            <input value={projectName} onChange={(e) => setProjectName(e.target.value)} style={input} />
-
-            <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
-              <button
-                className="rf-btn rf-btn-primary"
-                style={{ flex: 1, justifyContent: 'center', gap: 8, padding: '10px' }}
-                onClick={() => onChoose({ kind: 'empty', name: projectName || 'Empty Workspace' })}
-              >
-                <Boxes size={15} /> Create empty scene
-              </button>
-              <button
-                className="rf-btn"
-                style={{ flex: 1, justifyContent: 'center', gap: 8, padding: '10px' }}
-                onClick={() => setMode('import')}
-              >
-                <FileCode size={15} /> Import robot now
-              </button>
-            </div>
+            {mode === 'import' && (
+              <div style={{ padding: 16 }}>
+                <button type="button" onClick={() => setMode('empty')} className="rf-start-back">
+                  <ArrowLeft size={14} /> Back
+                </button>
+                <div style={{ fontSize: 18, fontWeight: 700, margin: '14px 0 6px' }}>Import your robot (URDF)</div>
+                <div style={{ fontSize: 12.5, color: 'var(--text-secondary)', marginBottom: 14, lineHeight: 1.5 }}>
+                  Paste URDF XML or load a <code>.urdf</code> file. Links, joints, limits and inertials are parsed
+                  into an empty MuJoCo scene with per-joint controls ready.
+                </div>
+                <button className="rf-btn" onClick={() => urdfFileRef.current?.click()} style={{ marginBottom: 10 }}>
+                  <Upload size={13} /> Load .urdf file
+                </button>
+                <input ref={urdfFileRef} type="file" accept=".urdf,.xml,.txt" style={{ display: 'none' }}
+                       onChange={(e) => e.target.files?.[0] && handleUrdfFile(e.target.files[0])} />
+                <textarea
+                  className="rf-input"
+                  aria-label="URDF XML"
+                  value={urdfText}
+                  onChange={(e) => setUrdfText(e.target.value)}
+                  placeholder="<robot name='my_arm'> ... </robot>"
+                  style={{ width: '100%', height: 200, padding: 10, fontFamily: 'var(--font-mono)', fontSize: 11.5, resize: 'vertical' }}
+                />
+                <button
+                  className="rf-btn rf-btn-primary"
+                  style={{ width: '100%', height: 36, marginTop: 12 }}
+                  disabled={!urdfText.trim()}
+                  onClick={() => onChoose({ kind: 'import_urdf', name: projectName || 'Imported Robot', urdf: urdfText })}
+                >
+                  <FileCode size={15} /> Create workspace and import robot
+                </button>
+              </div>
+            )}
           </div>
-        )}
 
-        {mode === 'import' && (
-          <div style={{ maxWidth: 620 }}>
-            <button onClick={() => setMode('empty')} style={backBtn}>← Back</button>
-            <div style={{ fontSize: 18, fontWeight: 700, color: '#f1f5f9', margin: '12px 0 6px' }}>
-              Import your robot (URDF)
-            </div>
-            <div style={{ fontSize: 12.5, color: '#94a3b8', marginBottom: 14 }}>
-              Paste URDF XML or load a <code style={{ color: '#38bdf8' }}>.urdf</code> file. We'll parse the links,
-              joints, limits, and inertials into an empty MuJoCo scene with per-joint controls ready.
-            </div>
-            <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
-              <button className="rf-btn" style={{ gap: 6 }} onClick={() => urdfFileRef.current?.click()}>
-                <Upload size={13} /> Load .urdf file
-              </button>
-              <input ref={urdfFileRef} type="file" accept=".urdf,.xml,.txt" style={{ display: 'none' }}
-                     onChange={(e) => e.target.files?.[0] && handleUrdfFile(e.target.files[0])} />
-            </div>
-            <textarea
-              value={urdfText}
-              onChange={(e) => setUrdfText(e.target.value)}
-              placeholder="<robot name='my_arm'> ... </robot>"
-              style={{ ...input, height: 220, fontFamily: 'var(--font-mono, monospace)', fontSize: 11.5, resize: 'vertical' }}
-            />
-            <button
-              className="rf-btn rf-btn-primary"
-              style={{ width: '100%', justifyContent: 'center', gap: 8, padding: '10px', marginTop: 12 }}
-              disabled={!urdfText.trim()}
-              onClick={() => onChoose({ kind: 'import_urdf', name: projectName || 'Imported Robot', urdf: urdfText })}
-            >
-              <FileCode size={15} /> Create workspace &amp; import robot
-            </button>
+          <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-muted)', fontSize: 12 }}>
+            <Sparkles size={13} />
+            <span>Once a robot is in the scene, ask the assistant to write a reward and train it for you.</span>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
 };
 
-const backBtn: React.CSSProperties = {
-  background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 12, padding: 0,
-};
-const label: React.CSSProperties = { display: 'block', fontSize: 11, color: '#94a3b8', marginBottom: 6 };
-const input: React.CSSProperties = {
-  width: '100%', background: '#0d0f14', border: '1px solid #2b3140', borderRadius: 8,
-  padding: '10px 12px', color: '#f0f6fc', fontSize: 13, outline: 'none',
+const fieldLabel: React.CSSProperties = {
+  display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6,
 };

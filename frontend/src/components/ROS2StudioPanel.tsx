@@ -450,7 +450,7 @@ export const ROS2StudioPanel: React.FC<ROS2StudioPanelProps> = ({
         background: bridge?.running ? 'rgba(34,197,94,0.08)' : 'rgba(239,68,68,0.08)',
       }}>
         <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700 }}>
-          <span style={{ width: 8, height: 8, borderRadius: 4, background: bridge?.running ? '#22c55e' : '#ef4444' }} />
+          <span style={{ width: 8, height: 8, borderRadius: 4, background: bridge?.running ? '#3fb27f' : '#e5484d' }} />
           rosbridge {bridge?.running ? 'LIVE' : 'OFFLINE'}
         </span>
         {bridge?.running ? (
@@ -460,15 +460,15 @@ export const ROS2StudioPanel: React.FC<ROS2StudioPanelProps> = ({
               onClick={() => { navigator.clipboard?.writeText(bridge.url); onShowToast('Copied rosbridge URL'); }}
               style={{ fontSize: 10.5, padding: '2px 8px', borderRadius: 4, border: '1px solid var(--border-subtle)', background: 'transparent', color: 'var(--text-secondary)', cursor: 'pointer' }}
             >Copy</button>
-            <span style={{ color: 'var(--text-secondary)' }}>Clients: <b style={{ color: '#e5e7eb' }}>{bridge.clients}</b></span>
-            <span style={{ color: 'var(--text-secondary)' }}>/cmd_vel received: <b style={{ color: '#e5e7eb' }}>{bridge.cmd_vel_received}</b></span>
-            <span style={{ color: 'var(--text-secondary)' }}>Subscribed: <b style={{ color: '#e5e7eb' }}>{(bridge.subscriptions || []).join(', ') || 'none'}</b></span>
+            <span style={{ color: 'var(--text-secondary)' }}>Clients: <b style={{ color: '#ecebe6' }}>{bridge.clients}</b></span>
+            <span style={{ color: 'var(--text-secondary)' }}>/cmd_vel received: <b style={{ color: '#ecebe6' }}>{bridge.cmd_vel_received}</b></span>
+            <span style={{ color: 'var(--text-secondary)' }}>Subscribed: <b style={{ color: '#ecebe6' }}>{(bridge.subscriptions || []).join(', ') || 'none'}</b></span>
             <span style={{ color: 'var(--text-muted)', fontSize: 10.5 }}>
               Foxglove: Open connection → Rosbridge → {bridge.url} · Python: roslibpy.Ros('localhost', {bridge.port})
             </span>
           </>
         ) : (
-          <span style={{ color: '#fca5a5' }}>{bridge?.error || 'Backend not reachable.'}</span>
+          <span style={{ color: '#f4a1a4' }}>{bridge?.error || 'Backend not reachable.'}</span>
         )}
       </div>
       {/* Top Banner / Sub-tab Selector */}
@@ -483,14 +483,14 @@ export const ROS2StudioPanel: React.FC<ROS2StudioPanelProps> = ({
         flexWrap: 'wrap'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <Radio size={14} color="#38bdf8" />
-          <span style={{ fontWeight: 600, color: '#38bdf8' }}>ROS 2 Robotics Bridge</span>
+          <Radio size={14} color="#e8622c" />
+          <span style={{ fontWeight: 600, color: '#e8622c' }}>ROS 2 Robotics Bridge</span>
           <span style={{
             fontSize: 10,
             padding: '1px 6px',
             borderRadius: 10,
-            backgroundColor: 'rgba(56, 189, 248, 0.15)',
-            color: '#38bdf8',
+            backgroundColor: 'rgba(232, 98, 44, 0.15)',
+            color: '#e8622c',
             fontFamily: 'var(--font-mono)'
           }}>
             DOMAIN 0 • /roboforge_bridge_node
@@ -571,7 +571,7 @@ export const ROS2StudioPanel: React.FC<ROS2StudioPanelProps> = ({
                 padding: '3px 8px',
                 borderRadius: 4,
                 border: 'none',
-                backgroundColor: subTab === tab.id ? 'var(--accent-blue)' : 'var(--bg-primary)',
+                backgroundColor: subTab === tab.id ? 'var(--accent-soft)' : 'var(--bg-primary)',
                 color: subTab === tab.id ? '#fff' : 'var(--text-secondary)',
                 cursor: 'pointer',
                 fontSize: 11,
@@ -614,9 +614,9 @@ export const ROS2StudioPanel: React.FC<ROS2StudioPanelProps> = ({
             display: 'flex',
             flexDirection: 'column',
             height: '100%',
-            backgroundColor: '#090d16',
+            backgroundColor: '#0c0d0e',
             borderRadius: 6,
-            border: '1px solid #1e293b',
+            border: '1px solid #1b1e20',
             overflow: 'hidden'
           }}>
             {/* Quick Command Toolbar */}
@@ -625,11 +625,11 @@ export const ROS2StudioPanel: React.FC<ROS2StudioPanelProps> = ({
               alignItems: 'center',
               gap: 6,
               padding: '6px 10px',
-              backgroundColor: '#0f172a',
-              borderBottom: '1px solid #1e293b',
+              backgroundColor: '#101213',
+              borderBottom: '1px solid #1b1e20',
               overflowX: 'auto'
             }}>
-              <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600, whiteSpace: 'nowrap' }}>QUICK COMMANDS:</span>
+              <span style={{ fontSize: 10, color: '#a9aca7', fontWeight: 600, whiteSpace: 'nowrap' }}>QUICK COMMANDS:</span>
               {[
                 'ros2 topic list -t',
                 'ros2 topic echo /odom --once',
@@ -645,9 +645,9 @@ export const ROS2StudioPanel: React.FC<ROS2StudioPanelProps> = ({
                   key={cmd}
                   onClick={() => handleRunCLI(cmd)}
                   style={{
-                    backgroundColor: '#1e293b',
-                    border: '1px solid #334155',
-                    color: '#38bdf8',
+                    backgroundColor: '#1b1e20',
+                    border: '1px solid #363b3e',
+                    color: '#e8622c',
                     padding: '2px 8px',
                     borderRadius: 3,
                     fontFamily: 'var(--font-mono)',
@@ -663,8 +663,8 @@ export const ROS2StudioPanel: React.FC<ROS2StudioPanelProps> = ({
                 onClick={() => setCliHistory([])}
                 style={{
                   backgroundColor: 'transparent',
-                  border: '1px solid #475569',
-                  color: '#94a3b8',
+                  border: '1px solid #6b6e6a',
+                  color: '#a9aca7',
                   padding: '2px 6px',
                   borderRadius: 3,
                   fontSize: 10,
@@ -692,17 +692,17 @@ export const ROS2StudioPanel: React.FC<ROS2StudioPanelProps> = ({
               {cliHistory.map((item, idx) => (
                 <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ color: '#22c55e' }}>user@roboforge:~$</span>
-                    <span style={{ color: '#f8fafc', fontWeight: 600 }}>{item.cmd}</span>
-                    <span style={{ color: '#64748b', fontSize: 10, marginLeft: 'auto' }}>{item.time}</span>
+                    <span style={{ color: '#3fb27f' }}>user@roboforge:~$</span>
+                    <span style={{ color: '#f4f3ef', fontWeight: 600 }}>{item.cmd}</span>
+                    <span style={{ color: '#8a8d89', fontSize: 10, marginLeft: 'auto' }}>{item.time}</span>
                   </div>
                   <pre style={{
                     margin: 0,
                     padding: '6px 10px',
                     borderRadius: 4,
                     backgroundColor: item.exitCode === 0 ? 'rgba(30, 41, 59, 0.5)' : 'rgba(239, 68, 68, 0.1)',
-                    color: item.exitCode === 0 ? '#cbd5e1' : '#f87171',
-                    borderLeft: item.exitCode === 0 ? '3px solid #38bdf8' : '3px solid #ef4444',
+                    color: item.exitCode === 0 ? '#d6d5cf' : '#f07378',
+                    borderLeft: item.exitCode === 0 ? '3px solid #e8622c' : '3px solid #e5484d',
                     whiteSpace: 'pre-wrap',
                     wordBreak: 'break-word',
                     fontFamily: 'inherit'
@@ -720,10 +720,10 @@ export const ROS2StudioPanel: React.FC<ROS2StudioPanelProps> = ({
               alignItems: 'center',
               padding: '6px 10px',
               backgroundColor: '#0b1120',
-              borderTop: '1px solid #1e293b',
+              borderTop: '1px solid #1b1e20',
               gap: 8
             }}>
-              <span style={{ color: '#22c55e', fontFamily: 'monospace', fontWeight: 600 }}>user@roboforge:~$</span>
+              <span style={{ color: '#3fb27f', fontFamily: 'monospace', fontWeight: 600 }}>user@roboforge:~$</span>
               <input
                 type="text"
                 value={cliInput}
@@ -754,7 +754,7 @@ export const ROS2StudioPanel: React.FC<ROS2StudioPanelProps> = ({
                   backgroundColor: 'transparent',
                   border: 'none',
                   outline: 'none',
-                  color: '#f8fafc',
+                  color: '#f4f3ef',
                   fontFamily: 'Consolas, Monaco, "Courier New", monospace',
                   fontSize: 12
                 }}
@@ -848,7 +848,7 @@ export const ROS2StudioPanel: React.FC<ROS2StudioPanelProps> = ({
                       }}
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontWeight: 600, color: '#38bdf8', fontFamily: 'var(--font-mono)' }}>
+                        <span style={{ fontWeight: 600, color: '#e8622c', fontFamily: 'var(--font-mono)' }}>
                           {j.name}
                         </span>
                         <div style={{ display: 'flex', gap: 6, fontSize: 11, fontFamily: 'var(--font-mono)' }}>
@@ -858,7 +858,7 @@ export const ROS2StudioPanel: React.FC<ROS2StudioPanelProps> = ({
                           {!isPrismatic && (
                             <span style={{ color: 'var(--text-muted)' }}>({degVal}°)</span>
                           )}
-                          <span style={{ color: '#22c55e', fontSize: 10 }}>
+                          <span style={{ color: '#3fb27f', fontSize: 10 }}>
                             [Actual: {j.current.toFixed(3)}]
                           </span>
                         </div>
@@ -947,7 +947,7 @@ export const ROS2StudioPanel: React.FC<ROS2StudioPanelProps> = ({
                       gap: 2
                     }}
                   >
-                    <span style={{ fontWeight: 600, color: '#38bdf8', fontSize: 11 }}>{p.label}</span>
+                    <span style={{ fontWeight: 600, color: '#e8622c', fontSize: 11 }}>{p.label}</span>
                     <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>{p.desc}</span>
                   </button>
                 ))}
@@ -972,7 +972,7 @@ export const ROS2StudioPanel: React.FC<ROS2StudioPanelProps> = ({
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: 'var(--text-muted)' }}>Controlled DOF:</span>
-                  <span style={{ fontWeight: 600, color: '#38bdf8' }}>{activeArmJoints.length} Axis</span>
+                  <span style={{ fontWeight: 600, color: '#e8622c' }}>{activeArmJoints.length} Axis</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: 'var(--text-muted)' }}>Feedback Topic:</span>
@@ -1072,7 +1072,7 @@ export const ROS2StudioPanel: React.FC<ROS2StudioPanelProps> = ({
                         flexDirection: 'column'
                       }}
                     >
-                      <span style={{ fontWeight: 600, color: '#38bdf8', fontSize: 10 }}>{wp.name}</span>
+                      <span style={{ fontWeight: 600, color: '#e8622c', fontSize: 10 }}>{wp.name}</span>
                       <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>({wp.x.toFixed(1)}, {wp.y.toFixed(1)})</span>
                     </button>
                   ))}
@@ -1109,7 +1109,7 @@ export const ROS2StudioPanel: React.FC<ROS2StudioPanelProps> = ({
                 border: '1px solid var(--border-subtle)',
                 fontFamily: 'var(--font-mono)',
                 fontSize: 11,
-                color: '#38bdf8'
+                color: '#e8622c'
               }}>
                 {navStatus}
               </div>
@@ -1117,7 +1117,7 @@ export const ROS2StudioPanel: React.FC<ROS2StudioPanelProps> = ({
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, fontSize: 11 }}>
                 <div style={{ padding: 8, backgroundColor: 'var(--bg-primary)', borderRadius: 4 }}>
                   <span style={{ color: 'var(--text-muted)', fontSize: 10, display: 'block' }}>Current Odometry (X, Y)</span>
-                  <span style={{ fontWeight: 600, color: '#f8fafc' }}>
+                  <span style={{ fontWeight: 600, color: '#f4f3ef' }}>
                     {simState?.robot ? `${simState.robot.position[0].toFixed(2)}m, ${simState.robot.position[1].toFixed(2)}m` : '0.00m, 0.00m'}
                   </span>
                 </div>
@@ -1137,11 +1137,11 @@ export const ROS2StudioPanel: React.FC<ROS2StudioPanelProps> = ({
                 <pre style={{
                   margin: 0,
                   padding: 8,
-                  backgroundColor: '#090d16',
+                  backgroundColor: '#0c0d0e',
                   borderRadius: 4,
                   fontSize: 10,
                   fontFamily: 'monospace',
-                  color: '#94a3b8',
+                  color: '#a9aca7',
                   overflowX: 'auto'
                 }}>
 {`header: { frame_id: "map", stamp: { sec: ${Math.floor(simState?.sim_time || 0)} } }
@@ -1194,23 +1194,23 @@ pose:
                         padding: '6px 8px',
                         borderRadius: 4,
                         cursor: 'pointer',
-                        backgroundColor: isSelected ? 'rgba(56, 189, 248, 0.15)' : 'var(--bg-primary)',
-                        border: isSelected ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid transparent',
+                        backgroundColor: isSelected ? 'rgba(232, 98, 44, 0.15)' : 'var(--bg-primary)',
+                        border: isSelected ? '1px solid rgba(232, 98, 44, 0.4)' : '1px solid transparent',
                         display: 'flex',
                         flexDirection: 'column',
                         gap: 2
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <span style={{ fontWeight: 600, color: isSelected ? '#38bdf8' : 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>
+                        <span style={{ fontWeight: 600, color: isSelected ? '#e8622c' : 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>
                           {t.topic}
                         </span>
                         <span style={{
                           fontSize: 9,
                           padding: '0 4px',
                           borderRadius: 3,
-                          backgroundColor: t.mode === 'publication' ? 'rgba(34, 197, 94, 0.15)' : 'rgba(168, 85, 247, 0.15)',
-                          color: t.mode === 'publication' ? 'var(--accent-green)' : '#c084fc'
+                          backgroundColor: t.mode === 'publication' ? 'rgba(34, 197, 94, 0.15)' : 'rgba(255, 255, 255, 0.057)',
+                          color: t.mode === 'publication' ? 'var(--accent-green)' : '#a9aca7'
                         }}>
                           {t.mode === 'publication' ? 'PUB' : 'SUB'}
                         </span>
@@ -1238,7 +1238,7 @@ pose:
             }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ fontWeight: 600, color: '#38bdf8', fontFamily: 'var(--font-mono)' }}>
+                  <span style={{ fontWeight: 600, color: '#e8622c', fontFamily: 'var(--font-mono)' }}>
                     {selectedTopic || 'No topic selected'}
                   </span>
                   {selectedTopic && (
@@ -1273,7 +1273,7 @@ pose:
               <div style={{
                 flex: 1,
                 overflowY: 'auto',
-                backgroundColor: '#090d16',
+                backgroundColor: '#0c0d0e',
                 borderRadius: 4,
                 border: '1px solid var(--border-subtle)',
                 padding: 10,
@@ -1283,7 +1283,7 @@ pose:
                 {loadingTopic && !topicData ? (
                   <div style={{ color: 'var(--text-muted)' }}>Echoing message...</div>
                 ) : topicData ? (
-                  <pre style={{ margin: 0, color: '#cbd5e1', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                  <pre style={{ margin: 0, color: '#d6d5cf', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                     {JSON.stringify(topicData, null, 2)}
                   </pre>
                 ) : (
@@ -1396,7 +1396,7 @@ pose:
                 fontSize: 10,
                 color: 'var(--text-muted)'
               }}>
-                Tip: You can also drive using <kbd style={{ background: '#334155', padding: '1px 4px', borderRadius: 2 }}>W</kbd> <kbd style={{ background: '#334155', padding: '1px 4px', borderRadius: 2 }}>A</kbd> <kbd style={{ background: '#334155', padding: '1px 4px', borderRadius: 2 }}>S</kbd> <kbd style={{ background: '#334155', padding: '1px 4px', borderRadius: 2 }}>D</kbd> keys in the 3D viewport.
+                Tip: You can also drive using <kbd style={{ background: '#363b3e', padding: '1px 4px', borderRadius: 2 }}>W</kbd> <kbd style={{ background: '#363b3e', padding: '1px 4px', borderRadius: 2 }}>A</kbd> <kbd style={{ background: '#363b3e', padding: '1px 4px', borderRadius: 2 }}>S</kbd> <kbd style={{ background: '#363b3e', padding: '1px 4px', borderRadius: 2 }}>D</kbd> keys in the 3D viewport.
               </div>
             </div>
 
@@ -1413,12 +1413,12 @@ pose:
               <span style={{ fontWeight: 600, fontSize: 11 }}>Active /cmd_vel Telemetry</span>
               <div style={{
                 flex: 1,
-                backgroundColor: '#090d16',
+                backgroundColor: '#0c0d0e',
                 borderRadius: 4,
                 padding: 10,
                 fontFamily: 'Consolas, Monaco, "Courier New", monospace',
                 fontSize: 11,
-                color: '#cbd5e1'
+                color: '#d6d5cf'
               }}>
                 <pre style={{ margin: 0 }}>
 {`linear:
@@ -1465,12 +1465,12 @@ angular:
             <div style={{
               flex: 1,
               overflowY: 'auto',
-              backgroundColor: '#090d16',
+              backgroundColor: '#0c0d0e',
               borderRadius: 4,
               padding: 10,
               fontFamily: 'Consolas, Monaco, "Courier New", monospace',
               fontSize: 11,
-              color: '#cbd5e1'
+              color: '#d6d5cf'
             }}>
               {tfData?.transforms ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -1479,12 +1479,12 @@ angular:
                       key={i}
                       style={{
                         padding: 8,
-                        backgroundColor: '#0f172a',
+                        backgroundColor: '#101213',
                         borderRadius: 4,
-                        border: '1px solid #1e293b'
+                        border: '1px solid #1b1e20'
                       }}
                     >
-                      <div style={{ color: '#38bdf8', fontWeight: 600, marginBottom: 4 }}>
+                      <div style={{ color: '#e8622c', fontWeight: 600, marginBottom: 4 }}>
                         {tf.header?.frame_id} &rarr; {tf.child_frame_id}
                       </div>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 10 }}>
@@ -1582,7 +1582,7 @@ angular:
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 2 }}>
                   <span>3D Replay Speed:</span>
-                  <span style={{ fontFamily: 'var(--font-mono)', color: '#38bdf8' }}>{replaySpeed}x</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', color: '#e8622c' }}>{replaySpeed}x</span>
                 </div>
                 <div style={{ display: 'flex', gap: 6 }}>
                   {[0.5, 1.0, 2.0, 5.0].map((s) => (
@@ -1593,9 +1593,9 @@ angular:
                         flex: 1,
                         padding: '4px 0',
                         borderRadius: 3,
-                        border: replaySpeed === s ? '1px solid #38bdf8' : '1px solid var(--border-subtle)',
-                        backgroundColor: replaySpeed === s ? 'rgba(56, 189, 248, 0.15)' : 'var(--bg-primary)',
-                        color: replaySpeed === s ? '#38bdf8' : 'var(--text-secondary)',
+                        border: replaySpeed === s ? '1px solid #e8622c' : '1px solid var(--border-subtle)',
+                        backgroundColor: replaySpeed === s ? 'rgba(232, 98, 44, 0.15)' : 'var(--bg-primary)',
+                        color: replaySpeed === s ? '#e8622c' : 'var(--text-secondary)',
                         fontSize: 10,
                         cursor: 'pointer'
                       }}
@@ -1644,7 +1644,7 @@ angular:
                     <tbody>
                       {savedBags.map((bag) => (
                         <tr key={bag.bag_id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                          <td style={{ padding: '6px', fontWeight: 600, color: '#38bdf8' }}>
+                          <td style={{ padding: '6px', fontWeight: 600, color: '#e8622c' }}>
                             {bag.bag_name}
                           </td>
                           <td style={{ padding: '6px' }}>{bag.total_messages}</td>
@@ -1701,7 +1701,7 @@ angular:
               gap: 12
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Users size={14} color="#06b6d4" />
+                <Users size={14} color="#e8622c" />
                 <span style={{ fontWeight: 600 }}>Multi-Robot Swarm Orchestration</span>
               </div>
 
@@ -1724,9 +1724,9 @@ angular:
                       style={{
                         padding: '6px 4px',
                         borderRadius: 4,
-                        border: swarmFormation === f.id ? '1px solid #06b6d4' : '1px solid var(--border-subtle)',
-                        backgroundColor: swarmFormation === f.id ? 'rgba(6, 182, 212, 0.15)' : 'var(--bg-primary)',
-                        color: swarmFormation === f.id ? '#06b6d4' : 'var(--text-secondary)',
+                        border: swarmFormation === f.id ? '1px solid #e8622c' : '1px solid var(--border-subtle)',
+                        backgroundColor: swarmFormation === f.id ? 'rgba(232, 98, 44, 0.15)' : 'var(--bg-primary)',
+                        color: swarmFormation === f.id ? '#e8622c' : 'var(--text-secondary)',
                         fontSize: 10,
                         fontWeight: swarmFormation === f.id ? 600 : 400,
                         cursor: 'pointer'
@@ -1743,7 +1743,7 @@ angular:
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 2 }}>
                     <span>Fleet Size (Leader + Followers)</span>
-                    <span style={{ fontFamily: 'var(--font-mono)', color: '#06b6d4' }}>{swarmCount} agents</span>
+                    <span style={{ fontFamily: 'var(--font-mono)', color: '#e8622c' }}>{swarmCount} agents</span>
                   </div>
                   <input
                     type="range"
@@ -1823,7 +1823,7 @@ angular:
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, fontSize: 11 }}>
                     <div style={{ padding: 8, backgroundColor: 'var(--bg-primary)', borderRadius: 4 }}>
                       <span style={{ color: 'var(--text-muted)', fontSize: 10, display: 'block' }}>Formation</span>
-                      <span style={{ fontWeight: 600, color: '#06b6d4', textTransform: 'uppercase' }}>
+                      <span style={{ fontWeight: 600, color: '#e8622c', textTransform: 'uppercase' }}>
                         {swarmStatus.config.formation}
                       </span>
                     </div>
@@ -1852,7 +1852,7 @@ angular:
                           fontSize: 10
                         }}
                       >
-                        <span style={{ color: '#06b6d4', fontWeight: 600 }}>{f.name}</span>
+                        <span style={{ color: '#e8622c', fontWeight: 600 }}>{f.name}</span>
                         <span style={{ color: 'var(--text-muted)' }}>
                           [{f.position.map(n => n.toFixed(2)).join(', ')}]
                         </span>

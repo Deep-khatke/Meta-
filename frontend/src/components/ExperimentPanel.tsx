@@ -662,7 +662,7 @@ def compute_reward(state, action, info):
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg-card)', padding: '8px 12px', borderRadius: 6 }}>
           <div>
             <div style={{ fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <BrainCircuit size={16} color="var(--accent-purple, #a855f7)" />
+              <BrainCircuit size={16} color="var(--accent-purple, #a9aca7)" />
               <span>Real PPO Reinforcement Learning Manager</span>
             </div>
             <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
@@ -745,7 +745,7 @@ def compute_reward(state, action, info):
                   style={{
                     width: `${Math.min(100, Math.max(0, activeRLJob.metrics?.percent_complete || 0))}%`,
                     height: '100%',
-                    background: activeRLJob.status === 'completed' ? 'var(--accent-green)' : 'linear-gradient(90deg, #3b82f6, #8b5cf6)',
+                    background: activeRLJob.status === 'completed' ? 'var(--accent-green)' : '#c4472d',
                     transition: 'width 0.3s ease',
                   }}
                 />
@@ -843,7 +843,7 @@ def compute_reward(state, action, info):
           {/* Custom Python Reward Function Script Editor (Replacing Hardcoded Values) */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: '#38bdf8', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: '#e8622c', display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span>Custom Python Reward Script (Executed per Physics Step)</span>
               </div>
               <div style={{ display: 'flex', gap: 4 }}>
@@ -893,8 +893,8 @@ def compute_reward(state, action, info):
                 fontSize: 11,
                 lineHeight: 1.5,
                 background: '#0d1117',
-                color: '#e6edf3',
-                border: '1px solid #30363d',
+                color: '#f4f3ef',
+                border: '1px solid #2f3436',
                 borderRadius: 6,
                 padding: '8px 10px',
                 resize: 'vertical',
@@ -927,9 +927,6 @@ def compute_reward(state, action, info):
               padding: '6px 12px',
               fontWeight: 600,
               justifyContent: 'center',
-              background: 'linear-gradient(135deg, #7c3aed, #4f46e5)',
-              border: 'none',
-              boxShadow: '0 2px 8px rgba(124, 58, 237, 0.3)',
             }}
           >
             <BrainCircuit size={13} />
@@ -966,7 +963,7 @@ def compute_reward(state, action, info):
                   <div>
                     <div style={{ fontWeight: 600, fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
                       <span>{m.name}</span>
-                      <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 3, background: 'rgba(59, 130, 246, 0.15)', color: 'var(--accent-blue)' }}>
+                      <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 3, background: 'rgba(232, 98, 44, 0.15)', color: 'var(--accent-blue)' }}>
                         PPO-MlpPolicy
                       </span>
                     </div>
@@ -981,7 +978,7 @@ def compute_reward(state, action, info):
                       style={{ fontSize: 10, padding: '3px 8px' }}
                       title="Load weights into MuJoCo simulation and view real robot movement in 3D"
                     >
-                      <Play size={11} fill="#fff" />
+                      <Play size={11} fill="currentColor" />
                       <span>Execute in 3D</span>
                     </button>
                     <button
@@ -1029,21 +1026,21 @@ def compute_reward(state, action, info):
             onClick={() => setRobustness(null)}
             style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           >
-            <div onClick={(e) => e.stopPropagation()} style={{ width: 460, maxWidth: '92vw', background: 'var(--bg-panel, #11141a)', border: '1px solid rgba(168,85,247,0.5)', borderRadius: 12, padding: 18, color: '#e2e8f0' }}>
+            <div onClick={(e) => e.stopPropagation()} style={{ width: 460, maxWidth: '92vw', background: 'var(--bg-panel, #11141a)', border: '1px solid rgba(255, 255, 255, 0.19)', borderRadius: 12, padding: 18, color: '#ecebe6' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                 <span style={{ fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Zap size={15} color="#c084fc" /> Robustness Scorecard — {robustness.model_name}
+                  <Zap size={15} color="#a9aca7" /> Robustness Scorecard — {robustness.model_name}
                 </span>
-                <button onClick={() => setRobustness(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}><X size={16} /></button>
+                <button onClick={() => setRobustness(null)} style={{ background: 'none', border: 'none', color: '#a9aca7', cursor: 'pointer' }}><X size={16} /></button>
               </div>
               <div style={{ textAlign: 'center', margin: '8px 0 14px' }}>
-                <div style={{ fontSize: 40, fontWeight: 900, color: robustness.robustness_score >= 70 ? '#22c55e' : robustness.robustness_score >= 40 ? '#f59e0b' : '#ef4444' }}>
-                  {robustness.robustness_score}<span style={{ fontSize: 16, color: '#64748b' }}>/100</span>
+                <div style={{ fontSize: 40, fontWeight: 900, color: robustness.robustness_score >= 70 ? '#3fb27f' : robustness.robustness_score >= 40 ? '#dca23a' : '#e5484d' }}>
+                  {robustness.robustness_score}<span style={{ fontSize: 16, color: '#8a8d89' }}>/100</span>
                 </div>
-                <div style={{ fontSize: 11.5, color: '#94a3b8', marginTop: 2 }}>{robustness.verdict}</div>
+                <div style={{ fontSize: 11.5, color: '#a9aca7', marginTop: 2 }}>{robustness.verdict}</div>
               </div>
               <table style={{ width: '100%', fontSize: 11.5, borderCollapse: 'collapse' }}>
-                <thead><tr style={{ color: '#94a3b8' }}>
+                <thead><tr style={{ color: '#a9aca7' }}>
                   <th style={{ textAlign: 'left', padding: '4px 6px' }}>Metric</th>
                   <th style={{ textAlign: 'right', padding: '4px 6px' }}>Randomized</th>
                   <th style={{ textAlign: 'right', padding: '4px 6px' }}>Clean</th>
@@ -1059,17 +1056,17 @@ def compute_reward(state, action, info):
                     <tr key={i} style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
                       <td style={{ padding: '4px 6px' }}>{label}</td>
                       <td style={{ textAlign: 'right', padding: '4px 6px', fontWeight: 700 }}>{fmt(robustness.randomized)}</td>
-                      <td style={{ textAlign: 'right', padding: '4px 6px', color: '#94a3b8' }}>{robustness.baseline_clean ? fmt(robustness.baseline_clean) : '—'}</td>
+                      <td style={{ textAlign: 'right', padding: '4px 6px', color: '#a9aca7' }}>{robustness.baseline_clean ? fmt(robustness.baseline_clean) : '—'}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
               {robustness.success_retention_pct != null && (
                 <div style={{ marginTop: 10, fontSize: 11.5 }}>
-                  Success retention under randomization: <b style={{ color: '#22c55e' }}>{robustness.success_retention_pct}%</b> of clean performance
+                  Success retention under randomization: <b style={{ color: '#3fb27f' }}>{robustness.success_retention_pct}%</b> of clean performance
                 </div>
               )}
-              <div style={{ marginTop: 10, fontSize: 10.5, color: '#64748b' }}>
+              <div style={{ marginTop: 10, fontSize: 10.5, color: '#8a8d89' }}>
                 Over {robustness.episodes} episodes each. Randomized: friction {robustness.randomization?.friction}, mass {robustness.randomization?.mass}, gravity {robustness.randomization?.gravity}, sensor noise {robustness.randomization?.sensor_noise_std}.
               </div>
             </div>
@@ -1113,7 +1110,7 @@ def compute_reward(state, action, info):
               disabled={isEvaluating || rlModels.length === 0}
               style={{ fontSize: 11, padding: '4px 10px', fontWeight: 600 }}
             >
-              <Play size={11} fill="#fff" />
+              <Play size={11} fill="currentColor" />
               <span>{isEvaluating ? 'Evaluating Benchmark...' : 'Run Benchmark Suite'}</span>
             </button>
           </div>
@@ -1165,7 +1162,7 @@ def compute_reward(state, action, info):
                     <tr key={b.name} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
                       <td style={{ padding: '6px 8px', fontWeight: 600 }}>
                         <span style={{
-                          color: b.policy_type === 'PPO' ? 'var(--accent-purple, #a855f7)' : b.policy_type === 'APF' ? 'var(--accent-blue)' : 'var(--text-muted)'
+                          color: b.policy_type === 'PPO' ? 'var(--accent-purple, #a9aca7)' : b.policy_type === 'APF' ? 'var(--accent-blue)' : 'var(--text-muted)'
                         }}>
                           {b.name}
                         </span>
@@ -1408,7 +1405,7 @@ def compute_reward(state, action, info):
         {/* Avoidance Policy Tuner Section */}
         <div style={{ background: 'var(--bg-card)', padding: '6px 8px', borderRadius: 4, display: 'flex', flexDirection: 'column', gap: 4 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 10, fontWeight: 600, color: '#a855f7', display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ fontSize: 10, fontWeight: 600, color: '#a9aca7', display: 'flex', alignItems: 'center', gap: 4 }}>
               <BrainCircuit size={12} />
               <span>Avoidance Policy</span>
             </span>
@@ -1524,13 +1521,10 @@ def compute_reward(state, action, info):
                 flex: 1,
                 padding: '6px 8px',
                 fontWeight: 600,
-                background: 'linear-gradient(135deg, #0284c7, #2563eb)',
-                color: '#fff',
-                border: 'none',
               }}
               title="Execute live in 3D viewport with real-time autonomous steering and visual trajectory"
             >
-              <Play size={13} fill="#fff" />
+              <Play size={13} fill="currentColor" />
               <span>{isRunning ? 'Running in 3D...' : 'Run in 3D Viewport'}</span>
             </button>
             <button
@@ -1551,10 +1545,6 @@ def compute_reward(state, action, info):
             style={{
               padding: '6px 8px',
               fontWeight: 600,
-              background: 'linear-gradient(135deg, #7c3aed, #4f46e5)',
-              color: '#fff',
-              border: 'none',
-              boxShadow: '0 2px 8px rgba(124, 58, 237, 0.25)',
               justifyContent: 'center',
             }}
             title="Train and auto-optimize obstacle avoidance parameters across multiple simulation passes"
@@ -1581,7 +1571,7 @@ def compute_reward(state, action, info):
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 6 }}>
           <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
             <button
-              className={`rf-btn ${viewMode === 'metrics' ? 'rf-btn-primary' : ''}`}
+              className={`rf-btn ${viewMode === 'metrics' ? 'rf-btn-active' : ''}`}
               onClick={() => setViewMode('metrics')}
               style={{ fontSize: 11, padding: '2px 8px' }}
             >
@@ -1589,7 +1579,7 @@ def compute_reward(state, action, info):
               <span>Metrics &amp; Plots</span>
             </button>
             <button
-              className={`rf-btn ${viewMode === 'compare' ? 'rf-btn-primary' : ''}`}
+              className={`rf-btn ${viewMode === 'compare' ? 'rf-btn-active' : ''}`}
               onClick={() => setViewMode('compare')}
               style={{ fontSize: 11, padding: '2px 8px' }}
             >
@@ -1597,15 +1587,15 @@ def compute_reward(state, action, info):
               <span>Run Comparison</span>
             </button>
             <button
-              className={`rf-btn ${viewMode === 'rl_training' ? 'rf-btn-primary' : ''}`}
+              className={`rf-btn ${viewMode === 'rl_training' ? 'rf-btn-active' : ''}`}
               onClick={() => { setViewMode('rl_training'); loadRLModelsList(); }}
-              style={{ fontSize: 11, padding: '2px 8px', borderColor: viewMode === 'rl_training' ? 'var(--accent-purple, #a855f7)' : undefined }}
+              style={{ fontSize: 11, padding: '2px 8px', borderColor: viewMode === 'rl_training' ? 'var(--accent-purple, #a9aca7)' : undefined }}
             >
-              <BrainCircuit size={12} color={viewMode === 'rl_training' ? '#fff' : 'var(--accent-purple, #a855f7)'} />
+              <BrainCircuit size={12} color={viewMode === 'rl_training' ? '#fff' : 'var(--accent-purple, #a9aca7)'} />
               <span>PPO Training</span>
             </button>
             <button
-              className={`rf-btn ${viewMode === 'benchmark' ? 'rf-btn-primary' : ''}`}
+              className={`rf-btn ${viewMode === 'benchmark' ? 'rf-btn-active' : ''}`}
               onClick={() => setViewMode('benchmark')}
               style={{ fontSize: 11, padding: '2px 8px', borderColor: viewMode === 'benchmark' ? 'var(--accent-green)' : undefined }}
             >
@@ -1613,7 +1603,7 @@ def compute_reward(state, action, info):
               <span>Policy Benchmark</span>
             </button>
             <button
-              className={`rf-btn ${viewMode === 'ai_assistant' ? 'rf-btn-primary' : ''}`}
+              className={`rf-btn ${viewMode === 'ai_assistant' ? 'rf-btn-active' : ''}`}
               onClick={() => setViewMode('ai_assistant')}
               style={{ fontSize: 11, padding: '2px 8px', borderColor: viewMode === 'ai_assistant' ? 'var(--accent-blue)' : undefined }}
             >
@@ -1621,7 +1611,7 @@ def compute_reward(state, action, info):
               <span>AI Assistant</span>
             </button>
             <button
-              className={`rf-btn ${viewMode === 'hypotheses' ? 'rf-btn-primary' : ''}`}
+              className={`rf-btn ${viewMode === 'hypotheses' ? 'rf-btn-active' : ''}`}
               onClick={() => setViewMode('hypotheses')}
               style={{ fontSize: 11, padding: '2px 8px', borderColor: viewMode === 'hypotheses' ? 'var(--accent-yellow)' : undefined }}
             >
@@ -1638,7 +1628,7 @@ def compute_reward(state, action, info):
                 style={{
                   fontSize: 9,
                   padding: '1px 5px',
-                  backgroundColor: layoutMode === 'scenarios' ? 'var(--accent-blue)' : 'transparent',
+                  backgroundColor: layoutMode === 'scenarios' ? 'var(--accent-soft)' : 'transparent',
                   color: layoutMode === 'scenarios' ? '#fff' : 'var(--text-muted)'
                 }}
                 title="Prioritize Scenario Setup & Tuning Space"
@@ -1651,7 +1641,7 @@ def compute_reward(state, action, info):
                 style={{
                   fontSize: 9,
                   padding: '1px 5px',
-                  backgroundColor: layoutMode === 'balanced' ? 'var(--accent-blue)' : 'transparent',
+                  backgroundColor: layoutMode === 'balanced' ? 'var(--accent-soft)' : 'transparent',
                   color: layoutMode === 'balanced' ? '#fff' : 'var(--text-muted)'
                 }}
                 title="Balanced 3-Column Space"
@@ -1664,7 +1654,7 @@ def compute_reward(state, action, info):
                 style={{
                   fontSize: 9,
                   padding: '1px 5px',
-                  backgroundColor: layoutMode === 'metrics' ? 'var(--accent-blue)' : 'transparent',
+                  backgroundColor: layoutMode === 'metrics' ? 'var(--accent-soft)' : 'transparent',
                   color: layoutMode === 'metrics' ? '#fff' : 'var(--text-muted)'
                 }}
                 title="Prioritize Metrics & Real-time Charts Space"
@@ -1940,7 +1930,6 @@ def compute_reward(state, action, info):
           right: 0,
           bottom: 0,
           backgroundColor: 'rgba(0,0,0,0.7)',
-          backdropFilter: 'blur(4px)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -1960,7 +1949,7 @@ def compute_reward(state, action, info):
           }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 8 }}>
               <span style={{ fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <BrainCircuit size={16} color="#a855f7" />
+                <BrainCircuit size={16} color="#a9aca7" />
                 <span>Policy Optimization & Training Report</span>
               </span>
               <button className="rf-btn" onClick={() => setShowTrainingModal(false)} style={{ padding: '2px 5px' }}>
@@ -1969,7 +1958,7 @@ def compute_reward(state, action, info):
             </div>
 
             <div style={{
-              background: trainingResult.trained_collisions === 0 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(59, 130, 246, 0.15)',
+              background: trainingResult.trained_collisions === 0 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(232, 98, 44, 0.15)',
               border: `1px solid ${trainingResult.trained_collisions === 0 ? 'var(--accent-green)' : 'var(--accent-blue)'}`,
               borderRadius: 6,
               padding: '8px 12px',
@@ -2004,7 +1993,7 @@ def compute_reward(state, action, info):
                       key={it.iteration}
                       style={{
                         borderTop: '1px solid var(--border-subtle)',
-                        background: it.policy.safety_margin === trainingResult.best_policy.safety_margin ? 'rgba(168, 85, 247, 0.15)' : 'transparent',
+                        background: it.policy.safety_margin === trainingResult.best_policy.safety_margin ? 'rgba(255, 255, 255, 0.057)' : 'transparent',
                       }}
                     >
                       <td style={{ padding: '4px 6px' }}>{it.iteration}</td>
@@ -2037,10 +2026,9 @@ def compute_reward(state, action, info):
                 style={{
                   padding: '5px 12px',
                   fontWeight: 600,
-                  background: 'linear-gradient(135deg, #0284c7, #2563eb)',
                 }}
               >
-                <Play size={13} fill="#fff" />
+                <Play size={13} fill="currentColor" />
                 <span>Test Trained Policy in 3D</span>
               </button>
             </div>
@@ -2057,7 +2045,6 @@ def compute_reward(state, action, info):
           right: 0,
           bottom: 0,
           backgroundColor: 'rgba(0,0,0,0.7)',
-          backdropFilter: 'blur(4px)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -2180,13 +2167,13 @@ def compute_reward(state, action, info):
                 </div>
 
                 <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 6, fontStyle: 'italic' }}>
-                  💡 Tip: You can also drag the green beacon directly in the 3D viewport using the Move gizmo!
+                  Tip: You can also drag the green beacon directly in the 3D viewport using the Move gizmo!
                 </div>
               </div>
 
               {/* Scene Obstacles Summary */}
               <div style={{ fontSize: 11, color: 'var(--text-secondary)', background: 'var(--bg-canvas)', padding: '6px 10px', borderRadius: 4, border: '1px solid var(--border-subtle)' }}>
-                🧱 <strong>Included Obstacles:</strong> All <strong>{currentProject?.objects?.length || 0} active scene obstacles</strong> will be saved into this new scenario.
+                <strong>Included obstacles:</strong> All <strong>{currentProject?.objects?.length || 0} active scene obstacles</strong> will be saved into this new scenario.
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>

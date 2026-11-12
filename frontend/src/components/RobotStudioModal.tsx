@@ -61,20 +61,20 @@ export const RobotStudioModal: React.FC<RobotStudioModalProps> = ({
       links: [
         {
           name: 'base_link',
-          visual: { type: 'cylinder', size: [0.18, 0.05], origin_pos: [0, 0, 0.05], origin_rpy: [0, 0, 0], color: '#334155' },
-          collision: { type: 'cylinder', size: [0.18, 0.05], origin_pos: [0, 0, 0.05], origin_rpy: [0, 0, 0], color: '#334155' },
+          visual: { type: 'cylinder', size: [0.18, 0.05], origin_pos: [0, 0, 0.05], origin_rpy: [0, 0, 0], color: '#363b3e' },
+          collision: { type: 'cylinder', size: [0.18, 0.05], origin_pos: [0, 0, 0.05], origin_rpy: [0, 0, 0], color: '#363b3e' },
           inertial: { mass: 4.0, origin_pos: [0, 0, 0.05], ixx: 0.05, iyy: 0.05, izz: 0.05 }
         },
         {
           name: 'arm_link_1',
-          visual: { type: 'box', size: [0.20, 0.04, 0.04], origin_pos: [0.20, 0, 0], origin_rpy: [0, 0, 0], color: '#2563eb' },
-          collision: { type: 'box', size: [0.20, 0.04, 0.04], origin_pos: [0.20, 0, 0], origin_rpy: [0, 0, 0], color: '#2563eb' },
+          visual: { type: 'box', size: [0.20, 0.04, 0.04], origin_pos: [0.20, 0, 0], origin_rpy: [0, 0, 0], color: '#c4472d' },
+          collision: { type: 'box', size: [0.20, 0.04, 0.04], origin_pos: [0.20, 0, 0], origin_rpy: [0, 0, 0], color: '#c4472d' },
           inertial: { mass: 1.5, origin_pos: [0.20, 0, 0], ixx: 0.02, iyy: 0.02, izz: 0.02 }
         },
         {
           name: 'arm_link_2',
-          visual: { type: 'box', size: [0.15, 0.03, 0.03], origin_pos: [0.15, 0, 0], origin_rpy: [0, 0, 0], color: '#f97316' },
-          collision: { type: 'box', size: [0.15, 0.03, 0.03], origin_pos: [0.15, 0, 0], origin_rpy: [0, 0, 0], color: '#f97316' },
+          visual: { type: 'box', size: [0.15, 0.03, 0.03], origin_pos: [0.15, 0, 0], origin_rpy: [0, 0, 0], color: '#d98a3d' },
+          collision: { type: 'box', size: [0.15, 0.03, 0.03], origin_pos: [0.15, 0, 0], origin_rpy: [0, 0, 0], color: '#d98a3d' },
           inertial: { mass: 0.8, origin_pos: [0.15, 0, 0], ixx: 0.01, iyy: 0.01, izz: 0.01 }
         }
       ],
@@ -368,8 +368,8 @@ export const RobotStudioModal: React.FC<RobotStudioModalProps> = ({
     const newName = `link_${newIndex}`;
     const newLink: LinkModel = {
       name: newName,
-      visual: { type: 'box', size: [0.15, 0.03, 0.03], origin_pos: [0.15, 0, 0], origin_rpy: [0, 0, 0], color: '#38bdf8' },
-      collision: { type: 'box', size: [0.15, 0.03, 0.03], origin_pos: [0.15, 0, 0], origin_rpy: [0, 0, 0], color: '#38bdf8' },
+      visual: { type: 'box', size: [0.15, 0.03, 0.03], origin_pos: [0.15, 0, 0], origin_rpy: [0, 0, 0], color: '#e8622c' },
+      collision: { type: 'box', size: [0.15, 0.03, 0.03], origin_pos: [0.15, 0, 0], origin_rpy: [0, 0, 0], color: '#e8622c' },
       inertial: { mass: 1.0, origin_pos: [0.15, 0, 0], ixx: 0.01, iyy: 0.01, izz: 0.01 }
     };
     const updated = { ...robot, links: [...robot.links, newLink] };
@@ -542,8 +542,8 @@ export const RobotStudioModal: React.FC<RobotStudioModalProps> = ({
             width: isDocked ? 28 : 34,
             height: isDocked ? 28 : 34,
             borderRadius: 6,
-            backgroundColor: 'rgba(56, 189, 248, 0.15)',
-            border: '1px solid rgba(56, 189, 248, 0.3)',
+            backgroundColor: 'rgba(232, 98, 44, 0.15)',
+            border: '1px solid rgba(232, 98, 44, 0.3)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -561,9 +561,9 @@ export const RobotStudioModal: React.FC<RobotStudioModalProps> = ({
                 fontSize: 10,
                 padding: '1px 6px',
                 borderRadius: 4,
-                backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                backgroundColor: 'rgba(232, 98, 44, 0.15)',
                 color: 'var(--accent-blue)',
-                border: '1px solid rgba(59, 130, 246, 0.3)',
+                border: '1px solid rgba(232, 98, 44, 0.3)',
                 fontWeight: 600,
                 fontFamily: 'var(--font-mono)'
               }}>
@@ -574,7 +574,7 @@ export const RobotStudioModal: React.FC<RobotStudioModalProps> = ({
                 padding: '1px 5px',
                 borderRadius: 3,
                 backgroundColor: validationResult?.valid ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-                color: validationResult?.valid ? 'var(--accent-green)' : '#ef4444',
+                color: validationResult?.valid ? 'var(--accent-green)' : '#e5484d',
                 fontWeight: 600,
               }}>
                 {validationResult?.valid ? 'Valid Tree' : 'Audit Errors'}
@@ -748,8 +748,8 @@ export const RobotStudioModal: React.FC<RobotStudioModalProps> = ({
                   <div style={{
                     padding: 10,
                     borderRadius: 6,
-                    backgroundColor: 'rgba(56, 189, 248, 0.05)',
-                    border: '1px solid rgba(56, 189, 248, 0.2)',
+                    backgroundColor: 'rgba(232, 98, 44, 0.05)',
+                    border: '1px solid rgba(232, 98, 44, 0.2)',
                     marginBottom: 12,
                     fontSize: 11
                   }}>
@@ -810,7 +810,7 @@ export const RobotStudioModal: React.FC<RobotStudioModalProps> = ({
                           style={{
                             padding: '6px 10px',
                             borderRadius: 5,
-                            backgroundColor: isSelected ? 'rgba(56, 189, 248, 0.15)' : 'rgba(255,255,255,0.02)',
+                            backgroundColor: isSelected ? 'rgba(232, 98, 44, 0.15)' : 'rgba(255,255,255,0.02)',
                             border: isSelected ? '1px solid var(--accent-blue)' : '1px solid transparent',
                             cursor: 'pointer',
                             display: 'flex',
@@ -820,12 +820,12 @@ export const RobotStudioModal: React.FC<RobotStudioModalProps> = ({
                           }}
                         >
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <Box size={13} color={link.visual?.color || '#38bdf8'} />
+                            <Box size={13} color={link.visual?.color || '#e8622c'} />
                             <span style={{ fontWeight: isSelected ? 600 : 400, color: isSelected ? '#fff' : 'var(--text-primary)' }}>
                               {link.name}
                             </span>
                             {isRoot && (
-                              <span style={{ fontSize: 9, padding: '1px 5px', backgroundColor: 'rgba(56, 189, 248, 0.2)', color: 'var(--accent-blue)', borderRadius: 3 }}>
+                              <span style={{ fontSize: 9, padding: '1px 5px', backgroundColor: 'rgba(232, 98, 44, 0.2)', color: 'var(--accent-blue)', borderRadius: 3 }}>
                                 ROOT
                               </span>
                             )}
@@ -950,7 +950,7 @@ export const RobotStudioModal: React.FC<RobotStudioModalProps> = ({
                               size: defSize,
                               origin_pos: curLink.visual?.origin_pos || [0, 0, 0],
                               origin_rpy: curLink.visual?.origin_rpy || [0, 0, 0],
-                              color: curLink.visual?.color || '#38bdf8'
+                              color: curLink.visual?.color || '#e8622c'
                             };
                             const updatedLinks = robot.links.map(l => l.name === curLink.name ? { ...l, visual: newVisual } : l);
                             setRobot({ ...robot, links: updatedLinks });
@@ -1079,7 +1079,7 @@ export const RobotStudioModal: React.FC<RobotStudioModalProps> = ({
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <input
                             type="color"
-                            value={curLink.visual?.color || '#38bdf8'}
+                            value={curLink.visual?.color || '#e8622c'}
                             onChange={(e) => {
                               const col = e.target.value;
                               const updatedLinks = robot.links.map(l => l.name === curLink.name ? { ...l, visual: { ...l.visual!, color: col } } : l);
@@ -1087,7 +1087,7 @@ export const RobotStudioModal: React.FC<RobotStudioModalProps> = ({
                             }}
                             style={{ width: 30, height: 24, border: 'none', background: 'transparent', cursor: 'pointer' }}
                           />
-                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>{curLink.visual?.color || '#38bdf8'}</span>
+                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>{curLink.visual?.color || '#e8622c'}</span>
                         </div>
                       </div>
                     </div>
@@ -1128,7 +1128,7 @@ export const RobotStudioModal: React.FC<RobotStudioModalProps> = ({
                             onChange={(e) => {
                               const enabled = e.target.checked;
                               const newCollision = enabled
-                                ? (curLink.visual ? { ...curLink.visual } : { type: 'box' as const, size: [0.15, 0.03, 0.03], origin_pos: [0, 0, 0] as [number, number, number], origin_rpy: [0, 0, 0] as [number, number, number], color: '#38bdf8' })
+                                ? (curLink.visual ? { ...curLink.visual } : { type: 'box' as const, size: [0.15, 0.03, 0.03], origin_pos: [0, 0, 0] as [number, number, number], origin_rpy: [0, 0, 0] as [number, number, number], color: '#e8622c' })
                                 : null;
                               const updatedLinks = robot.links.map(l => l.name === curLink.name ? { ...l, collision: newCollision } : l);
                               setRobot({ ...robot, links: updatedLinks });
@@ -1923,7 +1923,7 @@ export const RobotStudioModal: React.FC<RobotStudioModalProps> = ({
                         key={joint.name}
                         style={{
                           backgroundColor: 'var(--bg-panel)',
-                          border: isAtLimit ? '1px solid #ef4444' : (isNearLimit ? '1px solid var(--accent-orange)' : '1px solid var(--border-subtle)'),
+                          border: isAtLimit ? '1px solid #e5484d' : (isNearLimit ? '1px solid var(--accent-orange)' : '1px solid var(--border-subtle)'),
                           borderRadius: 8,
                           padding: 14,
                         }}
@@ -1954,7 +1954,7 @@ export const RobotStudioModal: React.FC<RobotStudioModalProps> = ({
                                     border: 'none',
                                     cursor: 'pointer',
                                     fontWeight: mode === m ? 700 : 400,
-                                    backgroundColor: mode === m ? 'var(--accent-blue)' : 'transparent',
+                                    backgroundColor: mode === m ? 'var(--accent-soft)' : 'transparent',
                                     color: mode === m ? '#fff' : 'var(--text-muted)'
                                   }}
                                 >
@@ -1964,7 +1964,7 @@ export const RobotStudioModal: React.FC<RobotStudioModalProps> = ({
                             </div>
 
                             {isAtLimit && (
-                              <span style={{ fontSize: 9, padding: '1px 6px', backgroundColor: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', borderRadius: 3, fontWeight: 700 }}>
+                              <span style={{ fontSize: 9, padding: '1px 6px', backgroundColor: 'rgba(239, 68, 68, 0.2)', color: '#e5484d', borderRadius: 3, fontWeight: 700 }}>
                                 AT LIMIT
                               </span>
                             )}
@@ -2045,7 +2045,7 @@ export const RobotStudioModal: React.FC<RobotStudioModalProps> = ({
 
                 {fkResult ? (
                   <div>
-                    <div style={{ backgroundColor: 'rgba(56, 189, 248, 0.05)', border: '1px solid rgba(56, 189, 248, 0.2)', borderRadius: 6, padding: 12, marginBottom: 14 }}>
+                    <div style={{ backgroundColor: 'rgba(232, 98, 44, 0.05)', border: '1px solid rgba(232, 98, 44, 0.2)', borderRadius: 6, padding: 12, marginBottom: 14 }}>
                       <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent-blue)', marginBottom: 6 }}>
                         End-Effector Pose (Link: '{fkResult.end_effector_link}')
                       </div>
@@ -2242,7 +2242,7 @@ export const RobotStudioModal: React.FC<RobotStudioModalProps> = ({
                         fontWeight: 700,
                         color: ikResult.success
                           ? 'var(--accent-green)'
-                          : (ikResult.status === 'JOINT_LIMITS_BLOCKED' ? 'var(--accent-orange)' : '#ef4444')
+                          : (ikResult.status === 'JOINT_LIMITS_BLOCKED' ? 'var(--accent-orange)' : '#e5484d')
                       }}>
                         Status: {ikResult.status}
                       </span>
@@ -2328,10 +2328,10 @@ export const RobotStudioModal: React.FC<RobotStudioModalProps> = ({
                     {validationResult.valid ? (
                       <CheckCircle2 size={24} color="var(--accent-green)" />
                     ) : (
-                      <AlertCircle size={24} color="#ef4444" />
+                      <AlertCircle size={24} color="#e5484d" />
                     )}
                     <div>
-                      <div style={{ fontSize: 14, fontWeight: 700, color: validationResult.valid ? 'var(--accent-green)' : '#ef4444' }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: validationResult.valid ? 'var(--accent-green)' : '#e5484d' }}>
                         {validationResult.valid ? 'MuJoCo Simulation Ready' : 'Physics Validation Errors Detected'}
                       </div>
                       <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
@@ -2343,15 +2343,15 @@ export const RobotStudioModal: React.FC<RobotStudioModalProps> = ({
                   {/* Errors List */}
                   {validationResult.errors.length > 0 && (
                     <div style={{ marginBottom: 16 }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: '#ef4444', marginBottom: 8, textTransform: 'uppercase' }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: '#e5484d', marginBottom: 8, textTransform: 'uppercase' }}>
                         Critical Blocking Errors ({validationResult.errors.length}):
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                         {validationResult.errors.map((diag, i) => (
                           <div key={i} style={{ padding: 12, borderRadius: 6, backgroundColor: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.25)' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                              <span style={{ fontWeight: 600, fontSize: 12, color: '#f87171' }}>[{diag.code}] {diag.target}</span>
-                              <span style={{ fontSize: 10, color: '#ef4444', textTransform: 'uppercase', fontWeight: 700 }}>Error</span>
+                              <span style={{ fontWeight: 600, fontSize: 12, color: '#f07378' }}>[{diag.code}] {diag.target}</span>
+                              <span style={{ fontSize: 10, color: '#e5484d', textTransform: 'uppercase', fontWeight: 700 }}>Error</span>
                             </div>
                             <div style={{ fontSize: 12, color: 'var(--text-primary)', marginBottom: 4 }}>{diag.message}</div>
                             {diag.suggestion && (
@@ -2375,7 +2375,7 @@ export const RobotStudioModal: React.FC<RobotStudioModalProps> = ({
                         {validationResult.warnings.map((diag, i) => (
                           <div key={i} style={{ padding: 12, borderRadius: 6, backgroundColor: 'rgba(249, 115, 22, 0.08)', border: '1px solid rgba(249, 115, 22, 0.25)' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                              <span style={{ fontWeight: 600, fontSize: 12, color: '#fb923c' }}>[{diag.code}] {diag.target}</span>
+                              <span style={{ fontWeight: 600, fontSize: 12, color: '#d98a3d' }}>[{diag.code}] {diag.target}</span>
                               <span style={{ fontSize: 10, color: 'var(--accent-orange)', textTransform: 'uppercase', fontWeight: 700 }}>Warning</span>
                             </div>
                             <div style={{ fontSize: 12, color: 'var(--text-primary)', marginBottom: 4 }}>{diag.message}</div>
@@ -2614,7 +2614,7 @@ export const RobotStudioModal: React.FC<RobotStudioModalProps> = ({
                   maxHeight: 260,
                   overflowY: 'auto'
                 }}>
-                  <pre style={{ margin: 0, fontFamily: 'var(--font-mono)', fontSize: 11, color: '#38bdf8', whiteSpace: 'pre-wrap' }}>
+                  <pre style={{ margin: 0, fontFamily: 'var(--font-mono)', fontSize: 11, color: '#e8622c', whiteSpace: 'pre-wrap' }}>
                     {exportedURDF || 'Click "URDF" in top header or wait for generation...'}
                   </pre>
                 </div>

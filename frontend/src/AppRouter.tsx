@@ -6,11 +6,13 @@ import { SignupPage } from './pages/SignupPage';
 
 // Lazy-load the heavy studio so the landing page is fast
 const StudioPage = lazy(() => import('./pages/StudioPage').then(m => ({ default: m.StudioPage })));
+const RobotPreview = lazy(() => import('./pages/RobotPreview').then(m => ({ default: m.RobotPreview })));
 
 export function AppRouter() {
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
+      <Route path="/robots" element={<Suspense fallback={<StudioLoader />}><RobotPreview /></Suspense>} />
       <Route path="/aurix" element={<Navigate to="/" replace />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />

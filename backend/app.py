@@ -106,11 +106,20 @@ rosbridge = RosbridgeServer(engine, agent_interface)
 simulation_task: Optional[asyncio.Task] = None
 
 async def broadcast_json(data: dict):
-    for ws in list(active_connections):
+    """Send to every client concurrently with a short timeout, dropping any that are dead or stalled.
+
+    A single half-closed browser connection used to block this loop (and every endpoint that awaits it,
+    such as New / Open / Clear scene) indefinitely.
+    """
+    async def _send(ws):
         try:
-            await ws.send_json(data)
+            await asyncio.wait_for(ws.send_json(data), timeout=2.0)
         except Exception:
             active_connections.discard(ws)
+
+    clients = list(active_connections)
+    if clients:
+        await asyncio.gather(*(_send(ws) for ws in clients))
 
 active_live_experiment: Optional[dict] = None
 auto_drive_active: bool = False

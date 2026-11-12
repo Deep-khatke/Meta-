@@ -325,13 +325,13 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
               gap: 5,
               padding: '3px 8px',
               borderRadius: 4,
-              backgroundColor: activeTab === 'ai_studio' ? 'rgba(168, 85, 247, 0.2)' : 'transparent',
-              color: activeTab === 'ai_studio' ? '#c084fc' : 'var(--text-secondary)',
+              backgroundColor: activeTab === 'ai_studio' ? 'rgba(255, 255, 255, 0.076)' : 'transparent',
+              color: activeTab === 'ai_studio' ? '#a9aca7' : 'var(--text-secondary)',
               cursor: 'pointer',
             }}
             title="RoboForge Autonomous AI Studio (Natural Language & Self-Driving Experimentation)"
           >
-            <Sparkles size={13} color="#c084fc" />
+            <Sparkles size={13} color="#a9aca7" />
             <span>Autonomous AI</span>
           </div>
 
@@ -347,13 +347,13 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
               gap: 5,
               padding: '3px 8px',
               borderRadius: 4,
-              backgroundColor: activeTab === 'ros2' ? 'rgba(56, 189, 248, 0.2)' : 'transparent',
-              color: activeTab === 'ros2' ? '#38bdf8' : 'var(--text-secondary)',
+              backgroundColor: activeTab === 'ros2' ? 'rgba(232, 98, 44, 0.2)' : 'transparent',
+              color: activeTab === 'ros2' ? '#e8622c' : 'var(--text-secondary)',
               cursor: 'pointer',
             }}
             title="ROS 2 Interoperability Studio, Live Topics & Bag Recorder"
           >
-            <Radio size={13} color="#38bdf8" />
+            <Radio size={13} color="#e8622c" />
             <span>ROS 2 Studio</span>
           </div>
         </div>
@@ -403,7 +403,7 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
                 style={{
                   fontSize: 10,
                   padding: '1px 6px',
-                  backgroundColor: panelHeight <= 210 ? 'var(--accent-blue)' : 'transparent',
+                  backgroundColor: panelHeight <= 210 ? 'var(--accent-soft)' : 'transparent',
                   color: panelHeight <= 210 ? '#fff' : 'var(--text-muted)'
                 }}
                 title="Compact Height (190px)"
@@ -416,7 +416,7 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
                 style={{
                   fontSize: 10,
                   padding: '1px 6px',
-                  backgroundColor: panelHeight > 210 && panelHeight <= 380 ? 'var(--accent-blue)' : 'transparent',
+                  backgroundColor: panelHeight > 210 && panelHeight <= 380 ? 'var(--accent-soft)' : 'transparent',
                   color: panelHeight > 210 && panelHeight <= 380 ? '#fff' : 'var(--text-muted)'
                 }}
                 title="Comfortable Height (310px)"
@@ -429,7 +429,7 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
                 style={{
                   fontSize: 10,
                   padding: '1px 6px',
-                  backgroundColor: panelHeight > 380 ? 'var(--accent-blue)' : 'transparent',
+                  backgroundColor: panelHeight > 380 ? 'var(--accent-soft)' : 'transparent',
                   color: panelHeight > 380 ? '#fff' : 'var(--text-muted)'
                 }}
                 title="Expanded Height (480px)"
@@ -669,7 +669,7 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
                         padding: '2px 8px',
                         fontSize: 10,
                         textTransform: 'uppercase',
-                        backgroundColor: logFilter === lvl ? 'var(--accent-blue)' : 'var(--bg-panel)',
+                        backgroundColor: logFilter === lvl ? 'var(--accent-soft)' : 'var(--bg-panel)',
                         color: logFilter === lvl ? '#fff' : 'var(--text-secondary)',
                       }}
                       onClick={() => setLogFilter(lvl)}

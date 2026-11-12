@@ -24,7 +24,7 @@ import { RobotStudioModal } from './components/RobotStudioModal';
 import { LandingScreen, WorkspaceChoice } from './components/LandingScreen';
 import { WorkspaceSetupModal } from './components/WorkspaceSetupModal';
 import { useKeyboardTeleop } from './hooks/useKeyboardTeleop';
-import { BrainCircuit, Sparkles, CheckCircle2, XCircle, X, Play, ShieldAlert, Upload, FileCode, AlertTriangle, FileText } from 'lucide-react';
+import { BrainCircuit, Sparkles, CheckCircle2, XCircle, X, Play, ShieldAlert, Upload, FileCode, AlertTriangle, FileText, Crosshair } from 'lucide-react';
 
 const initialSimState: SimulationState = {
   status: 'stopped',
@@ -417,7 +417,12 @@ export const AppContent: React.FC = () => {
         showToast(`Imported robot into '${choice.name}'`);
       }
       setSelectedObjectId(null);
-      try { sessionStorage.setItem('roboforge_entered', '1'); } catch {}
+      try {
+        sessionStorage.setItem('roboforge_entered', '1');
+        // The start screen already asked which workspace to open, so do not ask again.
+        sessionStorage.setItem('roboforge_workspace_chosen', '1');
+      } catch {}
+      setShowSetupModal(false);
       setShowLanding(false);
     } catch (e: any) {
       showToast(e.message || 'Failed to start workspace');
@@ -1143,16 +1148,17 @@ export const AppContent: React.FC = () => {
           />
           {!missionOpen && (
             <button
+              className="rf-btn rf-btn-primary"
               onClick={() => setMissionOpen(true)}
-              title="Open Mission Planner: click to place waypoints & obstacles, then train or run"
+              title="Open Mission Planner: click to place waypoints and obstacles, then train or run"
               style={{
-                position: 'absolute', bottom: 16, right: 16, zIndex: 30, padding: '9px 14px',
-                fontSize: 12.5, fontWeight: 700, color: '#fff', borderRadius: 10, cursor: 'pointer',
-                border: '1px solid rgba(96,165,250,0.7)', background: 'linear-gradient(90deg,#2563eb,#7c3aed)',
-                boxShadow: '0 6px 20px rgba(37,99,235,0.45)',
+                position: 'absolute', bottom: 16, right: 16, zIndex: 30,
+                height: 36, padding: '0 14px', borderRadius: 10,
+                boxShadow: 'var(--shadow-float)',
               }}
             >
-              🧭 Mission Planner
+              <Crosshair size={14} />
+              Mission planner
             </button>
           )}
           {missionOpen && project && (
@@ -1263,7 +1269,6 @@ export const AppContent: React.FC = () => {
             right: 0,
             bottom: 0,
             backgroundColor: 'rgba(0, 0, 0, 0.25)',
-            backdropFilter: 'blur(2px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -1297,11 +1302,11 @@ export const AppContent: React.FC = () => {
                 justifyContent: 'space-between',
                 padding: '14px 18px',
                 borderBottom: '1px solid var(--border-subtle)',
-                background: 'rgba(56, 189, 248, 0.08)',
+                background: 'rgba(232, 98, 44, 0.08)',
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{ background: 'rgba(56, 189, 248, 0.2)', padding: 6, borderRadius: 6 }}>
+                <div style={{ background: 'rgba(232, 98, 44, 0.2)', padding: 6, borderRadius: 6 }}>
                   <FileCode size={18} color="var(--accent-blue)" />
                 </div>
                 <div>
@@ -1345,7 +1350,7 @@ export const AppContent: React.FC = () => {
                   />
                   <button
                     className="rf-btn"
-                    style={{ fontSize: 11, padding: '2px 8px', gap: 4, color: 'var(--accent-blue)', borderColor: 'rgba(56,189,248,0.4)' }}
+                    style={{ fontSize: 11, padding: '2px 8px', gap: 4, color: 'var(--accent-blue)', borderColor: 'rgba(232, 98, 44, 0.4)' }}
                     onClick={() => document.getElementById('urdf-file-input')?.click()}
                   >
                     <Upload size={12} />
@@ -1367,7 +1372,7 @@ export const AppContent: React.FC = () => {
                   style={{
                     display: 'flex', alignItems: 'center', gap: 8,
                     background: 'rgba(239, 68, 68, 0.12)', border: '1px solid rgba(239, 68, 68, 0.4)',
-                    padding: 10, borderRadius: 6, fontSize: 11, color: '#fca5a5',
+                    padding: 10, borderRadius: 6, fontSize: 11, color: '#f4a1a4',
                   }}
                 >
                   <AlertTriangle size={15} />
@@ -1473,7 +1478,6 @@ export const AppContent: React.FC = () => {
             right: 0,
             bottom: 0,
             backgroundColor: 'rgba(0, 0, 0, 0.25)',
-            backdropFilter: 'blur(2px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -1488,7 +1492,7 @@ export const AppContent: React.FC = () => {
           <div
             style={{
               background: '#18191f',
-              border: '1px solid rgba(168, 85, 247, 0.4)',
+              border: '1px solid rgba(255, 255, 255, 0.152)',
               borderRadius: 8,
               width: 580,
               maxWidth: '92vw',
@@ -1511,8 +1515,8 @@ export const AppContent: React.FC = () => {
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{ background: 'rgba(168, 85, 247, 0.2)', padding: 6, borderRadius: 6 }}>
-                  <BrainCircuit size={18} color="#c084fc" />
+                <div style={{ background: 'rgba(255, 255, 255, 0.076)', padding: 6, borderRadius: 6 }}>
+                  <BrainCircuit size={18} color="#a9aca7" />
                 </div>
                 <div>
                   <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
@@ -1543,8 +1547,8 @@ export const AppContent: React.FC = () => {
                     style={{
                       width: 36,
                       height: 36,
-                      border: '3px solid rgba(168, 85, 247, 0.2)',
-                      borderTopColor: '#c084fc',
+                      border: '3px solid rgba(255, 255, 255, 0.076)',
+                      borderTopColor: '#a9aca7',
                       borderRadius: '50%',
                       animation: 'spin 0.8s linear infinite',
                     }}
@@ -1606,7 +1610,7 @@ export const AppContent: React.FC = () => {
                   {/* Best Policy Parameters Details */}
                   <div style={{ background: 'var(--bg-panel)', borderRadius: 6, border: '1px solid var(--border-subtle)', padding: 12 }}>
                     <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <Sparkles size={12} color="#c084fc" />
+                      <Sparkles size={12} color="#a9aca7" />
                       <span>Optimized Steering & Avoidance Parameters</span>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 11 }}>
@@ -1643,10 +1647,7 @@ export const AppContent: React.FC = () => {
                       className="rf-btn rf-btn-primary"
                       onClick={handleDeployAndRun3D}
                       style={{
-                        background: 'linear-gradient(135deg, #7928ca 0%, #4c1d95 100%)',
-                        border: '1px solid #9333ea',
-                        color: '#fff',
-                        fontWeight: 600,
+                                        fontWeight: 600,
                         gap: 6,
                         padding: '6px 14px',
                       }}

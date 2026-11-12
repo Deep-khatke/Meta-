@@ -50,7 +50,7 @@ export const ScenePanel: React.FC<ScenePanelProps> = ({
 
   const getIconForType = (type: string, name?: string) => {
     if (name && (name.toLowerCase().includes('drone') || name.toLowerCase().includes('uav') || name.toLowerCase().includes('quad'))) {
-      return <Navigation size={14} color="#06b6d4" />;
+      return <Navigation size={14} color="#e8622c" />;
     }
     switch (type) {
       case 'box':
@@ -183,7 +183,7 @@ export const ScenePanel: React.FC<ScenePanelProps> = ({
               <div style={{ fontSize: 11, color: project.sensors?.imu?.enabled !== false ? 'var(--accent-green)' : 'var(--text-muted)', padding: '2px 0' }}>
                 • 6-DOF IMU ({project.sensors?.imu?.enabled !== false ? 'ON' : 'OFF'})
               </div>
-              <div style={{ fontSize: 11, color: project.sensors?.camera?.enabled !== false ? '#38bdf8' : 'var(--text-muted)', padding: '2px 0' }}>
+              <div style={{ fontSize: 11, color: project.sensors?.camera?.enabled !== false ? '#e8622c' : 'var(--text-muted)', padding: '2px 0' }}>
                 • Vision Camera ({project.sensors?.camera?.enabled !== false ? 'ON' : 'OFF'})
               </div>
             </div>
@@ -274,7 +274,7 @@ export const ScenePanel: React.FC<ScenePanelProps> = ({
                     title="Remove URDF Robot"
                     style={{ padding: 2, background: 'transparent', border: 'none', cursor: 'pointer' }}
                   >
-                    <Trash2 size={12} color="#ef4444" />
+                    <Trash2 size={12} color="#e5484d" />
                   </button>
                 )}
               </div>
@@ -357,10 +357,10 @@ export const ScenePanel: React.FC<ScenePanelProps> = ({
                               fontSize: 9,
                               padding: '1px 4px',
                               borderRadius: 3,
-                              backgroundColor: 'rgba(6, 182, 212, 0.2)',
-                              color: '#22d3ee',
+                              backgroundColor: 'rgba(232, 98, 44, 0.2)',
+                              color: '#e8622c',
                               fontWeight: 700,
-                              border: '1px solid rgba(6, 182, 212, 0.35)',
+                              border: '1px solid rgba(232, 98, 44, 0.35)',
                             }}
                           >
                             DRONE
@@ -372,7 +372,7 @@ export const ScenePanel: React.FC<ScenePanelProps> = ({
                               padding: '1px 3px',
                               borderRadius: 3,
                               backgroundColor: obj.is_static ? 'rgba(100, 116, 139, 0.2)' : 'rgba(234, 88, 12, 0.2)',
-                              color: obj.is_static ? '#94a3b8' : '#fb923c',
+                              color: obj.is_static ? '#a9aca7' : '#d98a3d',
                               fontWeight: 600,
                             }}
                           >
@@ -386,14 +386,14 @@ export const ScenePanel: React.FC<ScenePanelProps> = ({
                           <>
                             <button
                               className="rf-btn rf-btn-icon"
-                              style={{ width: 18, height: 18, padding: 2, background: 'rgba(6, 182, 212, 0.15)', border: '1px solid rgba(6, 182, 212, 0.3)' }}
+                              style={{ width: 18, height: 18, padding: 2, background: 'rgba(232, 98, 44, 0.15)', border: '1px solid rgba(232, 98, 44, 0.3)' }}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleDroneFlightCommand(obj.id, 'takeoff');
                               }}
                               title="Takeoff to 1.5m"
                             >
-                              <ArrowUp size={11} color="#22d3ee" />
+                              <ArrowUp size={11} color="#e8622c" />
                             </button>
                             <button
                               className="rf-btn rf-btn-icon"

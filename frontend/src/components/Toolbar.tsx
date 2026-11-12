@@ -155,9 +155,9 @@ export const Toolbar: React.FC<ToolbarProps> = ({
               className="rf-btn"
               onClick={onOpenURDFModal}
               title="Import Robot from URDF XML"
-              style={{ padding: '3px 8px', fontSize: 11, color: '#38bdf8', borderColor: 'rgba(56, 189, 248, 0.4)' }}
+              style={{ padding: '3px 8px', fontSize: 11, color: '#e8622c', borderColor: 'rgba(232, 98, 44, 0.4)' }}
             >
-              <Upload size={11} color="#38bdf8" />
+              <Upload size={11} color="#e8622c" />
               <span>URDF</span>
             </button>
           )}
@@ -205,12 +205,12 @@ export const Toolbar: React.FC<ToolbarProps> = ({
             padding: '4px 10px',
             fontSize: 11,
             gap: 5,
-            color: activeSection === 'robots' ? '#60a5fa' : undefined,
-            borderColor: activeSection === 'robots' ? 'rgba(96, 165, 250, 0.4)' : undefined,
-            background: activeSection === 'robots' ? 'rgba(96, 165, 250, 0.15)' : undefined,
+            color: activeSection === 'robots' ? '#e8622c' : undefined,
+            borderColor: activeSection === 'robots' ? 'rgba(232, 98, 44, 0.4)' : undefined,
+            background: activeSection === 'robots' ? 'rgba(232, 98, 44, 0.15)' : undefined,
           }}
         >
-          <GitFork size={12} color={activeSection === 'robots' ? '#60a5fa' : 'currentColor'} />
+          <GitFork size={12} color={activeSection === 'robots' ? '#e8622c' : 'currentColor'} />
           <span>Robot Studio</span>
         </button>
 
@@ -291,7 +291,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
               title={isRecordingTrajectory ? 'Stop Trajectory Recording' : 'Record Robot Trajectory Path'}
               style={{ padding: '3px 6px', fontSize: 10, gap: 3 }}
             >
-              <Disc size={11} color={isRecordingTrajectory ? '#ef4444' : 'currentColor'} />
+              <Disc size={11} color={isRecordingTrajectory ? '#e5484d' : 'currentColor'} />
               <span>{isRecordingTrajectory ? 'REC' : 'Rec'}</span>
             </button>
           )}

@@ -203,16 +203,16 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                 width: '100%',
                 marginBottom: 10,
                 padding: '6px 10px',
-                background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(37, 99, 235, 0.25) 100%)',
-                border: '1px solid rgba(59, 130, 246, 0.4)',
-                color: '#60a5fa',
+                background: 'rgba(232, 98, 44, 0.12)',
+                border: '1px solid rgba(232, 98, 44, 0.4)',
+                color: '#e8622c',
                 fontWeight: 600,
                 fontSize: 11,
                 gap: 6,
                 justifyContent: 'center',
               }}
             >
-              <GitFork size={13} color="#60a5fa" />
+              <GitFork size={13} color="#e8622c" />
               <span>Launch Robot Modeling & Control Studio</span>
             </button>
           )}
@@ -479,7 +479,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                   checked={selectedObstacle.is_static}
                   onChange={(e) => onUpdateObject({ ...selectedObstacle, is_static: e.target.checked })}
                 />
-                <span style={{ fontSize: 12, fontWeight: 600, color: selectedObstacle.is_static ? '#94a3b8' : '#fb923c' }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: selectedObstacle.is_static ? '#a9aca7' : '#d98a3d' }}>
                   {selectedObstacle.is_static ? 'Static (Fixed in space)' : 'Dynamic (Free Physics)'}
                 </span>
               </label>
@@ -916,7 +916,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
         <div className="rf-prop-group">
           <div className="rf-prop-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-              <Video size={13} color="#38bdf8" />
+              <Video size={13} color="#e8622c" />
               <span>Vision Camera (RGB Sensor)</span>
             </div>
             <label style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
@@ -977,12 +977,12 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
 
         {/* Imported Robot Model Management */}
         {project.generic_robot && (
-          <div className="rf-prop-group" style={{ borderColor: 'rgba(59, 130, 246, 0.3)' }}>
+          <div className="rf-prop-group" style={{ borderColor: 'rgba(232, 98, 44, 0.3)' }}>
             <div className="rf-prop-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span>Imported Robot Model</span>
               <button
                 className="rf-btn"
-                style={{ fontSize: 10, padding: '2px 8px', color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.4)' }}
+                style={{ fontSize: 10, padding: '2px 8px', color: '#e5484d', borderColor: 'rgba(239, 68, 68, 0.4)' }}
                 onClick={() => onClearGenericRobot?.()}
                 title="Remove imported URDF kinematic robot"
               >

@@ -46,6 +46,30 @@ from backend.motion_planning import GridAStarPlanner
 logger = logging.getLogger("roboforge.ai_reasoning")
 
 
+def _is_unset_key(key: Optional[str]) -> bool:
+    """True for empty keys and obvious placeholders such as REPLACE_WITH_YOUR_KEY."""
+    k = (key or "").strip()
+    if not k:
+        return True
+    up = k.upper()
+    return up.startswith("REPLACE") or up in ("CHANGEME", "YOUR_KEY_HERE", "TODO", "XXX")
+
+
+def _provider_label(base: str, model: str) -> str:
+    """Human label derived from the endpoint, so the UI names the backend that really answers."""
+    b = (base or "").lower()
+    m = (model or "").lower()
+    if "meta.ai" in b or "meta.com" in b:
+        return f"Meta Model API ({model})"
+    if "generativelanguage.googleapis" in b or "googleapis" in b:
+        return f"Google Gemini ({model})"
+    if "nemotron" in m or "nvidia" in m or "nvidia" in b:
+        return f"NVIDIA Nemotron ({model})"
+    if "openrouter" in b:
+        return f"OpenRouter ({model})"
+    return f"OpenAI-compatible ({model})"
+
+
 class AIReasoningService:
     """
     Unified, provider-independent reasoning service.
@@ -183,28 +207,42 @@ class AIReasoningService:
             base = os.getenv("OPENAI_COMPAT_BASE_URL", "").strip()
             key = os.getenv("OPENAI_COMPAT_API_KEY", "").strip()
             model = os.getenv("OPENAI_COMPAT_MODEL", "").strip()
-            if base and key and model:
-                # Label the provider from the endpoint so the UI reports the real backend
-                # (Meta Model API / OpenRouter / NVIDIA NIM) instead of a hardcoded name.
-                _b = base.lower()
-                if "meta.ai" in _b or "meta.com" in _b:
-                    _provider_label = f"Meta Model API ({model})"
-                elif "openrouter" in _b:
-                    _provider_label = f"OpenRouter ({model})"
-                elif "nvidia" in _b or "nim" in _b:
-                    _provider_label = f"NVIDIA NIM ({model})"
-                else:
-                    _provider_label = f"OpenAI-compatible ({model})"
+            fb_base = os.getenv("FALLBACK_COMPAT_BASE_URL", "").strip()
+            fb_key = os.getenv("FALLBACK_COMPAT_API_KEY", "").strip()
+            fb_model = os.getenv("FALLBACK_COMPAT_MODEL", "").strip()
+            fb_ready = bool(fb_base and fb_model and not _is_unset_key(fb_key))
+            primary_ready = bool(base and model and not _is_unset_key(key))
+
+            if primary_ready:
                 return {
-                    "active_provider": _provider_label,
+                    "active_provider": _provider_label(base, model),
                     "model": model,
                     "provider_type": "openai_compat",
                     "endpoint": base,
                     "is_available": True,
                     "has_credentials": True,
                     "offline_mode": False,
-                    "fallback_available": True,  # secondary cloud (Nemotron) -> Ollama -> deterministic
-                    "fallback_model": os.getenv("FALLBACK_COMPAT_MODEL", "").strip() or None,
+                    "primary_configured": True,
+                    "fallback_available": True,  # secondary cloud -> Ollama -> deterministic
+                    "fallback_model": fb_model or None,
+                    "allows_arbitrary_code": False,
+                    "tools_available": tools,
+                }
+            if fb_ready:
+                # The primary key is missing or a placeholder, so report the model that is
+                # genuinely answering instead of claiming one that is never called.
+                return {
+                    "active_provider": _provider_label(fb_base, fb_model),
+                    "model": fb_model,
+                    "provider_type": "openai_compat",
+                    "endpoint": fb_base,
+                    "is_available": True,
+                    "has_credentials": True,
+                    "offline_mode": False,
+                    "primary_configured": False,
+                    "status_message": "Primary model key is not set; serving requests from the configured secondary model.",
+                    "fallback_available": True,
+                    "fallback_model": None,
                     "allows_arbitrary_code": False,
                     "tools_available": tools,
                 }
@@ -4649,6 +4687,8 @@ class AIReasoningService:
         kind, _, model = tag.partition(":")
         if kind == "primary":
             return provider_info.get("active_provider", model)
+        if kind == "fallback" and provider_info.get("primary_configured") is False and model == provider_info.get("model"):
+            return provider_info.get("active_provider", model)
         if kind == "fallback":
             m = model.lower()
             if "nemotron" in m or "nvidia" in m:
@@ -4933,13 +4973,16 @@ class AIReasoningService:
             key = os.getenv("OPENAI_COMPAT_API_KEY", "")
             model = provider_info.get("model") or os.getenv("OPENAI_COMPAT_MODEL", "")
 
-            # Primary: Meta
-            try:
-                data = self._compat_chat_once(base, key, model, conversation_messages)
-                self._last_reasoning_provider = f"primary:{model}"
-            except Exception as e:
-                logger.warning("Primary reasoning (%s @ %s) failed (%s).", model, base, e)
-                data = None
+            # Primary: skipped when its key is unset/placeholder (a guaranteed 401 would only add latency)
+            if provider_info.get("primary_configured", True) and not _is_unset_key(key):
+                try:
+                    data = self._compat_chat_once(base, key, model, conversation_messages)
+                    self._last_reasoning_provider = f"primary:{model}"
+                except Exception as e:
+                    logger.warning("Primary reasoning (%s @ %s) failed (%s).", model, base, e)
+                    data = None
+            else:
+                logger.info("Primary model key not configured; using the secondary model directly.")
 
             # Secondary: genuine cloud fallback (Nemotron / OpenRouter) if configured.
             if data is None:
