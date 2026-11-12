@@ -680,12 +680,12 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
       const createDroneGroup = (): THREE.Group => {
         const drone = new THREE.Group();
         drone.name = `obj_${obj.id}`;
-        (drone as any).userData = { id: obj.id, isDrone: true, isObstacle: false };
 
         // Designed quadcopter model (strictly white and grey); see components/robots/droneModel.ts
         const droneModel = createDroneModel();
         drone.add(droneModel.root);
         droneModel.rotors.forEach((rotor) => droneRotorsRef.current.push(rotor));
+        (drone as any).userData = { id: obj.id, isDrone: true, isObstacle: false, rotors: droneModel.rotors, model: droneModel };
 
         // 3. Ground Altitude Line & Landing Shadow
         const altPoints = [new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, -obj.position[2])];
@@ -766,6 +766,15 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
           objectMeshesRef.current.set(obj.id, mesh);
         }
       } else {
+        // Retain rotors for existing drone objects
+        if ((mesh as any).userData?.isDrone && (mesh as any).userData?.rotors) {
+          ((mesh as any).userData.rotors as THREE.Object3D[]).forEach((rotor) => {
+            if (!droneRotorsRef.current.includes(rotor)) {
+              droneRotorsRef.current.push(rotor);
+            }
+          });
+        }
+
         // Update color and visibility
         if ((mesh as any).material) {
           const mat = (mesh as any).material as THREE.MeshStandardMaterial;
@@ -1153,14 +1162,28 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
         if (roverModelRef.current) roverModelRef.current.lidarHead.rotation.z += 0.09;
       }
 
-      // Rotate active aerial drone rotors
+      // Rotate active aerial drone rotors with realistic quadcopter RPM and aerodynamic micro-flutter
       if (droneRotorsRef.current.length > 0) {
+        const now = performance.now() * 0.001;
         droneRotorsRef.current.forEach((rotor, idx) => {
-          // Counter-rotate alternate rotors for realistic quadcopter dynamics
+          // Counter-rotate alternate rotors for realistic quadcopter dynamics (torque cancellation)
           const dir = idx % 2 === 0 ? 1 : -1;
-          rotor.rotation.z += dir * 0.35;
+          const flutter = Math.sin(now * 14 + idx * 1.57) * 0.04;
+          rotor.rotation.z += dir * (0.85 + flutter);
         });
       }
+
+      // Ensure any newly added drone in object meshes is tracked for rotor spin
+      objectMeshesRef.current.forEach((mesh) => {
+        const u = (mesh as any).userData;
+        if (u?.isDrone && u?.rotors) {
+          (u.rotors as THREE.Object3D[]).forEach((rotor) => {
+            if (!droneRotorsRef.current.includes(rotor)) {
+              droneRotorsRef.current.push(rotor);
+            }
+          });
+        }
+      });
 
       if (followRobotRef.current && robotGroupRef.current) {
         const rp = robotGroupRef.current.position;

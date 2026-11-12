@@ -3,6 +3,61 @@ import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeom
 import { createRobotMaterials, enableShadows, disposeGeometries } from './palette';
 
 /**
+ * Procedural radial motion blur texture for drone propeller disc.
+ * Creates a feathered transparent disc with swept blade trails and a bright circular tip arc.
+ */
+function createRotorBlurTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    return new THREE.CanvasTexture(canvas);
+  }
+
+  const cx = 128;
+  const cy = 128;
+  const maxR = 122;
+
+  ctx.clearRect(0, 0, 256, 256);
+
+  // 1. Concentric radial gradient: transparent center, smooth density, bright outer blade-tip ring
+  const grad = ctx.createRadialGradient(cx, cy, 18, cx, cy, maxR);
+  grad.addColorStop(0, 'rgba(255, 255, 255, 0)');
+  grad.addColorStop(0.25, 'rgba(230, 235, 245, 0.05)');
+  grad.addColorStop(0.70, 'rgba(230, 235, 245, 0.16)');
+  grad.addColorStop(0.92, 'rgba(245, 250, 255, 0.30)');
+  grad.addColorStop(0.96, 'rgba(255, 255, 255, 0.60)'); // Crisp tip arc
+  grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(cx, cy, maxR, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 2. Sweeping fan blade motion blur trails
+  for (const angle of [0, Math.PI]) {
+    const sweep = ctx.createRadialGradient(cx, cy, 25, cx, cy, maxR);
+    sweep.addColorStop(0, 'rgba(255, 255, 255, 0)');
+    sweep.addColorStop(0.65, 'rgba(240, 245, 255, 0.20)');
+    sweep.addColorStop(0.95, 'rgba(255, 255, 255, 0.42)');
+    sweep.addColorStop(1, 'rgba(255, 255, 255, 0)');
+
+    ctx.fillStyle = sweep;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, maxR, angle, angle + Math.PI * 0.42, false);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.generateMipmaps = true;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  return texture;
+}
+
+/**
  * X-frame quadcopter. Frame: Z up, +X forward, origin at the centre of mass (the simulated body centre).
  * The skid bottoms sit 0.08 m below the origin, matching the physics box, so a landed drone rests on the ground.
  * `rotors` are the four spinning propeller groups; spin them about their local Z.
@@ -17,6 +72,15 @@ export function createDroneModel(): DroneModel {
   const m = createRobotMaterials();
   const root = new THREE.Group();
   root.name = 'drone_model';
+
+  const blurTexture = createRotorBlurTexture();
+  const blurMat = new THREE.MeshBasicMaterial({
+    map: blurTexture,
+    transparent: true,
+    opacity: 0.50,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+  });
 
   const rbox = (w: number, d: number, h: number, r: number, mat: THREE.Material) =>
     new THREE.Mesh(new RoundedBoxGeometry(w, d, h, 4, r), mat);
@@ -74,23 +138,65 @@ export function createDroneModel(): DroneModel {
     collar.position.set(mx, my, 0.036);
     root.add(motor, collar);
 
-    // Propeller: two pitched blades, a hub and a faint disc that suggests motion.
+    // Propeller assembly: Aerodynamic pitched blades, contrast tip markers, ghost blur blades,
+    // metallic center spinner nut, and a dynamic motion blur disc.
     const rotor = new THREE.Group();
     rotor.position.set(mx, my, 0.048);
+
+    // Center hub & polished spinner bullet nut
+    const hub = zcyl(0.010, 0.010, 0.009, m.steel, 28);
+    const spinner = new THREE.Mesh(new THREE.ConeGeometry(0.007, 0.009, 18), m.steel);
+    spinner.rotation.x = Math.PI / 2;
+    spinner.position.set(0, 0, 0.006);
+    rotor.add(hub, spinner);
+
+    // Primary aerodynamic blades with contrast white tip accents
     for (const sgn of [-1, 1]) {
-      const blade = new THREE.Mesh(new THREE.BoxGeometry(0.113, 0.019, 0.0032), m.panel);
-      blade.position.x = sgn * 0.0585;
-      blade.rotation.x = sgn * 0.14;
-      rotor.add(blade);
+      const bladeGroup = new THREE.Group();
+
+      // Main blade root
+      const bladeRoot = new THREE.Mesh(new THREE.BoxGeometry(0.038, 0.021, 0.0032), m.dark);
+      bladeRoot.position.set(sgn * 0.024, 0, 0);
+      bladeRoot.rotation.x = sgn * 0.15;
+
+      // Mid airfoil
+      const bladeMid = new THREE.Mesh(new THREE.BoxGeometry(0.052, 0.018, 0.0026), m.panel);
+      bladeMid.position.set(sgn * 0.064, 0, 0);
+      bladeMid.rotation.x = sgn * 0.15;
+
+      // High-visibility crisp white tip marker (creates vivid motion trail)
+      const bladeTip = new THREE.Mesh(new THREE.BoxGeometry(0.024, 0.013, 0.0020), m.shell);
+      bladeTip.position.set(sgn * 0.101, 0, 0);
+      bladeTip.rotation.x = sgn * 0.15;
+
+      bladeGroup.add(bladeRoot, bladeMid, bladeTip);
+      rotor.add(bladeGroup);
+
+      // Trailing ghost blades for realistic visual persistence of motion
+      const ghostMat1 = m.panel.clone();
+      ghostMat1.transparent = true;
+      ghostMat1.opacity = 0.28;
+      ghostMat1.depthWrite = false;
+      const ghost1 = new THREE.Mesh(new THREE.BoxGeometry(0.105, 0.016, 0.002), ghostMat1);
+      ghost1.position.set(sgn * 0.056, 0, 0.001);
+      ghost1.rotation.set(sgn * 0.14, 0, -sgn * 0.24);
+
+      const ghostMat2 = m.panel.clone();
+      ghostMat2.transparent = true;
+      ghostMat2.opacity = 0.14;
+      ghostMat2.depthWrite = false;
+      const ghost2 = new THREE.Mesh(new THREE.BoxGeometry(0.098, 0.015, 0.002), ghostMat2);
+      ghost2.position.set(sgn * 0.053, 0, 0.0015);
+      ghost2.rotation.set(sgn * 0.14, 0, -sgn * 0.46);
+
+      rotor.add(ghost1, ghost2);
     }
-    const hub = zcyl(0.0095, 0.0095, 0.009, m.steel, 24);
-    rotor.add(hub);
-    const discMat = m.panel.clone();
-    discMat.transparent = true;
-    discMat.opacity = 0.09;
-    discMat.depthWrite = false;
-    discMat.side = THREE.DoubleSide;
-    rotor.add(new THREE.Mesh(new THREE.CircleGeometry(0.12, 48), discMat));
+
+    // High-speed motion blur disk
+    const blurDisc = new THREE.Mesh(new THREE.PlaneGeometry(0.244, 0.244), blurMat);
+    blurDisc.position.set(0, 0, 0.002);
+    rotor.add(blurDisc);
+
     root.add(rotor);
     rotors.push(rotor);
   }
@@ -109,14 +215,21 @@ export function createDroneModel(): DroneModel {
   }
 
   enableShadows(root);
-  // The faint motion-hint discs must not cast shadows.
+  // Transparent motion-blur elements and ghost blades must not cast shadows.
   rotors.forEach((r) => r.children.forEach((c) => {
-    if ((c as THREE.Mesh).geometry?.type === 'CircleGeometry') { c.castShadow = false; c.receiveShadow = false; }
+    const mesh = c as THREE.Mesh;
+    if (mesh.material && (mesh.material as THREE.Material).transparent) {
+      mesh.castShadow = false;
+      mesh.receiveShadow = false;
+    }
   }));
+
   return {
     root,
     rotors,
     dispose: () => {
+      blurTexture.dispose();
+      blurMat.dispose();
       disposeGeometries(root);
       m.dispose();
     },

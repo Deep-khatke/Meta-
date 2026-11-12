@@ -47,7 +47,7 @@ export const RobotPreview: React.FC = () => {
   const params = new URLSearchParams(window.location.search);
   const [robot, setRobot] = useState<RobotId>((params.get('robot') as RobotId) || 'rover');
   const [view, setView] = useState<ViewName>((params.get('view') as ViewName) || 'iso');
-  const [spin, setSpin] = useState<boolean>(params.get('spin') === '1');
+  const [spin, setSpin] = useState<boolean>(params.get('spin') !== '0');
   const [light, setLight] = useState<boolean>(params.get('bg') === 'light');
   const apiRef = useRef<{ setView: (v: ViewName) => void; setSpin: (s: boolean) => void } | null>(null);
 
@@ -160,7 +160,14 @@ export const RobotPreview: React.FC = () => {
           rover.rightWheel.rotation.y += 0.05;
           rover.lidarHead.rotation.z += 0.12;
         }
-        if (drone) drone.rotors.forEach((r, i) => { r.rotation.z += (i % 2 ? -1 : 1) * 0.5; });
+        if (drone) {
+          const now = performance.now() * 0.001;
+          drone.rotors.forEach((r, i) => {
+            const dir = i % 2 === 0 ? 1 : -1;
+            const flutter = Math.sin(now * 14 + i * 1.57) * 0.04;
+            r.rotation.z += dir * (0.85 + flutter);
+          });
+        }
       }
       controls.update();
       renderer.render(scene, camera);
