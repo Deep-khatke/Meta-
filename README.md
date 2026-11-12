@@ -109,6 +109,7 @@ RoboForge is deployed live on AWS EC2 with continuous systemd orchestration, Duc
 │  - User Auth & Session Controller (/api/auth/register, login, google)  │
 │  - SQLite Database Store (roboforge.db with PBKDF2 Salted Hashing)     │
 │  - AI Reasoning Service (NVIDIA Nemotron via OpenRouter, Meta Muse)    │
+│  - PayPal Subscriptions & Credit Engine (/api/billing/*, Webhooks)     │
 │  - Robot Modeling Compiler (GenericRobotModel -> MuJoCo MJCF XML)      │
 │  - Kinematics Engine (FK Link Poses & Numerical Damped Least-Squares) │
 │  - Built-in ROS 2 Bridge Server (ws://0.0.0.0:9090)                    │
@@ -134,6 +135,7 @@ RoboForge is deployed live on AWS EC2 with continuous systemd orchestration, Duc
 | **Reinforcement Learning** | [Stable-Baselines3](https://stable-baselines3.readthedocs.io/) (PPO), [PyTorch](https://pytorch.org/), [ONNX](https://onnx.ai/) Export |
 | **Backend Engine** | [FastAPI](https://fastapi.tiangolo.com/), [Uvicorn](https://www.uvicorn.org/), WebSockets, [Pydantic v2](https://docs.pydantic.dev/) |
 | **Database & Security** | SQLite3, PBKDF2-HMAC-SHA256, Google OAuth 2.0 (GSI), Secrets |
+| **Billing & Subscriptions** | PayPal Subscriptions REST API (Sandbox), Append-only Credit Ledger, Two-Phase Reservations |
 | **Robotics Interoperability** | [ROS 2](https://docs.ros.org/) via integrated rosbridge v2 protocol |
 | **Frontend Framework** | [React 19](https://react.dev/), [TypeScript](https://www.typescriptlang.org/), [Vite 8](https://vite.dev/) |
 | **3D Graphics & Animations** | [Three.js](https://threejs.org/), [GSAP](https://greensock.com/gsap/), Web Audio API |

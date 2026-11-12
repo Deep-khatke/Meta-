@@ -71,6 +71,9 @@ from backend.asset_models import (
 )
 from backend.asset_library import AssetLibrary
 from backend.research.research_api import router as research_router
+from backend.billing.routes import router as billing_router
+from backend.billing.credit_service import credit_service, InsufficientCreditsError
+from backend.billing.config import OPERATION_PRICING
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("roboforge.server")
@@ -450,6 +453,41 @@ app.add_middleware(
 )
 
 app.include_router(research_router)
+app.include_router(billing_router)
+
+
+def _extract_token_from_request(req: Request, authorization: Optional[str] = None) -> Optional[str]:
+    """Extracts bearer token from Authorization header or cookie or query param."""
+    if authorization and authorization.startswith("Bearer "):
+        return authorization[7:].strip()
+    auth_header = req.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        return auth_header[7:].strip()
+    return req.cookies.get("roboforge_token") or req.query_params.get("token")
+
+
+def _get_user_from_request_optional(req: Request) -> Optional[Dict[str, Any]]:
+    token = _extract_token_from_request(req)
+    if not token:
+        return None
+    return db.get_user_by_session(token)
+
+
+def check_and_reserve_credits(req: Request, op_type: str) -> Optional[Tuple[Dict[str, Any], str]]:
+    """
+    Checks if request is authenticated. If so, reserves credits atomically.
+    Raises HTTPException(402) if available balance is insufficient.
+    """
+    user = _get_user_from_request_optional(req)
+    if not user:
+        return None
+    amount = OPERATION_PRICING.get(op_type, 1)
+    op_id = f"op_{op_type}_{uuid.uuid4().hex[:12]}"
+    try:
+        credit_service.reserveCredits(user["id"], op_id, amount, operation_type=op_type)
+        return (user, op_id)
+    except InsufficientCreditsError as ice:
+        raise HTTPException(status_code=402, detail=ice.to_dict())
 
 
 # Request Models
@@ -811,9 +849,17 @@ async def import_robot_from_mjcf(req: MJCFImportRequest):
 # --- Collision-Aware Motion Planning ---
 
 @app.post("/api/motion/plan-path")
-def plan_motion_path(req: PathPlanningRequest):
-    result = plan_collision_free_path(project_manager.get_current(), req)
-    return result
+def plan_motion_path(req: PathPlanningRequest, request: Request):
+    credit_hold = check_and_reserve_credits(request, "motion_planning")
+    try:
+        result = plan_collision_free_path(project_manager.get_current(), req)
+        if credit_hold:
+            credit_service.commitCredits(credit_hold[1])
+        return result
+    except Exception as e:
+        if credit_hold:
+            credit_service.releaseCredits(credit_hold[1])
+        raise
 
 
 # --- Synthetic Data & Perception Pipeline ---
@@ -825,10 +871,18 @@ def capture_synthetic_labeled_frame(req: CameraCaptureRequest = CameraCaptureReq
     return frame
 
 @app.post("/api/synthetic/export-coco")
-def export_synthetic_coco_dataset(req: SyntheticExportRequest = SyntheticExportRequest()):
-    generator = SyntheticDataGenerator(project_manager.get_current())
-    coco = generator.generate_coco_dataset(num_samples=req.num_samples, width=req.width, height=req.height)
-    return coco
+def export_synthetic_coco_dataset(request: Request, req: SyntheticExportRequest = SyntheticExportRequest()):
+    credit_hold = check_and_reserve_credits(request, "synthetic_data_export")
+    try:
+        generator = SyntheticDataGenerator(project_manager.get_current())
+        coco = generator.generate_coco_dataset(num_samples=req.num_samples, width=req.width, height=req.height)
+        if credit_hold:
+            credit_service.commitCredits(credit_hold[1])
+        return coco
+    except Exception as e:
+        if credit_hold:
+            credit_service.releaseCredits(credit_hold[1])
+        raise
 
 
 # --- ROS 2 Robotics Interoperability Bridge & Bag Recording ---
@@ -2083,7 +2137,8 @@ def compare_runs(req: CompareRunsRequest):
 # ==========================================
 
 @app.post("/api/rl/train")
-def start_rl_training(config: RLTrainingConfig):
+def start_rl_training(config: RLTrainingConfig, request: Request):
+    credit_hold = check_and_reserve_credits(request, "rl_train_background")
     try:
         proj = project_manager.get_current()
         if config.scenario_id:
@@ -2093,8 +2148,12 @@ def start_rl_training(config: RLTrainingConfig):
                 proj.objects = [o.model_copy(deep=True) for o in scen.environment]
                 proj.robot = scen.robot.model_copy(deep=True)
         status = training_manager.start_training(config, proj)
+        if credit_hold:
+            credit_service.commitCredits(credit_hold[1])
         return status
     except Exception as e:
+        if credit_hold:
+            credit_service.releaseCredits(credit_hold[1])
         logger.exception("Failed to start RL training: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -2180,43 +2239,67 @@ class LiveRoverTrainingRequest(BaseModel):
 
 
 @app.post("/api/rl/train-drone-live")
-async def train_drone_live_endpoint(req: LiveDroneTrainingRequest = LiveDroneTrainingRequest()):
+async def train_drone_live_endpoint(request: Request, req: LiveDroneTrainingRequest = LiveDroneTrainingRequest()):
     """Starts interactive visual Isaac Lab drone RL training directly in the active 3D simulation scene."""
-    res = training_manager.start_live_interactive_drone_training(
-        engine=engine,
-        drone_identifier=req.drone_identifier,
-        target_altitude=req.target_altitude,
-        total_episodes=req.total_episodes
-    )
-    await broadcast_json({"type": "project_updated", "data": engine.project.model_dump()})
-    return res
+    credit_hold = check_and_reserve_credits(request, "rl_train_live")
+    try:
+        res = training_manager.start_live_interactive_drone_training(
+            engine=engine,
+            drone_identifier=req.drone_identifier,
+            target_altitude=req.target_altitude,
+            total_episodes=req.total_episodes
+        )
+        await broadcast_json({"type": "project_updated", "data": engine.project.model_dump()})
+        if credit_hold:
+            credit_service.commitCredits(credit_hold[1])
+        return res
+    except Exception as e:
+        if credit_hold:
+            credit_service.releaseCredits(credit_hold[1])
+        raise
 
 
 @app.post("/api/rl/train-arm-live")
-async def train_arm_live_endpoint(req: LiveArmTrainingRequest = LiveArmTrainingRequest()):
+async def train_arm_live_endpoint(request: Request, req: LiveArmTrainingRequest = LiveArmTrainingRequest()):
     """Starts interactive visual Isaac Lab robotic arm pick-and-place training directly in the active 3D simulation scene."""
-    res = training_manager.start_live_interactive_arm_training(
-        engine=engine,
-        arm_identifier=req.arm_identifier,
-        total_episodes=req.total_episodes
-    )
-    await broadcast_json({"type": "project_updated", "data": engine.project.model_dump()})
-    return res
+    credit_hold = check_and_reserve_credits(request, "rl_train_live")
+    try:
+        res = training_manager.start_live_interactive_arm_training(
+            engine=engine,
+            arm_identifier=req.arm_identifier,
+            total_episodes=req.total_episodes
+        )
+        await broadcast_json({"type": "project_updated", "data": engine.project.model_dump()})
+        if credit_hold:
+            credit_service.commitCredits(credit_hold[1])
+        return res
+    except Exception as e:
+        if credit_hold:
+            credit_service.releaseCredits(credit_hold[1])
+        raise
 
 
 @app.post("/api/rl/train-rover-live")
-async def train_rover_live_endpoint(req: LiveRoverTrainingRequest = LiveRoverTrainingRequest()):
+async def train_rover_live_endpoint(request: Request, req: LiveRoverTrainingRequest = LiveRoverTrainingRequest()):
     """Starts interactive visual Isaac Lab ground rover navigation training directly in the active 3D simulation scene."""
-    res = training_manager.start_live_interactive_rover_training(
-        engine=engine,
-        robot_identifier=req.robot_identifier,
-        total_episodes=req.total_episodes,
-        task_description=req.task_description,
-        reward_code=req.reward_code,
-        domain_randomize=req.domain_randomize,
-    )
-    await broadcast_json({"type": "project_updated", "data": engine.project.model_dump()})
-    return res
+    credit_hold = check_and_reserve_credits(request, "rl_train_live")
+    try:
+        res = training_manager.start_live_interactive_rover_training(
+            engine=engine,
+            robot_identifier=req.robot_identifier,
+            total_episodes=req.total_episodes,
+            task_description=req.task_description,
+            reward_code=req.reward_code,
+            domain_randomize=req.domain_randomize,
+        )
+        await broadcast_json({"type": "project_updated", "data": engine.project.model_dump()})
+        if credit_hold:
+            credit_service.commitCredits(credit_hold[1])
+        return res
+    except Exception as e:
+        if credit_hold:
+            credit_service.releaseCredits(credit_hold[1])
+        raise
 
 
 
@@ -2493,18 +2576,24 @@ def get_ai_models():
 
 
 @app.post("/api/ai/interpret-prompt")
-def interpret_experiment_prompt(req: AIAssistantPromptRequest):
+def interpret_experiment_prompt(req: AIAssistantPromptRequest, request: Request):
+    credit_hold = check_and_reserve_credits(request, "ai_interpret_prompt")
     try:
         res = AIExperimentAssistant.process_prompt(req.prompt, req.base_scenario_id)
+        if credit_hold:
+            credit_service.commitCredits(credit_hold[1])
         return res
     except Exception as e:
+        if credit_hold:
+            credit_service.releaseCredits(credit_hold[1])
         logger.exception("AI assistant interpretation error: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/api/ai/chat", response_model=AIChatResponse)
-async def ai_conversational_chat(req: AIChatRequest):
+async def ai_conversational_chat(req: AIChatRequest, request: Request):
     """Executes a telemetry-grounded conversational agent loop supporting supervised & autonomous modes, with multi-turn memory."""
+    credit_hold = check_and_reserve_credits(request, "ai_chat")
     try:
         session_id = req.session_id or "default_session"
         # If frontend didn't supply chat_history, load from persistent memory
@@ -2532,8 +2621,16 @@ async def ai_conversational_chat(req: AIChatRequest):
             response_data=res.model_dump(),
             actions_executed=res.actions_executed
         )
+        if credit_hold:
+            credit_service.commitCredits(credit_hold[1])
         return res
+    except HTTPException:
+        if credit_hold:
+            credit_service.releaseCredits(credit_hold[1])
+        raise
     except Exception as e:
+        if credit_hold:
+            credit_service.releaseCredits(credit_hold[1])
         logger.exception("AI chat reasoning error: %s", e)
         # Never surface a raw 500 to the chat UI. Degrade to a graceful assistant message so the
         # conversation keeps working even if one reasoning path hit an unexpected error.
@@ -2636,12 +2733,17 @@ async def apply_ai_configuration(request: Request):
 
 
 @app.post("/api/ai/refine-hypothesis")
-def refine_hypothesis(req: HypothesisRefinementRequest):
+def refine_hypothesis(req: HypothesisRefinementRequest, request: Request):
+    credit_hold = check_and_reserve_credits(request, "ai_refine_hypothesis")
     try:
         scen_id = req.scenario_id or ""
         res = HypothesisRefinementEngine.analyze_and_refine(scen_id, req.focus_metric)
+        if credit_hold:
+            credit_service.commitCredits(credit_hold[1])
         return res
     except Exception as e:
+        if credit_hold:
+            credit_service.releaseCredits(credit_hold[1])
         logger.exception("Hypothesis refinement error: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -3159,16 +3261,6 @@ def _decode_jwt_unverified(token: str) -> Dict[str, Any]:
     except Exception as e:
         logger.warning("Failed to decode JWT unverified: %s", e)
         return {}
-
-
-def _extract_token_from_request(req: Request, authorization: Optional[str] = None) -> Optional[str]:
-    """Extracts bearer token from Authorization header or cookie or query param."""
-    if authorization and authorization.startswith("Bearer "):
-        return authorization[7:].strip()
-    auth_header = req.headers.get("Authorization")
-    if auth_header and auth_header.startswith("Bearer "):
-        return auth_header[7:].strip()
-    return req.cookies.get("roboforge_token") or req.query_params.get("token")
 
 
 @app.post("/api/auth/register")

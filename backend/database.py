@@ -13,7 +13,7 @@ from typing import Optional, Dict, Any
 
 logger = logging.getLogger("roboforge.db")
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "roboforge.db")
+DB_PATH = os.environ.get("ROBOFORGE_DB_PATH", os.path.join(os.path.dirname(__file__), "roboforge.db"))
 
 
 def get_db():
@@ -48,6 +48,11 @@ def init_db():
         """)
         conn.commit()
     logger.info("RoboForge database initialized at %s", DB_PATH)
+    try:
+        from backend.billing.db import init_billing_db
+        init_billing_db()
+    except Exception as e:
+        logger.warning("Billing tables initialization error: %s", e)
 
 
 def hash_password(password: str) -> str:
