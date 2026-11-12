@@ -2107,24 +2107,24 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
         style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 0 }}
       />
 
-      {/* Transform Gizmo Selector Bar */}
+      {/* Transform Gizmo Selector Bar (Positioned cleanly below top toolbar to avoid overlap) */}
       {selectedObjectId && (
         <div style={{
           position: 'absolute',
-          top: 12,
+          top: 50,
           left: '50%',
           transform: 'translateX(-50%)',
           display: 'flex',
           alignItems: 'center',
           gap: 6,
-          backgroundColor: 'rgba(20, 22, 28, 0.92)',
-          backdropFilter: 'blur(8px)',
-          border: '1px solid var(--border-subtle)',
+          backgroundColor: 'rgba(20, 22, 28, 0.95)',
+          backdropFilter: 'blur(12px)',
+          border: '1px solid rgba(196, 71, 45, 0.45)',
           borderRadius: 8,
-          padding: '6px 12px',
-          zIndex: 10,
-          boxShadow: '0 8px 24px rgba(0,0,0,0.6)',
-          fontSize: 12
+          padding: '5px 12px',
+          zIndex: 15,
+          boxShadow: '0 8px 24px rgba(0,0,0,0.6), 0 0 14px rgba(196, 71, 45, 0.15)',
+          fontSize: 11.5
         }}>
           <span style={{ fontWeight: 600, color: selectedObjectId === 'target' ? 'var(--accent-green)' : 'var(--accent-orange)', display: 'flex', alignItems: 'center', gap: 5 }}>
             <span>{selectedObjectId === 'target' ? 'Target Waypoint' : 'Object'}:</span>
@@ -2248,313 +2248,366 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
         </div>
       )}
 
-      {/* Viewport Center CAD HUD: Camera Presets & Display Overlays */}
+      {/* Viewport Top Command Header (Unified Non-Overlapping Layout) */}
       <div
-        className="rf-glass-hud"
         style={{
           position: 'absolute',
-          top: 12,
-          left: '50%',
-          transform: 'translateX(-50%)',
+          top: 10,
+          left: 12,
+          right: 12,
           display: 'flex',
           alignItems: 'center',
-          gap: 6,
-          padding: '4px 8px',
-          borderRadius: 100,
-          background: 'rgba(23, 25, 28, 0.88)',
-          backdropFilter: 'blur(20px)',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.45)',
+          justifyContent: 'space-between',
+          pointerEvents: 'none',
           zIndex: 10,
+          gap: 8,
         }}
       >
-        {/* Camera Views Preset */}
-        <div className="rf-segmented" style={{ padding: 2, gap: 1 }}>
-          <button
-            className="rf-segmented-item"
-            style={{ padding: '3px 8px', fontSize: 10.5 }}
-            onClick={() => setCameraPreset('top')}
-            title="Top-Down Camera (Z axis)"
-          >
-            Top
-          </button>
-          <button
-            className="rf-segmented-item"
-            style={{ padding: '3px 8px', fontSize: 10.5 }}
-            onClick={() => setCameraPreset('front')}
-            title="Front Camera (X axis)"
-          >
-            Front
-          </button>
-          <button
-            className="rf-segmented-item"
-            style={{ padding: '3px 8px', fontSize: 10.5 }}
-            onClick={() => setCameraPreset('side')}
-            title="Side Camera (Y axis)"
-          >
-            Side
-          </button>
-          <button
-            className="rf-segmented-item"
-            style={{ padding: '3px 8px', fontSize: 10.5 }}
-            onClick={() => setCameraPreset('iso')}
-            title="3D Orbit Perspective"
-          >
-            3D
-          </button>
-        </div>
-
-        <div style={{ height: 14, width: 1, backgroundColor: 'rgba(255, 255, 255, 0.08)', margin: '0 2px' }} />
-
-        {/* Camera Follow Toggle */}
-        <button
-          className={`rf-segmented-item ${followRobot ? 'active' : ''}`}
-          style={{
-            padding: '3px 9px',
-            fontSize: 10.5,
-            borderRadius: 100,
-            color: followRobot ? '#FFFFFF' : 'var(--text-secondary)',
-            backgroundColor: followRobot ? '#C4472D' : 'transparent',
-            boxShadow: followRobot ? '0 2px 10px rgba(196, 71, 45, 0.4)' : 'none',
-          }}
-          title="Keep Camera Locked onto Robot (Toggle Follow)"
-          onClick={(e) => {
-            e.stopPropagation();
-            setFollowRobot(!followRobot);
-          }}
-        >
-          <Crosshair size={12} color={followRobot ? '#FFFFFF' : 'currentColor'} />
-          <span>Follow: {followRobot ? 'ON' : 'OFF'}</span>
-        </button>
-
-        {/* Focus on Robot */}
-        <button
-          className="rf-segmented-item"
-          style={{ padding: '3px 7px', borderRadius: 100 }}
-          title="Focus Camera on Robot"
-          onClick={(e) => {
-            e.stopPropagation();
-            focusOnRobot();
-          }}
-        >
-          <Camera size={12} />
-        </button>
-
-        <div style={{ height: 14, width: 1, backgroundColor: 'rgba(255, 255, 255, 0.08)', margin: '0 2px' }} />
-
-        {/* 3D Trajectory Ribbon & Speed Heatmap */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <button
-            className={`rf-segmented-item ${showTrajectoryTrail ? 'active' : ''}`}
-            style={{
-              padding: '3px 8px',
-              fontSize: 10.5,
-              borderRadius: 100,
-              color: showTrajectoryTrail ? '#FFFFFF' : 'var(--text-secondary)',
-              backgroundColor: showTrajectoryTrail ? '#C4472D' : 'transparent',
-              boxShadow: showTrajectoryTrail ? '0 2px 10px rgba(196, 71, 45, 0.4)' : 'none',
-            }}
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowTrajectoryTrail(!showTrajectoryTrail);
-            }}
-            title="Toggle Dynamic 3D Trajectory Ribbon & Speed Heatmap"
-          >
-            <Route size={12} color={showTrajectoryTrail ? '#FFFFFF' : 'currentColor'} />
-            <span>Trail</span>
-          </button>
-          <button
-            className="rf-segmented-item"
-            style={{ padding: '3px 6px', opacity: 0.65, borderRadius: 100 }}
-            onClick={(e) => {
-              e.stopPropagation();
-              trailHistoryRef.current = [];
-              if (trailMeshRef.current) trailMeshRef.current.visible = false;
-              if (horizonMeshRef.current) horizonMeshRef.current.visible = false;
-            }}
-            title="Clear Trajectory Trail History"
-          >
-            <Trash2 size={11} />
-          </button>
-        </div>
-      </div>
-
-      {/* Viewport Top Right HUD: Autonomous Navigation & RL Curriculum Suite */}
-      <div
-        className="rf-glass-hud"
-        style={{
-          position: 'absolute',
-          top: 12,
-          right: 14,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 6,
-          padding: '4px 10px',
-          borderRadius: 100,
-          background: 'rgba(23, 25, 28, 0.88)',
-          backdropFilter: 'blur(20px)',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.45)',
-          zIndex: 10,
-        }}
-      >
-        {/* Auto-Drive Autonomous Navigation Toggle */}
-        <button
-          className="rf-segmented-item"
-          style={{
-            fontSize: 11,
-            fontWeight: 600,
-            padding: '3px 10px',
-            borderRadius: 100,
-            color: autoDriveEnabled ? '#34D399' : 'var(--text-secondary)',
-            background: autoDriveEnabled ? 'rgba(52, 211, 153, 0.12)' : 'transparent',
-            borderColor: autoDriveEnabled ? 'rgba(52, 211, 153, 0.3)' : 'transparent',
-          }}
-          title="Toggle Autonomous Waypoint Navigation (Robot navigates to target)"
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggleAutoDrive?.();
-          }}
-        >
-          <span
-            style={{
-              width: 6,
-              height: 6,
-              borderRadius: '50%',
-              backgroundColor: autoDriveEnabled ? '#34D399' : 'var(--text-muted)',
-              boxShadow: autoDriveEnabled ? '0 0 8px rgba(52, 211, 153, 0.6)' : 'none',
-            }}
-          />
-          <Zap size={12} color={autoDriveEnabled ? '#34D399' : 'currentColor'} />
-          <span>Auto-Drive</span>
-        </button>
-
-        <div style={{ height: 14, width: 1, backgroundColor: 'rgba(255, 255, 255, 0.08)' }} />
-
-        {/* Active RL Policy Live Badge */}
-        {simState?.rl_policy_active && (
+        {/* Left: Compact Robot Telemetry HUD */}
+        {project?.robot_active !== false ? (
           <div
+            className="rf-glass-hud"
             style={{
+              backgroundColor: 'rgba(23, 25, 28, 0.90)',
+              backdropFilter: 'blur(16px)',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              borderRadius: 10,
+              padding: '4px 10px',
               display: 'flex',
               alignItems: 'center',
-              gap: 5,
-              fontSize: 10.5,
-              padding: '2px 8px',
-              borderRadius: 100,
-              background: 'rgba(196, 71, 45, 0.15)',
-              border: '1px solid rgba(196, 71, 45, 0.35)',
-              color: '#F1EEE7',
-              fontWeight: 600,
+              gap: 8,
+              pointerEvents: 'auto',
+              fontSize: 10,
+              fontFamily: 'var(--font-mono)',
+              boxShadow: '0 4px 16px rgba(0, 0, 0, 0.4)',
+              flexShrink: 0,
             }}
-            title={`Active Neural Network Policy: ${simState.active_rl_policy_name || 'Policy Active'}`}
           >
-            <Cpu size={12} color="#C4472D" />
-            <span>{simState.active_rl_policy_name || 'Policy Active'}</span>
-            <button
-              onClick={handleStopRl}
-              disabled={stoppingRl}
-              title="Disengage active RL policy"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 2,
-                marginLeft: 3,
-                padding: '1px 5px',
-                fontSize: 9.5,
-                fontWeight: 600,
-                color: '#ef4444',
-                background: 'rgba(239, 68, 68, 0.15)',
-                border: '1px solid rgba(239, 68, 68, 0.3)',
-                borderRadius: 3,
-                cursor: stoppingRl ? 'default' : 'pointer',
-              }}
-            >
-              <Square size={8} fill="#ef4444" />
-              <span>{stoppingRl ? '…' : 'Stop'}</span>
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#C4472D', fontWeight: 700 }}>
+              <Compass size={11} color="#C4472D" />
+              <span style={{ fontSize: 9.5, letterSpacing: '0.06em' }}>TELEMETRY</span>
+            </div>
+            <div style={{ width: 1, height: 12, backgroundColor: 'rgba(255,255,255,0.08)' }} />
+            <div style={{ display: 'flex', gap: 6, color: '#F1EEE7' }}>
+              <span>X:{rPose?.position ? rPose.position[0].toFixed(2) : '0.00'}</span>
+              <span>Y:{rPose?.position ? rPose.position[1].toFixed(2) : '0.00'}</span>
+              <span>Z:{rPose?.position ? rPose.position[2].toFixed(2) : '0.00'}</span>
+            </div>
+            <div style={{ width: 1, height: 12, backgroundColor: 'rgba(255,255,255,0.08)' }} />
+            <div style={{ display: 'flex', gap: 6, color: '#9E9C96' }}>
+              <span>{rPose?.linear_speed !== undefined ? rPose.linear_speed.toFixed(2) : '0.00'}m/s</span>
+            </div>
+            {simState.contacts && simState.contacts.length > 0 && (
+              <span style={{ color: '#FB7185', fontWeight: 700 }}>
+                ⚠️ {simState.contacts.length}
+              </span>
+            )}
           </div>
-        )}
+        ) : <div />}
 
-        {/* Isaac Lab RL Training Curriculum Hub */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-          {simState?.rl_training_active && (
-            <button
-              className="rf-btn rf-btn-danger"
-              onClick={async (e) => {
-                e.stopPropagation();
-                await handleStopRl();
-              }}
-              disabled={stoppingRl}
-              title="Stop the live RL training run"
-              style={{
-                fontSize: 10.5,
-                padding: '2px 8px',
-                fontWeight: 600,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 4,
-              }}
-            >
-              <Square size={10} fill="currentColor" />
-              <span>{stoppingRl ? 'Stopping…' : 'Stop Training'}</span>
-            </button>
-          )}
-
+        {/* Center: Camera Presets & Display Overlays */}
+        <div
+          className="rf-glass-hud"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 5,
+            padding: '3px 7px',
+            borderRadius: 100,
+            background: 'rgba(23, 25, 28, 0.90)',
+            backdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.45)',
+            pointerEvents: 'auto',
+            flexShrink: 0,
+          }}
+        >
+          {/* Camera Views Preset */}
           <div className="rf-segmented" style={{ padding: 1, gap: 1 }}>
             <button
               className="rf-segmented-item"
+              style={{ padding: '2px 7px', fontSize: 10 }}
+              onClick={() => setCameraPreset('top')}
+              title="Top-Down Camera (Z axis)"
+            >
+              Top
+            </button>
+            <button
+              className="rf-segmented-item"
+              style={{ padding: '2px 7px', fontSize: 10 }}
+              onClick={() => setCameraPreset('front')}
+              title="Front Camera (X axis)"
+            >
+              Front
+            </button>
+            <button
+              className="rf-segmented-item"
+              style={{ padding: '2px 7px', fontSize: 10 }}
+              onClick={() => setCameraPreset('side')}
+              title="Side Camera (Y axis)"
+            >
+              Side
+            </button>
+            <button
+              className="rf-segmented-item"
+              style={{ padding: '2px 7px', fontSize: 10 }}
+              onClick={() => setCameraPreset('iso')}
+              title="3D Orbit Perspective"
+            >
+              3D
+            </button>
+          </div>
+
+          <div style={{ height: 12, width: 1, backgroundColor: 'rgba(255, 255, 255, 0.08)', margin: '0 1px' }} />
+
+          {/* Camera Follow Toggle */}
+          <button
+            className={`rf-segmented-item ${followRobot ? 'active' : ''}`}
+            style={{
+              padding: '2px 8px',
+              fontSize: 10,
+              borderRadius: 100,
+              color: followRobot ? '#FFFFFF' : 'var(--text-secondary)',
+              backgroundColor: followRobot ? '#C4472D' : 'transparent',
+              boxShadow: followRobot ? '0 2px 10px rgba(196, 71, 45, 0.4)' : 'none',
+            }}
+            title="Keep Camera Locked onto Robot (Toggle Follow)"
+            onClick={(e) => {
+              e.stopPropagation();
+              setFollowRobot(!followRobot);
+            }}
+          >
+            <Crosshair size={11} color={followRobot ? '#FFFFFF' : 'currentColor'} />
+            <span>Follow: {followRobot ? 'ON' : 'OFF'}</span>
+          </button>
+
+          {/* Focus on Robot */}
+          <button
+            className="rf-segmented-item"
+            style={{ padding: '2px 6px', borderRadius: 100 }}
+            title="Focus Camera on Robot"
+            onClick={(e) => {
+              e.stopPropagation();
+              focusOnRobot();
+            }}
+          >
+            <Camera size={11} />
+          </button>
+
+          <div style={{ height: 12, width: 1, backgroundColor: 'rgba(255, 255, 255, 0.08)', margin: '0 1px' }} />
+
+          {/* 3D Trajectory Ribbon & Speed Heatmap */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <button
+              className={`rf-segmented-item ${showTrajectoryTrail ? 'active' : ''}`}
               style={{
-                fontSize: 10.5,
                 padding: '2px 7px',
-                color: simState?.rl_training_active ? '#fca5a5' : undefined,
+                fontSize: 10,
+                borderRadius: 100,
+                color: showTrajectoryTrail ? '#FFFFFF' : 'var(--text-secondary)',
+                backgroundColor: showTrajectoryTrail ? '#C4472D' : 'transparent',
+                boxShadow: showTrajectoryTrail ? '0 2px 10px rgba(196, 71, 45, 0.4)' : 'none',
               }}
-              onClick={async (e) => {
+              onClick={(e) => {
                 e.stopPropagation();
-                try {
-                  await trainDroneLive(4);
-                } catch (err) {
-                  console.error('Failed to trigger live drone training:', err);
-                }
+                setShowTrajectoryTrail(!showTrajectoryTrail);
               }}
-              title="Train Drone Hover in 3D (Isaac Lab curriculum)"
+              title="Toggle Dynamic 3D Trajectory Ribbon & Speed Heatmap"
             >
-              <Plane size={11} color={simState?.rl_training_active ? '#fca5a5' : '#38bdf8'} />
-              <span>Drone RL</span>
+              <Route size={11} color={showTrajectoryTrail ? '#FFFFFF' : 'currentColor'} />
+              <span>Trail</span>
             </button>
-
             <button
               className="rf-segmented-item"
-              style={{ fontSize: 10.5, padding: '2px 7px' }}
-              onClick={async (e) => {
+              style={{ padding: '2px 5px', opacity: 0.65, borderRadius: 100 }}
+              onClick={(e) => {
                 e.stopPropagation();
-                try {
-                  await trainArmLive(4);
-                } catch (err) {
-                  console.error('Failed to trigger live arm training:', err);
-                }
+                trailHistoryRef.current = [];
+                if (trailMeshRef.current) trailMeshRef.current.visible = false;
+                if (horizonMeshRef.current) horizonMeshRef.current.visible = false;
               }}
-              title="Train Robotic Arm Pick & Place in 3D (Isaac Lab curriculum)"
+              title="Clear Trajectory Trail History"
             >
-              <GitFork size={11} color="#c084fc" />
-              <span>Arm RL</span>
+              <Trash2 size={10} />
             </button>
+          </div>
+        </div>
 
-            <button
-              className="rf-segmented-item"
-              style={{ fontSize: 10.5, padding: '2px 7px' }}
-              onClick={async (e) => {
-                e.stopPropagation();
-                try {
-                  await trainRoverLive(4);
-                } catch (err) {
-                  console.error('Failed to trigger live rover training:', err);
-                }
+        {/* Right: Autonomous Navigation & RL Curriculum Suite */}
+        <div
+          className="rf-glass-hud"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 5,
+            padding: '3px 8px',
+            borderRadius: 100,
+            background: 'rgba(23, 25, 28, 0.90)',
+            backdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.45)',
+            pointerEvents: 'auto',
+            flexShrink: 0,
+          }}
+        >
+          {/* Auto-Drive Autonomous Navigation Toggle */}
+          <button
+            className="rf-segmented-item"
+            style={{
+              fontSize: 10,
+              fontWeight: 600,
+              padding: '2px 8px',
+              borderRadius: 100,
+              color: autoDriveEnabled ? '#34D399' : 'var(--text-secondary)',
+              background: autoDriveEnabled ? 'rgba(52, 211, 153, 0.12)' : 'transparent',
+              borderColor: autoDriveEnabled ? 'rgba(52, 211, 153, 0.3)' : 'transparent',
+            }}
+            title="Toggle Autonomous Waypoint Navigation (Robot navigates to target)"
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleAutoDrive?.();
+            }}
+          >
+            <span
+              style={{
+                width: 5,
+                height: 5,
+                borderRadius: '50%',
+                backgroundColor: autoDriveEnabled ? '#34D399' : 'var(--text-muted)',
+                boxShadow: autoDriveEnabled ? '0 0 6px rgba(52, 211, 153, 0.6)' : 'none',
               }}
-              title="Train Ground Rover Navigation in 3D (LiDAR avoidance curriculum)"
+            />
+            <Zap size={11} color={autoDriveEnabled ? '#34D399' : 'currentColor'} />
+            <span>Auto-Drive</span>
+          </button>
+
+          <div style={{ height: 12, width: 1, backgroundColor: 'rgba(255, 255, 255, 0.08)' }} />
+
+          {/* Active RL Policy Live Badge */}
+          {simState?.rl_policy_active && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+                fontSize: 10,
+                padding: '2px 7px',
+                borderRadius: 100,
+                background: 'rgba(196, 71, 45, 0.15)',
+                border: '1px solid rgba(196, 71, 45, 0.35)',
+                color: '#F1EEE7',
+                fontWeight: 600,
+              }}
+              title={`Active Neural Network Policy: ${simState.active_rl_policy_name || 'Policy Active'}`}
             >
-              <Car size={11} color="#4ade80" />
-              <span>Rover RL</span>
-            </button>
+              <Cpu size={11} color="#C4472D" />
+              <span>{simState.active_rl_policy_name || 'Policy Active'}</span>
+              <button
+                onClick={handleStopRl}
+                disabled={stoppingRl}
+                title="Disengage active RL policy"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 2,
+                  marginLeft: 2,
+                  padding: '1px 4px',
+                  fontSize: 9,
+                  fontWeight: 600,
+                  color: '#ef4444',
+                  background: 'rgba(239, 68, 68, 0.15)',
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  borderRadius: 3,
+                  cursor: stoppingRl ? 'default' : 'pointer',
+                }}
+              >
+                <Square size={8} fill="#ef4444" />
+                <span>{stoppingRl ? '…' : 'Stop'}</span>
+              </button>
+            </div>
+          )}
+
+          {/* Isaac Lab RL Training Curriculum Hub */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            {simState?.rl_training_active && (
+              <button
+                className="rf-btn rf-btn-danger"
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  await handleStopRl();
+                }}
+                disabled={stoppingRl}
+                title="Stop the live RL training run"
+                style={{
+                  fontSize: 10,
+                  padding: '2px 6px',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 3,
+                }}
+              >
+                <Square size={9} fill="currentColor" />
+                <span>{stoppingRl ? 'Stopping…' : 'Stop'}</span>
+              </button>
+            )}
+
+            <div className="rf-segmented" style={{ padding: 1, gap: 1 }}>
+              <button
+                className="rf-segmented-item"
+                style={{
+                  fontSize: 10,
+                  padding: '2px 6px',
+                  color: simState?.rl_training_active ? '#fca5a5' : undefined,
+                }}
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  try {
+                    await trainDroneLive(4);
+                  } catch (err) {
+                    console.error('Failed to trigger live drone training:', err);
+                  }
+                }}
+                title="Train Drone Hover in 3D (Isaac Lab curriculum)"
+              >
+                <Plane size={10} color={simState?.rl_training_active ? '#fca5a5' : '#38bdf8'} />
+                <span>Drone RL</span>
+              </button>
+
+              <button
+                className="rf-segmented-item"
+                style={{ fontSize: 10, padding: '2px 6px' }}
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  try {
+                    await trainArmLive(4);
+                  } catch (err) {
+                    console.error('Failed to trigger live arm training:', err);
+                  }
+                }}
+                title="Train Robotic Arm Pick & Place in 3D (Isaac Lab curriculum)"
+              >
+                <GitFork size={10} color="#c084fc" />
+                <span>Arm RL</span>
+              </button>
+
+              <button
+                className="rf-segmented-item"
+                style={{ fontSize: 10, padding: '2px 6px' }}
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  try {
+                    await trainRoverLive(4);
+                  } catch (err) {
+                    console.error('Failed to trigger live rover training:', err);
+                  }
+                }}
+                title="Train Ground Rover Navigation in 3D (LiDAR avoidance curriculum)"
+              >
+                <Car size={10} color="#4ade80" />
+                <span>Rover RL</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -2701,7 +2754,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
         <div
           style={{
             position: 'absolute',
-            top: 56,
+            top: selectedObjectId ? 96 : 50,
             left: '50%',
             transform: 'translateX(-50%)',
             zIndex: 20,
@@ -2785,47 +2838,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
         </div>
       )}
 
-      {/* Real-time Telemetry HUD (Top Left) */}
-      {project?.robot_active !== false && (
-      <div
-        style={{
-          position: 'absolute',
-          top: 14,
-          left: 14,
-          backgroundColor: 'rgba(23, 25, 28, 0.88)',
-          backdropFilter: 'blur(16px)',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-          borderRadius: 12,
-          padding: '10px 16px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 6,
-          pointerEvents: 'none',
-          fontSize: 11,
-          fontFamily: 'var(--font-mono)',
-          boxShadow: '0 8px 24px rgba(0, 0, 0, 0.45)'
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 7, color: 'var(--text-secondary)' }}>
-          <Compass size={12} color="#C4472D" />
-          <span style={{ fontWeight: 700, letterSpacing: '0.08em', fontSize: 10, color: '#F1EEE7' }}>ROBOT TELEMETRY</span>
-        </div>
-        <div style={{ display: 'flex', gap: 14, color: '#F1EEE7' }}>
-          <span>X: {rPose?.position ? rPose.position[0].toFixed(3) : '0.000'}m</span>
-          <span>Y: {rPose?.position ? rPose.position[1].toFixed(3) : '0.000'}m</span>
-          <span>Z: {rPose?.position ? rPose.position[2].toFixed(3) : '0.000'}m</span>
-        </div>
-        <div style={{ display: 'flex', gap: 14, color: 'var(--text-secondary)' }}>
-          <span>Speed: {rPose?.linear_speed !== undefined ? rPose.linear_speed.toFixed(2) : '0.00'} m/s</span>
-          <span>Turn: {rPose?.angular_speed !== undefined ? rPose.angular_speed.toFixed(2) : '0.00'} rad/s</span>
-        </div>
-        {simState.contacts && simState.contacts.length > 0 && (
-          <div style={{ color: '#FB7185', fontWeight: 600 }}>
-            Contacts: {simState.contacts.length}
-          </div>
-        )}
-      </div>
-      )}
+
 
       {/* Picture-in-Picture Robot Eye Vision Camera Feed HUD (Bottom Right) */}
       {isCameraEnabled && (
@@ -3006,121 +3019,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
         />
       )}
 
-      {/* Isaac Lab Live RL Training HUD (Center-Top Viewport Overlay) */}
-      {(simState?.rl_training_active || (simState?.rl_training_status && simState.rl_training_status.includes('PPO') && !simState.rl_training_status.includes('RESET'))) && (
-        <div
-          style={{
-            position: 'absolute',
-            top: 52,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 7,
-            backgroundColor: 'rgba(15, 17, 23, 0.94)',
-            backdropFilter: 'blur(10px)',
-            border: simState?.rl_training_active ? '1px solid rgba(56, 189, 248, 0.6)' : '1px solid rgba(34, 197, 94, 0.6)',
-            borderRadius: 10,
-            padding: '10px 16px',
-            zIndex: 10,
-            boxShadow: simState?.rl_training_active
-              ? '0 0 20px rgba(56, 189, 248, 0.35), 0 8px 32px rgba(0,0,0,0.6)'
-              : '0 0 20px rgba(34, 197, 94, 0.35), 0 8px 32px rgba(0,0,0,0.6)',
-            minWidth: 420,
-            maxWidth: 620,
-            pointerEvents: 'none',
-          }}
-        >
-          {/* Header Row */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: 6 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-              <div
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: '50%',
-                  backgroundColor: simState?.rl_training_active ? '#38bdf8' : '#22c55e',
-                  boxShadow: simState?.rl_training_active ? '0 0 8px #38bdf8' : '0 0 8px #22c55e',
-                }}
-              />
-              <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.8px', color: '#f8fafc', textTransform: 'uppercase' }}>
-                ⚡ ISAAC LAB — LIVE PPO TRAINING
-              </span>
-            </div>
-            <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
-              {simState?.rl_training_model_name || 'PPO-Quadcopter'}
-            </span>
-          </div>
 
-          {/* Episode, Step, Reward Stats */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, fontSize: 11, fontFamily: 'var(--font-mono)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#38bdf8' }}>
-              <span style={{ color: 'var(--text-muted)' }}>EPISODE:</span>
-              <span style={{ fontWeight: 700 }}>
-                {simState?.rl_training_episode || 0} / {simState?.rl_training_total_episodes || 4}
-              </span>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--text-secondary)' }}>
-              <span style={{ color: 'var(--text-muted)' }}>STEP:</span>
-              <span style={{ fontWeight: 600 }}>{simState?.rl_training_step || 0}</span>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span style={{ color: 'var(--text-muted)' }}>REWARD:</span>
-              <span
-                style={{
-                  fontWeight: 700,
-                  color: (simState?.rl_training_reward || 0) >= 0 ? '#4ade80' : '#f87171'
-                }}
-              >
-                {(simState?.rl_training_reward || 0) > 0 ? '+' : ''}
-                {(simState?.rl_training_reward || 0).toFixed(1)}
-              </span>
-            </div>
-          </div>
-
-          {/* Dynamic Status Banner */}
-          <div
-            style={{
-              padding: '6px 10px',
-              borderRadius: 6,
-              fontSize: 11,
-              fontWeight: 600,
-              backgroundColor: (simState?.rl_training_status?.includes('CRASH') || simState?.rl_training_status?.includes('FAIL'))
-                ? 'rgba(239, 68, 68, 0.25)'
-                : (simState?.rl_training_status?.includes('CONVERGED') || simState?.rl_training_status?.includes('SAVED') || simState?.rl_training_status?.includes('DEPLOYED'))
-                ? 'rgba(34, 197, 94, 0.25)'
-                : 'rgba(56, 189, 248, 0.15)',
-              border: (simState?.rl_training_status?.includes('CRASH') || simState?.rl_training_status?.includes('FAIL'))
-                ? '1px solid rgba(239, 68, 68, 0.5)'
-                : (simState?.rl_training_status?.includes('CONVERGED') || simState?.rl_training_status?.includes('SAVED') || simState?.rl_training_status?.includes('DEPLOYED'))
-                ? '1px solid rgba(34, 197, 94, 0.5)'
-                : '1px solid rgba(56, 189, 248, 0.3)',
-              color: (simState?.rl_training_status?.includes('CRASH') || simState?.rl_training_status?.includes('FAIL'))
-                ? '#fca5a5'
-                : (simState?.rl_training_status?.includes('CONVERGED') || simState?.rl_training_status?.includes('SAVED') || simState?.rl_training_status?.includes('DEPLOYED'))
-                ? '#86efac'
-                : '#bae6fd',
-              textAlign: 'center'
-            }}
-          >
-            {simState?.rl_training_status || 'Autonomous Policy Optimization Active'}
-          </div>
-
-          {/* Episode Progress Bar */}
-          <div style={{ width: '100%', height: 4, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 2, overflow: 'hidden' }}>
-            <div
-              style={{
-                height: '100%',
-                width: `${Math.min(100, Math.max(5, ((simState?.rl_training_episode || 0) / (simState?.rl_training_total_episodes || 4)) * 100))}%`,
-                backgroundColor: simState?.rl_training_active ? '#38bdf8' : '#22c55e',
-                transition: 'width 0.3s ease-out'
-              }}
-            />
-          </div>
-        </div>
-      )}
     </div>
   );
 };
