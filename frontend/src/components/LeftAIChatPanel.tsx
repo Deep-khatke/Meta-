@@ -146,152 +146,103 @@ export const LeftAIChatPanel: React.FC<LeftAIChatPanelProps> = ({
         </button>
       </div>
 
-      {/* ── Real-Time Credit Usage & Plan Upgrade Card ── */}
+      {/* ── Compact Real-Time Credit Usage & Plan Upgrade Strip ── */}
       <div
         style={{
-          padding: '12px 14px',
-          background: 'rgba(255, 255, 255, 0.02)',
+          padding: '6px 10px',
+          background: 'rgba(23, 25, 28, 0.95)',
           borderBottom: '1px solid var(--border-subtle)',
+          flexShrink: 0,
         }}
       >
         <div
           style={{
-            background: 'rgba(23, 25, 28, 0.95)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            borderRadius: 12,
-            padding: '12px 14px',
-            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.35)',
+            background: 'rgba(255, 255, 255, 0.02)',
+            border: '1px solid rgba(255, 255, 255, 0.06)',
+            borderRadius: 8,
+            padding: '5px 9px',
             display: 'flex',
-            flexDirection: 'column',
-            gap: 10,
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 8,
           }}
         >
-          {/* Plan badge & status */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <div
-                style={{
-                  width: 20,
-                  height: 20,
-                  borderRadius: 6,
-                  backgroundColor: 'rgba(196, 71, 45, 0.16)',
-                  border: '1px solid rgba(196, 71, 45, 0.35)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Zap size={11} color="#C4472D" />
-              </div>
-              <span
-                style={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  fontFamily: 'var(--font-mono)',
-                  letterSpacing: '0.06em',
-                  color: '#F1EEE7',
-                }}
-              >
-                {planName.toUpperCase()}
-              </span>
+          {/* Left: Plan & Credits Left */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+            <div
+              style={{
+                width: 18,
+                height: 18,
+                borderRadius: 5,
+                backgroundColor: 'rgba(196, 71, 45, 0.16)',
+                border: '1px solid rgba(196, 71, 45, 0.35)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <Zap size={10} color="#C4472D" />
             </div>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 5 }}>
+                <span style={{ fontSize: 13, fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#F1EEE7' }}>
+                  {availableCredits.toLocaleString()}
+                </span>
+                <span style={{ fontSize: 9.5, color: '#9E9C96' }}>CR left</span>
+                <span style={{ fontSize: 8.5, color: '#6B6964', fontFamily: 'var(--font-mono)' }}>
+                  ({usedCredits}/{totalCredits} used)
+                </span>
+              </div>
+              {/* Micro progress line */}
+              <div style={{ width: 110, height: 2.5, borderRadius: 10, background: 'rgba(255,255,255,0.06)', overflow: 'hidden', marginTop: 2 }}>
+                <div style={{ width: `${percentUsed}%`, height: '100%', background: percentUsed > 85 ? '#FB7185' : '#C4472D' }} />
+              </div>
+            </div>
+          </div>
 
+          {/* Right: Plan badge + Compact Upgrade Pill Button */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span
               style={{
-                fontSize: 9.5,
+                fontSize: 8.5,
                 fontWeight: 700,
-                padding: '2px 8px',
+                padding: '2px 6px',
                 borderRadius: 100,
                 fontFamily: 'var(--font-mono)',
-                backgroundColor: isPaid ? 'rgba(52, 211, 153, 0.15)' : 'rgba(255, 255, 255, 0.06)',
+                backgroundColor: isPaid ? 'rgba(52, 211, 153, 0.15)' : 'rgba(255, 255, 255, 0.05)',
                 color: isPaid ? '#34D399' : '#9E9C96',
                 border: isPaid ? '1px solid rgba(52, 211, 153, 0.3)' : '1px solid rgba(255, 255, 255, 0.08)',
               }}
             >
-              {isPaid ? 'ACTIVE' : 'FREE TIER'}
+              {isPaid ? 'PRO' : 'FREE'}
             </span>
-          </div>
 
-          {/* Credits remaining & used count */}
-          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
-            <div>
-              <span
-                style={{
-                  fontSize: 22,
-                  fontWeight: 800,
-                  fontFamily: 'var(--font-mono)',
-                  color: '#F1EEE7',
-                  letterSpacing: '-0.02em',
-                }}
-              >
-                {availableCredits.toLocaleString()}
-              </span>
-              <span style={{ fontSize: 11, color: '#9E9C96', marginLeft: 6 }}>
-                credits left
-              </span>
-            </div>
-
-            <span
+            <Link
+              to="/billing"
               style={{
-                fontSize: 10.5,
-                fontFamily: 'var(--font-mono)',
-                color: '#9E9C96',
-              }}
-            >
-              {usedCredits} / {totalCredits} used
-            </span>
-          </div>
-
-          {/* Tactile Progress bar */}
-          <div
-            style={{
-              width: '100%',
-              height: 5,
-              borderRadius: 100,
-              backgroundColor: 'rgba(255, 255, 255, 0.06)',
-              overflow: 'hidden',
-              position: 'relative',
-            }}
-          >
-            <div
-              style={{
-                width: `${percentUsed}%`,
-                height: '100%',
-                backgroundColor: percentUsed > 85 ? '#FB7185' : '#C4472D',
+                padding: '3px 9px',
                 borderRadius: 100,
-                transition: 'width 0.3s ease',
+                backgroundColor: '#C4472D',
+                color: '#FFFFFF',
+                textDecoration: 'none',
+                fontSize: 9.5,
+                fontWeight: 700,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                boxShadow: '0 2px 8px rgba(196, 71, 45, 0.35)',
+                transition: 'all 0.15s ease',
+                whiteSpace: 'nowrap',
               }}
-            />
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#D35237')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#C4472D')}
+              title="Upgrade plan with PayPal"
+            >
+              <CreditCard size={10} />
+              <span>Upgrade</span>
+            </Link>
           </div>
-
-          {/* Upgrade Plan CTA Button */}
-          <Link
-            to="/billing"
-            className="rf-btn rf-btn-primary"
-            style={{
-              width: '100%',
-              padding: '7px 12px',
-              borderRadius: 100,
-              backgroundColor: '#C4472D',
-              color: '#FFFFFF',
-              textDecoration: 'none',
-              fontSize: 11.5,
-              fontWeight: 700,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 7,
-              boxShadow: '0 4px 14px rgba(196, 71, 45, 0.4)',
-              transition: 'all 0.15s ease',
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#D35237')}
-            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#C4472D')}
-            title="Open Billing Page to upgrade plan with PayPal Subscriptions"
-          >
-            <CreditCard size={13} />
-            <span>Upgrade Plan</span>
-            <ArrowRight size={12} style={{ marginLeft: 'auto' }} />
-          </Link>
         </div>
       </div>
 

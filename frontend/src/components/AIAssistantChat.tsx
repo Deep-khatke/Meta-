@@ -1227,7 +1227,7 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
           flexDirection: 'column',
         }}
       >
-        {/* Empty State / Welcome Screen */}
+        {/* Empty State / Welcome Screen - Compact & Scannable */}
         {messages.length === 0 ? (
           <div
             style={{
@@ -1236,48 +1236,32 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              padding: '20px 0',
+              padding: '12px 6px',
               textAlign: 'center',
+              gap: 10,
             }}
           >
-            <div style={{ marginBottom: 14 }}>
-              <AgentAvatar mood="idle" size={60} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <AgentAvatar mood="idle" size={28} />
+              <div style={{ textAlign: 'left' }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#F1EEE7', fontFamily: 'var(--font-mono)' }}>
+                  RoboForge AI Co-Pilot
+                </div>
+                <div style={{ fontSize: 10.5, color: '#9E9C96' }}>
+                  Natural-language physics synthesizer & RL trainer
+                </div>
+              </div>
             </div>
 
+            {/* Quick Starter Micro-Chips */}
             <div
               style={{
-                display: 'inline-flex',
-                alignItems: 'center',
+                display: 'flex',
+                flexWrap: 'wrap',
                 gap: 6,
-                padding: '3px 10px',
-                borderRadius: 12,
-                background: 'rgba(56, 189, 248, 0.1)',
-                border: '1px solid rgba(56, 189, 248, 0.25)',
-                color: '#38bdf8',
-                fontSize: 11,
-                fontWeight: 600,
-                marginBottom: 10,
-              }}
-            >
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 6px #22c55e' }} />
-              ROBOAGENT CO-PILOT ONLINE
-            </div>
-
-            <h3 style={{ fontSize: 17, fontWeight: 700, color: '#f8fafc', marginBottom: 6 }}>
-              Hey! How can I assist your simulation?
-            </h3>
-            <p style={{ fontSize: 13, color: '#94a3b8', maxWidth: 460, lineHeight: 1.5, marginBottom: 24 }}>
-              I can synthesize physical environments, spawn obstacles, write and train RL policies live in the viewport, tune motor kinematics, and optimize trajectories.
-            </p>
-
-            {/* Quick Starter Grid */}
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                gap: 10,
+                justifyContent: 'center',
                 width: '100%',
-                maxWidth: 620,
+                maxWidth: 420,
               }}
             >
               {quickActions.map((qa, idx) => (
@@ -1286,31 +1270,33 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
                   type="button"
                   onClick={() => handleSendMessage(qa.prompt)}
                   style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'flex-start',
-                    padding: '12px 14px',
-                    borderRadius: 8,
-                    background: '#161922',
-                    border: '1px solid #232733',
-                    textAlign: 'left',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '5px 10px',
+                    borderRadius: 100,
+                    background: 'rgba(255, 255, 255, 0.04)',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    color: '#D4D0C8',
+                    fontSize: 10.5,
+                    fontWeight: 600,
                     cursor: 'pointer',
                     transition: 'all 0.15s ease',
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = '#38bdf8';
-                    e.currentTarget.style.background = '#1a1e2a';
+                    e.currentTarget.style.borderColor = '#C4472D';
+                    e.currentTarget.style.background = 'rgba(196, 71, 45, 0.12)';
+                    e.currentTarget.style.color = '#FFFFFF';
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = '#232733';
-                    e.currentTarget.style.background = '#161922';
+                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)';
+                    e.currentTarget.style.color = '#D4D0C8';
                   }}
+                  title={qa.desc}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                    {qa.icon}
-                    <span style={{ fontSize: 12, fontWeight: 600, color: '#f0f6fc' }}>{qa.title}</span>
-                  </div>
-                  <span style={{ fontSize: 11, color: '#64748b', lineHeight: 1.4 }}>{qa.desc}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', transform: 'scale(0.85)' }}>{qa.icon}</span>
+                  <span>{qa.title}</span>
                 </button>
               ))}
             </div>
@@ -1376,25 +1362,58 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Floating Modern Composer (Claude/ChatGPT Style) */}
+      {/* Floating Highlighted Tactile Composer */}
       <div
         style={{
-          padding: '12px 16px',
-          background: '#161922',
-          borderTop: '1px solid #232733',
+          padding: '8px 12px 12px',
+          background: '#121316',
+          borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+          flexShrink: 0,
         }}
       >
         <div
           style={{
             display: 'flex',
             flexDirection: 'column',
-            background: '#0d0f14',
+            background: '#1D2024',
             borderRadius: 10,
-            border: '1px solid #2b3140',
-            padding: '8px 12px',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+            border: '1.5px solid rgba(196, 71, 45, 0.65)',
+            boxShadow: '0 4px 18px rgba(0, 0, 0, 0.5), 0 0 14px rgba(196, 71, 45, 0.25)',
+            padding: '7px 10px',
+            transition: 'border-color 0.2s, box-shadow 0.2s',
           }}
         >
+          {/* Header pill label */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: 4,
+              paddingBottom: 4,
+              borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#C4472D', boxShadow: '0 0 6px #C4472D' }} />
+              <span
+                style={{
+                  fontSize: 9,
+                  fontWeight: 800,
+                  fontFamily: 'var(--font-mono)',
+                  letterSpacing: '0.08em',
+                  color: '#C4472D',
+                  textTransform: 'uppercase',
+                }}
+              >
+                PROMPT & COMMAND // AI CO-PILOT
+              </span>
+            </div>
+            <span style={{ fontSize: 8.5, fontFamily: 'var(--font-mono)', color: '#8A8D93' }}>
+              Shift+Enter ↵
+            </span>
+          </div>
+
           <textarea
             ref={textareaRef}
             value={inputValue}
@@ -1405,20 +1424,20 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
                 handleSendMessage();
               }
             }}
-            placeholder="Ask a question, or command the scene (e.g. 'spawn a red box at 2, 0', 'set speed to 2.5')..."
+            placeholder="Type your prompt or command (e.g. 'spawn obstacle course', 'train PPO policy', 'set speed to 3')..."
             disabled={isLoading}
-            rows={1}
+            rows={2}
             style={{
               width: '100%',
-              minHeight: 40,
-              maxHeight: 160,
+              minHeight: 38,
+              maxHeight: 120,
               background: 'transparent',
               border: 'none',
               outline: 'none',
               resize: 'none',
-              fontSize: 13,
-              lineHeight: 1.5,
-              color: '#f0f6fc',
+              fontSize: 12.5,
+              lineHeight: 1.45,
+              color: '#FFFFFF',
               fontFamily: 'inherit',
             }}
           />
@@ -1428,15 +1447,13 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              marginTop: 4,
+              marginTop: 2,
               paddingTop: 4,
               borderTop: '1px solid rgba(255, 255, 255, 0.04)',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: '#64748b' }}>
-              <span>Shift+Enter for newline</span>
-              <span>&bull;</span>
-              <span>Mode: {mode === 'autonomous' ? '⚡ Autonomous Tool-Use' : '🛡️ Supervised'}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, color: '#9E9C96' }}>
+              <span style={{ color: '#C4472D', fontWeight: 600 }}>⚡ Autonomous Tool-Use</span>
             </div>
 
             <button
@@ -1444,8 +1461,8 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
               onClick={() => handleSendMessage()}
               disabled={isLoading || !inputValue.trim()}
               style={{
-                width: 32,
-                height: 32,
+                width: 28,
+                height: 28,
                 borderRadius: '50%',
                 display: 'flex',
                 alignItems: 'center',
@@ -1454,12 +1471,12 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
                 color: inputValue.trim() && !isLoading ? '#FFFFFF' : '#64748b',
                 border: 'none',
                 cursor: inputValue.trim() && !isLoading ? 'pointer' : 'not-allowed',
-                boxShadow: inputValue.trim() && !isLoading ? '0 2px 10px rgba(196, 71, 45, 0.45)' : 'none',
+                boxShadow: inputValue.trim() && !isLoading ? '0 2px 8px rgba(196, 71, 45, 0.45)' : 'none',
                 transition: 'all 0.15s ease',
               }}
               title="Send message"
             >
-              <Send size={14} />
+              <Send size={12} />
             </button>
           </div>
         </div>

@@ -7,7 +7,6 @@ import {
 import { SimulationState, LogMessage, Project, ExperimentRunResult } from '../types';
 import { ExperimentPanel } from './ExperimentPanel';
 import { ResearchDashboard } from './ResearchDashboard';
-import { AIAssistantChat } from './AIAssistantChat';
 import { ROS2StudioPanel } from './ROS2StudioPanel';
 
 export interface TrajectoryPoint {
@@ -63,7 +62,7 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
   forcedTab = null,
 }) => {
   const [isExpanded, setIsExpanded] = useState(Boolean(forcedTab));
-  const [activeTab, setActiveTab] = useState<'telemetry' | 'contacts' | 'console' | 'experiments' | 'research' | 'ai_studio' | 'ros2'>('experiments');
+  const [activeTab, setActiveTab] = useState<'telemetry' | 'contacts' | 'console' | 'experiments' | 'research' | 'ros2'>('experiments');
   const [copied, setCopied] = useState(false);
   const [logFilter, setLogFilter] = useState<'all' | 'info' | 'warning' | 'error'>('all');
   const [panelHeight, setPanelHeight] = useState<number>(240);
@@ -275,20 +274,6 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
             </button>
 
             <button
-              className={`rf-segmented-item ${activeTab === 'ai_studio' ? 'active' : ''}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                setActiveTab('ai_studio');
-                setIsExpanded(true);
-                if (panelHeight < 420) setPanelHeight(480);
-              }}
-              title="RoboForge Autonomous AI Studio (Natural Language & Self-Driving Experimentation)"
-            >
-              <Sparkles size={12} />
-              <span>Autonomous AI</span>
-            </button>
-
-            <button
               className={`rf-segmented-item ${activeTab === 'ros2' ? 'active' : ''}`}
               onClick={(e) => {
                 e.stopPropagation();
@@ -402,22 +387,7 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
       {/* Expanded Content Body */}
       {isExpanded && (
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden', padding: '6px 12px' }}>
-          {activeTab === 'ai_studio' ? (
-            <div style={{ flex: 1, overflow: 'hidden' }}>
-              <AIAssistantChat
-                onShowToast={onShowToast}
-                selectedScenarioId="scen_slalom_beta"
-                targetPosition={targetPosition}
-                onProjectLoaded={onProjectLoaded}
-                onSelectTarget={onSelectTarget}
-                onMissionWaypoints={onMissionWaypoints}
-                onSwitchView={(v) => {
-                  if (v === 'hypotheses') setActiveTab('research');
-                  else setActiveTab('experiments');
-                }}
-              />
-            </div>
-          ) : activeTab === 'research' ? (
+          {activeTab === 'research' ? (
             <div style={{ flex: 1, overflow: 'hidden' }}>
               <ResearchDashboard onShowToast={onShowToast} />
             </div>
