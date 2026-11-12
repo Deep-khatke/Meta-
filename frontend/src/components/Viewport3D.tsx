@@ -10,6 +10,11 @@ import {
 } from 'lucide-react';
 import { importURDF, importMJCF, trainDroneLive, trainArmLive, trainRoverLive, stopAllRl } from '../services/api';
 import { MotorControlHUD } from './MotorControlHUD';
+import { createRoverModel, RoverModel } from './robots/roverModel';
+import { createDroneModel } from './robots/droneModel';
+import { createArmLinkVisual } from './robots/armModel';
+import { createRobotMaterials } from './robots/palette';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 
 interface Viewport3DProps {
   project: Project;
@@ -204,13 +209,14 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     yaw: number;
   } | null>(null);
 
-  const leftWheelRef = useRef<THREE.Mesh | null>(null);
-  const rightWheelRef = useRef<THREE.Mesh | null>(null);
+  const leftWheelRef = useRef<THREE.Object3D | null>(null);
+  const rightWheelRef = useRef<THREE.Object3D | null>(null);
   const objectMeshesRef = useRef<Map<string, THREE.Mesh | THREE.Group>>(new Map());
-  const droneRotorsRef = useRef<THREE.Mesh[]>([]);
+  const droneRotorsRef = useRef<THREE.Object3D[]>([]);
+  const roverModelRef = useRef<RoverModel | null>(null);
 
   // Sensors and visualization refs
-  const lidarTurretRef = useRef<THREE.Mesh | null>(null);
+  const lidarTurretRef = useRef<THREE.Object3D | null>(null);
   const cameraMountGroupRef = useRef<THREE.Group | null>(null);
   const lidarLinesRef = useRef<THREE.LineSegments | null>(null);
   const contactMarkersGroupRef = useRef<THREE.Group | null>(null);
@@ -279,146 +285,29 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     robotGroup.name = 'robot';
     (robotGroup as any).userData = { id: 'robot', isRobot: true };
 
-    const [hx, hy, hz] = rConfig.chassis_size;
-    const wr = rConfig.wheel_radius;
-    const ww = rConfig.wheel_width;
-    const wb = rConfig.wheel_base;
-    const cr = rConfig.caster_radius;
-
-    // Main Chassis Box
-    const chassisGeo = new THREE.BoxGeometry(hx * 2, hy * 2, hz * 2);
-    const chassisMat = new THREE.MeshStandardMaterial({
-      color: 0x2563eb,
-      metalness: 0.3,
-      roughness: 0.4,
-    });
-    const chassisMesh = new THREE.Mesh(chassisGeo, chassisMat);
-    chassisMesh.castShadow = true;
-    chassisMesh.receiveShadow = true;
-    robotGroup.add(chassisMesh);
-
-    // Forward Direction Arrow / Nose
-    const noseGeo = new THREE.BoxGeometry(hx * 0.5, hy * 0.5, hz * 0.8);
-    const noseMat = new THREE.MeshStandardMaterial({
-      color: 0xf97316,
-      roughness: 0.3,
-    });
-    const noseMesh = new THREE.Mesh(noseGeo, noseMat);
-    noseMesh.position.set(hx * 0.85, 0, hz * 0.3);
-    noseMesh.castShadow = true;
-    robotGroup.add(noseMesh);
-
-    // Local Robot Base Axes Helper (RGB Coordinate Frame)
-    const robotAxes = new THREE.AxesHelper(0.35);
-    robotAxes.position.set(0, 0, hz + 0.02);
-    robotGroup.add(robotAxes);
-
-    // Left Wheel (Cylinder)
-    const wheelGeo = new THREE.CylinderGeometry(wr, wr, ww, 24);
-    const wheelMat = new THREE.MeshStandardMaterial({
-      color: 0x22242a,
-      roughness: 0.8,
-      metalness: 0.2,
-    });
-    const leftWheel = new THREE.Mesh(wheelGeo, wheelMat);
-    leftWheel.rotation.x = Math.PI / 2;
-    leftWheel.position.set(0, wb * 0.5, -0.01);
-    leftWheel.castShadow = true;
-    robotGroup.add(leftWheel);
-    leftWheelRef.current = leftWheel;
-
-    // Right Wheel (Cylinder)
-    const rightWheel = new THREE.Mesh(wheelGeo, wheelMat);
-    rightWheel.rotation.x = Math.PI / 2;
-    rightWheel.position.set(0, -wb * 0.5, -0.01);
-    rightWheel.castShadow = true;
-    robotGroup.add(rightWheel);
-    rightWheelRef.current = rightWheel;
-
-    // 4 Corner Stabilizer Casters
-    const casterGeo = new THREE.SphereGeometry(cr, 16, 16);
-    const casterMat = new THREE.MeshStandardMaterial({ color: 0x4a4d56, roughness: 0.5 });
-    const casterX = hx * 0.75;
-    const casterY = wb * 0.35;
-    const casterZ = -0.01 - wr + cr;
-
-    const casterFL = new THREE.Mesh(casterGeo, casterMat);
-    casterFL.position.set(casterX, casterY, casterZ);
-    robotGroup.add(casterFL);
-
-    const casterFR = new THREE.Mesh(casterGeo, casterMat);
-    casterFR.position.set(casterX, -casterY, casterZ);
-    robotGroup.add(casterFR);
-
-    const casterRL = new THREE.Mesh(casterGeo, casterMat);
-    casterRL.position.set(-casterX, casterY, casterZ);
-    robotGroup.add(casterRL);
-
-    const casterRR = new THREE.Mesh(casterGeo, casterMat);
-    casterRR.position.set(-casterX, -casterY, casterZ);
-    robotGroup.add(casterRR);
-
-    // Visible Simulated LiDAR Sensor Placement (Toggleable)
+    // Designed rover model (strictly white and grey), built to the physics dimensions so the wheels
+    // sit exactly on the ground. See components/robots/roverModel.ts.
     const lidarCfg = proj.sensors?.lidar;
-    const lidarMount = lidarCfg?.mount_pos || [0.10, 0.0, 0.09];
-    const lidarTurretGeo = new THREE.CylinderGeometry(0.035, 0.035, 0.03, 16);
-    const lidarTurretMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.7, roughness: 0.3 });
-    const lidarMesh = new THREE.Mesh(lidarTurretGeo, lidarTurretMat);
-    lidarMesh.rotation.x = Math.PI / 2;
-    lidarMesh.position.set(lidarMount[0], lidarMount[1], lidarMount[2]);
-    const lidarLens = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.025, 0.025, 0.01, 16),
-      new THREE.MeshBasicMaterial({ color: 0x0284c7 })
-    );
-    lidarLens.position.set(0, 0.016, 0);
-    lidarMesh.add(lidarLens);
-    const lidarAxes = new THREE.AxesHelper(0.12);
-    lidarMesh.add(lidarAxes);
-    if (lidarCfg && lidarCfg.enabled === false) {
-      lidarMesh.visible = false;
-    }
-    robotGroup.add(lidarMesh);
-    lidarTurretRef.current = lidarMesh;
-
-    // Visible Simulated IMU Sensor Placement (Toggleable)
-    const imuCfg = proj.sensors?.imu;
-    const imuMount = imuCfg?.mount_pos || [0.0, 0.0, 0.05];
-    const imuChipGeo = new THREE.BoxGeometry(0.025, 0.025, 0.01);
-    const imuChipMat = new THREE.MeshStandardMaterial({ color: 0x15803d, roughness: 0.5 });
-    const imuMesh = new THREE.Mesh(imuChipGeo, imuChipMat);
-    imuMesh.position.set(imuMount[0], imuMount[1], imuMount[2]);
-    const imuAxes = new THREE.AxesHelper(0.08);
-    imuMesh.add(imuAxes);
-    if (imuCfg && imuCfg.enabled === false) {
-      imuMesh.visible = false;
-    }
-    robotGroup.add(imuMesh);
-
-    // Visible Camera Sensor Placement & Onboard Camera (Toggleable)
     const camCfg = proj.sensors?.camera;
+    const lidarMount = (lidarCfg?.mount_pos || [0.10, 0.0, 0.09]) as [number, number, number];
     const camMount = camCfg?.mount_pos || [0.18, 0.0, 0.08];
-    const camGroup = new THREE.Group();
-    camGroup.name = 'camera_sensor';
-    camGroup.position.set(camMount[0], camMount[1], camMount[2]);
-
-    const camHousingGeo = new THREE.CylinderGeometry(0.018, 0.022, 0.035, 16);
-    const camHousingMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.8, roughness: 0.2 });
-    const camHousingMesh = new THREE.Mesh(camHousingGeo, camHousingMat);
-    camHousingMesh.rotation.z = Math.PI / 2;
-    camGroup.add(camHousingMesh);
-
-    const camLensGeo = new THREE.CylinderGeometry(0.014, 0.014, 0.005, 16);
-    const camLensMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, metalness: 0.9, roughness: 0.1 });
-    const camLensMesh = new THREE.Mesh(camLensGeo, camLensMat);
-    camLensMesh.position.set(0.019, 0, 0);
-    camLensMesh.rotation.z = Math.PI / 2;
-    camGroup.add(camLensMesh);
-
-    if (camCfg && camCfg.enabled === false) {
-      camGroup.visible = false;
-    }
-    robotGroup.add(camGroup);
-    cameraMountGroupRef.current = camGroup;
+    const rover = createRoverModel({
+      chassisSize: rConfig.chassis_size as [number, number, number],
+      wheelRadius: rConfig.wheel_radius,
+      wheelWidth: rConfig.wheel_width,
+      wheelBase: rConfig.wheel_base,
+      casterRadius: rConfig.caster_radius,
+      lidarMount,
+      cameraMount: camMount as [number, number, number],
+      lidarEnabled: !(lidarCfg && lidarCfg.enabled === false),
+      cameraEnabled: !(camCfg && camCfg.enabled === false),
+    });
+    robotGroup.add(rover.root);
+    leftWheelRef.current = rover.leftWheel;
+    rightWheelRef.current = rover.rightWheel;
+    lidarTurretRef.current = rover.lidarAssembly;
+    cameraMountGroupRef.current = rover.cameraAssembly;
+    roverModelRef.current = rover;
 
     // Attach Three.js perspective camera to robot body for vision navigation
     const robotEye = new THREE.PerspectiveCamera(camCfg?.fov_deg || 65, 4 / 3, 0.05, 40);
@@ -492,6 +381,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
           .map((l) => l.name)
       );
 
+      const armMats = createRobotMaterials();
       const buildLinkNode = (linkName: string): THREE.Group => {
         const linkGroup = new THREE.Group();
         linkGroup.name = `link_${linkName}`;
@@ -502,59 +392,20 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
         if (linkData) {
           const geom = linkData.visual || linkData.collision;
           if (geom) {
-            let gGeo: THREE.BufferGeometry;
-            if (geom.type === 'box') {
-              gGeo = new THREE.BoxGeometry(
-                Math.max(0.01, (geom.size[0] || 0.1) * 2),
-                Math.max(0.01, (geom.size[1] || 0.1) * 2),
-                Math.max(0.01, (geom.size[2] || 0.1) * 2)
-              );
-            } else if (geom.type === 'sphere') {
-              gGeo = new THREE.SphereGeometry(Math.max(0.01, geom.size[0] || 0.1), 16, 16);
-            } else {
-              gGeo = new THREE.CylinderGeometry(
-                Math.max(0.005, geom.size[0] || 0.05),
-                Math.max(0.005, geom.size[0] || 0.05),
-                Math.max(0.01, (geom.size[1] || 0.15) * 2),
-                20
-              );
-              // Three.js cylinders extend along local +Y, but MuJoCo/URDF cylinders (and our arm
-              // segments) extend along local +Z. Bake a +90deg X rotation into the geometry so the
-              // segment points up the kinematic chain (along Z) instead of lying sideways. This is
-              // why the arm previously looked like disconnected, misaligned blobs.
-              gGeo.rotateX(Math.PI / 2);
-            }
-            const baseColor = new THREE.Color(geom.color || '#5b6b7f');
-            const mat = new THREE.MeshStandardMaterial({
-              color: baseColor,
-              metalness: 0.82,
-              roughness: 0.32,
-              envMapIntensity: 1.1,
+            const parentJoint = parentJointByChild.get(linkName);
+            const jointAxis = parentJoint
+              ? new THREE.Vector3(parentJoint.axis?.[0] ?? 0, parentJoint.axis?.[1] ?? 0, parentJoint.axis?.[2] ?? 1)
+              : undefined;
+            const visual = createArmLinkVisual(
+              geom,
+              { isRoot: linkName === rootLinkName, index: gr.links.findIndex((l) => l.name === linkName), jointAxis },
+              armMats,
+            );
+            visual.traverse((c: any) => {
+              c.userData = { id: 'generic_robot', linkName, isRobot: true };
+              if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; }
             });
-            const mesh = new THREE.Mesh(gGeo, mat);
-            mesh.castShadow = true;
-            mesh.receiveShadow = true;
-            mesh.position.set(geom.origin_pos[0] || 0, geom.origin_pos[1] || 0, geom.origin_pos[2] || 0);
-            if (geom.origin_rpy) {
-              mesh.rotation.set(geom.origin_rpy[0] || 0, geom.origin_rpy[1] || 0, geom.origin_rpy[2] || 0);
-            }
-            (mesh as any).userData = { id: 'generic_robot', linkName, isRobot: true };
-            linkGroup.add(mesh);
-
-            // Small dark joint hub at the link's pivot (origin), so consecutive segments read as
-            // connected by a joint rather than as floating primitives. Kept small so it doesn't
-            // swamp the segment (the old large hub made the arm look like stacked balls).
-            if (linkName !== rootLinkName) {
-              const hubR = Math.max(0.028, (geom.type === 'cylinder' ? (geom.size[0] || 0.05) : 0.04) * 1.15);
-              const hub = new THREE.Mesh(
-                new THREE.SphereGeometry(hubR, 20, 16),
-                new THREE.MeshStandardMaterial({ color: 0x1f2937, metalness: 0.9, roughness: 0.35 })
-              );
-              hub.castShadow = true; hub.receiveShadow = true;
-              // Hub sits at the link frame origin (the joint pivot), NOT at the geom midpoint.
-              hub.position.set(0, 0, 0);
-              linkGroup.add(hub);
-            }
+            linkGroup.add(visual);
           }
         }
 
@@ -831,76 +682,10 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
         drone.name = `obj_${obj.id}`;
         (drone as any).userData = { id: obj.id, isDrone: true, isObstacle: false };
 
-        // 1. Central Avionics Fuselage
-        const bodyGeo = new THREE.BoxGeometry(0.18, 0.18, 0.07);
-        const bodyMat = new THREE.MeshStandardMaterial({
-          color: 0x0f172a,
-          metalness: 0.85,
-          roughness: 0.25,
-        });
-        const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
-        bodyMesh.castShadow = true;
-        drone.add(bodyMesh);
-
-        // Glowing Drone Status Core
-        const coreGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.02, 16);
-        const coreMat = new THREE.MeshStandardMaterial({
-          color: 0x38bdf8,
-          emissive: 0x38bdf8,
-          emissiveIntensity: 0.8,
-        });
-        const coreMesh = new THREE.Mesh(coreGeo, coreMat);
-        coreMesh.position.set(0, 0, 0.045);
-        drone.add(coreMesh);
-
-        // 2. Diagonal Carbon Fiber Arms & 4 Propeller Rotors
-        const armLength = 0.24;
-        const armGeo = new THREE.BoxGeometry(armLength * 2, 0.02, 0.015);
-        const armMat = new THREE.MeshStandardMaterial({
-          color: 0x334155,
-          metalness: 0.7,
-          roughness: 0.4,
-        });
-
-        const arm1 = new THREE.Mesh(armGeo, armMat);
-        arm1.rotation.z = Math.PI / 4;
-        drone.add(arm1);
-
-        const arm2 = new THREE.Mesh(armGeo, armMat);
-        arm2.rotation.z = -Math.PI / 4;
-        drone.add(arm2);
-
-        // Motor Hubs & Rotors at 4 corners
-        const dOffset = armLength * Math.cos(Math.PI / 4);
-        const motorPositions = [
-          [dOffset, dOffset],
-          [-dOffset, dOffset],
-          [-dOffset, -dOffset],
-          [dOffset, -dOffset],
-        ];
-
-        motorPositions.forEach(([mx, my]) => {
-          // Motor can
-          const motorGeo = new THREE.CylinderGeometry(0.02, 0.02, 0.03, 12);
-          const motorMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, metalness: 0.9, roughness: 0.2 });
-          const motor = new THREE.Mesh(motorGeo, motorMat);
-          motor.position.set(mx, my, 0.02);
-          motor.rotation.x = Math.PI / 2;
-          drone.add(motor);
-
-          // Translucent Spinning Rotor Disc
-          const rotorGeo = new THREE.CircleGeometry(0.12, 16);
-          const rotorMat = new THREE.MeshStandardMaterial({
-            color: 0x38bdf8,
-            transparent: true,
-            opacity: 0.45,
-            side: THREE.DoubleSide,
-          });
-          const rotorMesh = new THREE.Mesh(rotorGeo, rotorMat);
-          rotorMesh.position.set(mx, my, 0.04);
-          drone.add(rotorMesh);
-          droneRotorsRef.current.push(rotorMesh);
-        });
+        // Designed quadcopter model (strictly white and grey); see components/robots/droneModel.ts
+        const droneModel = createDroneModel();
+        drone.add(droneModel.root);
+        droneModel.rotors.forEach((rotor) => droneRotorsRef.current.push(rotor));
 
         // 3. Ground Altitude Line & Landing Shadow
         const altPoints = [new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, -obj.position[2])];
@@ -1310,6 +1095,12 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     // Subtle depth fog matching the background
     scene.fog = new THREE.Fog(0x0a0c10, 24, 60);
 
+    // Image-based lighting so white plastic and satin metal read as real materials.
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    (scene as unknown as { environmentIntensity: number }).environmentIntensity = 0.55;
+    pmrem.dispose();
+
     // Ground Plane
     const groundGeo = new THREE.PlaneGeometry(100, 100);
     const groundMat = new THREE.MeshStandardMaterial({
@@ -1359,6 +1150,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
         if (rightWheelRef.current) {
           rightWheelRef.current.rotation.y += rightWheelVelocityRef.current * 0.02;
         }
+        if (roverModelRef.current) roverModelRef.current.lidarHead.rotation.z += 0.09;
       }
 
       // Rotate active aerial drone rotors
