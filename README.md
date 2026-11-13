@@ -1,7 +1,7 @@
 # 🤖 RoboForge — Next-Gen AI Robotics Simulation & Control Studio
 
 <p align="center">
-  <strong>A high-fidelity browser-based robotics modeling, simulation, and autonomous control platform powered by MuJoCo 3.17 physics, Three.js, and NVIDIA Nemotron AI.</strong>
+  <strong>A high-fidelity browser-based robotics modeling, simulation, and autonomous control platform powered by MuJoCo 3.17 physics, Three.js, and Google Gemini AI.</strong>
 </p>
 
 <p align="center">
@@ -14,8 +14,11 @@
   <a href="https://mujoco.org" target="_blank">
     <img src="https://img.shields.io/badge/Physics-MuJoCo%203.17-007ACC?style=for-the-badge" alt="MuJoCo 3.17" />
   </a>
+  <a href="https://aistudio.google.com" target="_blank">
+    <img src="https://img.shields.io/badge/AI%20Brain-Google%20Gemini-4285F4?style=for-the-badge&logo=google-gemini&logoColor=white" alt="Google Gemini" />
+  </a>
   <a href="https://openrouter.ai" target="_blank">
-    <img src="https://img.shields.io/badge/AI%20Brain-NVIDIA%20Nemotron-76B900?style=for-the-badge&logo=nvidia&logoColor=white" alt="NVIDIA Nemotron" />
+    <img src="https://img.shields.io/badge/Fallback%20AI-NVIDIA%20Nemotron-76B900?style=for-the-badge&logo=nvidia&logoColor=white" alt="NVIDIA Nemotron" />
   </a>
   <a href="https://roboforge.duckdns.org/login" target="_blank">
     <img src="https://img.shields.io/badge/Auth-Google%20OAuth%202.0%20%2B%20SQLite-4285F4?style=for-the-badge&logo=google&logoColor=white" alt="Google OAuth" />
@@ -44,7 +47,7 @@ RoboForge is deployed live on AWS EC2 with continuous systemd orchestration, Duc
 > **Design a robot → command it in plain English → train it with real RL → prove it → deploy the trained brain to a real ROS 2 robot. All in the browser, all on live MuJoCo physics.**
 
 - **🗣️ Natural-Language Robotics Control** — Talk directly to the simulation scene: *"drive in a square"*, *"go to the red cylinder"*, *"spawn a warehouse with 4 obstacles"*. The AI planning engine translates intents into verified physical trajectories without manual coding or coordinates.
-- **🧠 NVIDIA Nemotron & Meta Muse Tiered Reasoning** — Powered by NVIDIA's high-capacity reasoning model (`nvidia/nemotron-3.5-super-vl:free`) via OpenRouter and Meta Model API (`muse-spark-1.3`), with automatic graceful fallback to local Ollama and deterministic planners.
+- **🧠 Google Gemini & Multi-Provider AI Reasoning** — Powered by Google Gemini (`gemini-2.0-flash`) for real-time scene synthesis and robotics tool execution, with support for NVIDIA Nemotron (`nvidia/nemotron-3.5-super-vl:free`) via OpenRouter, Meta Model API (`muse-spark-1.3`), and local Ollama.
 - **🏗️ One-Prompt Missions & Autonomous Waypoint Planning** — *"Build a warehouse and make the rover patrol it"* automatically generates the 3D environment, computes a **collision-free A\* patrol loop**, loads waypoints into the visual **Mission Planner**, and executes the mission.
 - **👁️ Robot Vision & Onboard Eye Camera** — An onboard RGB camera feeds live sensor frames to the vision-language model: ask *"what do you see?"* or *"navigate to the nearest obstacle"* and the robot locates and tracks its target visually.
 - **🌌 Live Swarm Reinforcement Learning (PPO)** — Trains **8 rovers in parallel** using Proximal Policy Optimization (PPO), rendered live in Three.js as translucent "ghost" agents that are the *actual* environments the policy learns from — watch exploration, failure, and convergence in real time (*Isaac-Lab style*).
@@ -131,7 +134,7 @@ RoboForge is deployed live on AWS EC2 with continuous systemd orchestration, Duc
 | Layer | Technologies |
 | :--- | :--- |
 | **Physics Core** | [MuJoCo 3.17](https://mujoco.org/) (Official Python bindings, `implicitfast` solver) |
-| **AI Reasoning Brain** | [NVIDIA Nemotron](https://openrouter.ai/) (`nemotron-3.5-super-vl:free`), [Meta Muse](https://dev.meta.ai/) (`muse-spark-1.3`), Ollama |
+| **AI Reasoning Brain** | [Google Gemini](https://aistudio.google.com/) (`gemini-2.0-flash`), [NVIDIA Nemotron](https://openrouter.ai/) (`nemotron-3.5-super-vl:free`), [Meta Muse](https://dev.meta.ai/) (`muse-spark-1.3`), Ollama |
 | **Reinforcement Learning** | [Stable-Baselines3](https://stable-baselines3.readthedocs.io/) (PPO), [PyTorch](https://pytorch.org/), [ONNX](https://onnx.ai/) Export |
 | **Backend Engine** | [FastAPI](https://fastapi.tiangolo.com/), [Uvicorn](https://www.uvicorn.org/), WebSockets, [Pydantic v2](https://docs.pydantic.dev/) |
 | **Database & Security** | SQLite3, PBKDF2-HMAC-SHA256, Google OAuth 2.0 (GSI), Secrets |
@@ -153,19 +156,37 @@ RoboForge is deployed live on AWS EC2 with continuous systemd orchestration, Duc
 
 ### 2. Clone the Repository
 ```bash
-git clone https://github.com/Deep-khatke/Meta-.git
-cd Meta-
+git clone https://github.com/Deep-khatke/google-.git
+cd google-
 ```
 
 ### 3. Environment Configuration (`.env`)
-Create a root `.env` file in the project directory:
+
+> [!IMPORTANT]
+> **🔑 Add your own Gemini API key to use it:**
+> RoboForge's Autonomous AI Co-Pilot, natural-language robotics manipulation, and automated scene generation are powered by Google Gemini.
+> Add your own Gemini API key in your `.env` file:
+> ```env
+> GEMINI_API_KEY="your_gemini_api_key_here"
+> GEMINI_MODEL="gemini-2.0-flash"
+> ```
+> 💡 *You can get a free Gemini API key instantly at [Google AI Studio](https://aistudio.google.com/app/apikey).*
+
+Create a root `.env` file in the project directory (or copy `.env.example`):
 
 ```env
-# AI Reasoning Brain Configuration (NVIDIA Nemotron via OpenRouter)
-AI_PROVIDER=openai_compat
-OPENAI_COMPAT_BASE_URL=https://openrouter.ai/api/v1
-OPENAI_COMPAT_MODEL=nvidia/nemotron-3.5-super-vl:free
-OPENAI_COMPAT_API_KEY=your-openrouter-or-nvidia-api-key
+# ==============================================================================
+# Google Gemini AI Configuration (Autonomous AI Co-Pilot & Scene Generation)
+# ==============================================================================
+# Add your own key of Gemini to use it:
+GEMINI_API_KEY=your_gemini_api_key_here
+GEMINI_MODEL=gemini-2.0-flash
+
+# Alternative / Secondary AI Providers (Optional fallback)
+# AI_PROVIDER=openai_compat
+# OPENAI_COMPAT_BASE_URL=https://openrouter.ai/api/v1
+# OPENAI_COMPAT_MODEL=nvidia/nemotron-3.5-super-vl:free
+# OPENAI_COMPAT_API_KEY=your-openrouter-or-nvidia-api-key
 
 # Google OAuth 2.0 Client Configuration
 VITE_GOOGLE_CLIENT_ID=567256736468-3m5c2l0i74tronhurhm14mu174qkjbtc.apps.googleusercontent.com
