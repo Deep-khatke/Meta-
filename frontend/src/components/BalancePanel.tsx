@@ -58,17 +58,44 @@ export const BalancePanel: React.FC<Props> = ({ onClose, onShowToast }) => {
   const btn = (primary = false): React.CSSProperties => ({ flex: 1, justifyContent: 'center', ...(primary ? {} : {}) });
 
   return (
-    <div className="rf-float rf-pop" style={{
-      position: 'absolute', bottom: 64, right: 16, width: 292, zIndex: 31, padding: 14, color: 'var(--text-primary, #ecebe6)',
-      background: 'var(--bg-surface, #151718)', border: '1px solid var(--border-strong, #363b3e)', borderRadius: 12,
-      boxShadow: '0 12px 30px rgba(0,0,0,0.45)', fontSize: 12, maxHeight: 'calc(100% - 90px)', overflowY: 'auto',
+    <div style={{
+      position: 'absolute',
+      bottom: 58,
+      right: 18,
+      width: 340,
+      maxWidth: 'calc(100% - 36px)',
+      maxHeight: 'calc(100% - 72px)',
+      zIndex: 35,
+      padding: '14px 16px',
+      color: 'var(--text-primary, #ecebe6)',
+      background: 'rgba(21, 23, 26, 0.95)',
+      backdropFilter: 'blur(16px)',
+      border: '1px solid rgba(255, 255, 255, 0.12)',
+      borderRadius: 10,
+      boxShadow: '0 12px 36px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.05)',
+      fontSize: 12,
+      overflowY: 'auto',
+      boxSizing: 'border-box',
+      display: 'flex',
+      flexDirection: 'column',
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        position: 'sticky',
+        top: 0,
+        backgroundColor: '#15171A',
+        paddingBottom: 8,
+        marginBottom: 6,
+        zIndex: 5,
+        borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+      }}>
         <span style={{ fontWeight: 800, fontSize: 13.5, display: 'flex', alignItems: 'center', gap: 8 }}>
           Balance lab
-          <span style={{ fontSize: 10.5, fontWeight: 700, padding: '2px 8px', borderRadius: 999, color: badgeColor, border: `1px solid ${badgeColor}55` }}>{badge}</span>
+          <span style={{ fontSize: 10.5, fontWeight: 700, padding: '2px 8px', borderRadius: 4, color: badgeColor, border: `1px solid ${badgeColor}55`, background: `${badgeColor}15` }}>{badge}</span>
         </span>
-        <button onClick={onClose} aria-label="Close balance lab" style={{ background: 'none', border: 'none', color: 'var(--text-muted, #8a8d89)', cursor: 'pointer' }}><X size={16} /></button>
+        <button onClick={onClose} aria-label="Close balance lab" style={{ background: 'none', border: 'none', color: 'var(--text-muted, #8a8d89)', cursor: 'pointer', padding: '3px 6px' }}><X size={16} /></button>
       </div>
       <div style={{ color: 'var(--text-muted, #8a8d89)', marginTop: 4, lineHeight: 1.45 }}>
         Spawn a free-standing robot, push it, then train it with PPO to stay upright.

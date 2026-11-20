@@ -1244,26 +1244,83 @@ export const AppContent: React.FC = () => {
             missionLoop={missionLoop}
           />
           <button
-            onClick={() => setBalanceOpen((v) => !v)}
+            onClick={() => {
+              setBalanceOpen((v) => {
+                const next = !v;
+                if (next) { setPhotoOpen(false); setImitOpen(false); setMissionOpen(false); }
+                return next;
+              });
+            }}
             title="Balance lab: push a free-standing robot and train it to stay upright"
-            className="rf-glass-hud"
-            style={{ position: 'absolute', bottom: 18, right: 190, zIndex: 30, padding: '7px 16px', borderRadius: 100, cursor: 'pointer', fontSize: 12, fontWeight: 600, color: 'inherit' }}
+            className={`rf-glass-hud ${balanceOpen ? 'active' : ''}`}
+            style={{
+              position: 'absolute',
+              bottom: 18,
+              right: 190,
+              zIndex: 30,
+              padding: '7px 16px',
+              borderRadius: 100,
+              cursor: 'pointer',
+              fontSize: 12,
+              fontWeight: 600,
+              color: balanceOpen ? '#FFFFFF' : 'inherit',
+              backgroundColor: balanceOpen ? '#C4472D' : undefined,
+              boxShadow: balanceOpen ? '0 2px 10px rgba(196, 71, 45, 0.4)' : undefined,
+            }}
           >
             Balance lab
           </button>
           <button
-            onClick={() => setPhotoOpen((v) => !v)}
+            onClick={() => {
+              setPhotoOpen((v) => {
+                const next = !v;
+                if (next) { setBalanceOpen(false); setImitOpen(false); setMissionOpen(false); }
+                return next;
+              });
+            }}
             title="Build the simulated environment from a photo and train the robot in it"
-            className="rf-glass-hud"
-            style={{ position: 'absolute', bottom: 18, right: 300, zIndex: 30, padding: '7px 16px', borderRadius: 100, cursor: 'pointer', fontSize: 12, fontWeight: 600, color: 'inherit' }}
+            className={`rf-glass-hud ${photoOpen ? 'active' : ''}`}
+            style={{
+              position: 'absolute',
+              bottom: 18,
+              right: 300,
+              zIndex: 30,
+              padding: '7px 16px',
+              borderRadius: 100,
+              cursor: 'pointer',
+              fontSize: 12,
+              fontWeight: 600,
+              color: photoOpen ? '#FFFFFF' : 'inherit',
+              backgroundColor: photoOpen ? '#C4472D' : undefined,
+              boxShadow: photoOpen ? '0 2px 10px rgba(196, 71, 45, 0.4)' : undefined,
+            }}
           >
             Train a skill
           </button>
           <button
-            onClick={() => setImitOpen((v) => !v)}
+            onClick={() => {
+              setImitOpen((v) => {
+                const next = !v;
+                if (next) { setBalanceOpen(false); setPhotoOpen(false); setMissionOpen(false); }
+                return next;
+              });
+            }}
             title="Imitation learning: demonstrate a skill, the arm learns to copy it"
-            className="rf-glass-hud"
-            style={{ position: 'absolute', bottom: 18, right: 410, zIndex: 30, padding: '7px 16px', borderRadius: 100, cursor: 'pointer', fontSize: 12, fontWeight: 600, color: 'inherit' }}
+            className={`rf-glass-hud ${imitOpen ? 'active' : ''}`}
+            style={{
+              position: 'absolute',
+              bottom: 18,
+              right: 410,
+              zIndex: 30,
+              padding: '7px 16px',
+              borderRadius: 100,
+              cursor: 'pointer',
+              fontSize: 12,
+              fontWeight: 600,
+              color: imitOpen ? '#FFFFFF' : 'inherit',
+              backgroundColor: imitOpen ? '#C4472D' : undefined,
+              boxShadow: imitOpen ? '0 2px 10px rgba(196, 71, 45, 0.4)' : undefined,
+            }}
           >
             Imitation
           </button>
@@ -1272,7 +1329,12 @@ export const AppContent: React.FC = () => {
           {balanceOpen && <BalancePanel onClose={() => setBalanceOpen(false)} onShowToast={showToast} />}
           {!missionOpen && (
             <button
-              onClick={() => setMissionOpen(true)}
+              onClick={() => {
+                setImitOpen(false);
+                setPhotoOpen(false);
+                setBalanceOpen(false);
+                setMissionOpen(true);
+              }}
               title="Open Mission Planner: click to place waypoints & obstacles, then train or run"
               className="rf-glass-hud"
               style={{

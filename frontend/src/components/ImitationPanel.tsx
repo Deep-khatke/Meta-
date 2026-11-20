@@ -51,13 +51,40 @@ export const ImitationPanel: React.FC<Props> = ({ onClose, onShowToast }) => {
   ];
 
   return (
-    <div className="rf-glass-hud" style={{
-      position: 'absolute', bottom: 64, right: 16, width: 300, zIndex: 32, padding: 14,
-      color: 'var(--text-primary, #ecebe6)', maxHeight: '72vh', overflowY: 'auto',
+    <div style={{
+      position: 'absolute',
+      bottom: 58,
+      right: 18,
+      width: 340,
+      maxWidth: 'calc(100% - 36px)',
+      maxHeight: 'calc(100% - 72px)',
+      zIndex: 35,
+      padding: '14px 16px',
+      color: 'var(--text-primary, #ecebe6)',
+      background: 'rgba(21, 23, 26, 0.95)',
+      backdropFilter: 'blur(16px)',
+      border: '1px solid rgba(255, 255, 255, 0.12)',
+      borderRadius: 10,
+      boxShadow: '0 12px 36px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.05)',
+      overflowY: 'auto',
+      boxSizing: 'border-box',
+      display: 'flex',
+      flexDirection: 'column',
     }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <strong style={{ fontSize: 13 }}>Imitation learning (arm)</strong>
-        <button className="rf-btn" onClick={onClose} style={{ padding: 4 }}><X size={13} /></button>
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        position: 'sticky',
+        top: 0,
+        backgroundColor: '#15171A',
+        paddingBottom: 8,
+        marginBottom: 6,
+        zIndex: 5,
+        borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+      }}>
+        <strong style={{ fontSize: 13.5 }}>Imitation learning (arm)</strong>
+        <button className="rf-btn" onClick={onClose} style={{ padding: '3px 6px', borderRadius: 6 }} title="Close"><X size={14} /></button>
       </div>
 
       <div style={box}>
