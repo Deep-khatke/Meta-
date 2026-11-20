@@ -19,6 +19,8 @@ import { MissionPlanner, PlacementMode } from './components/MissionPlanner';
 import { PropertiesPanel } from './components/PropertiesPanel';
 import { BottomPanel, TrajectoryPoint } from './components/BottomPanel';
 import { AssetLibraryPanel } from './components/AssetLibraryPanel';
+import { BalancePanel } from './components/BalancePanel';
+import { ScenePhotoPanel } from './components/ScenePhotoPanel';
 import { RobotCreatorModal } from './components/RobotCreatorModal';
 import { EnvironmentCreatorModal } from './components/EnvironmentCreatorModal';
 import { RobotStudioModal } from './components/RobotStudioModal';
@@ -175,6 +177,8 @@ export const AppContent: React.FC = () => {
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [balanceOpen, setBalanceOpen] = useState(false);
+  const [photoOpen, setPhotoOpen] = useState(false);
 
   // Undo / Redo stacks
   const [undoStack, setUndoStack] = useState<SceneObject[][]>([]);
@@ -1237,6 +1241,24 @@ export const AppContent: React.FC = () => {
             missionWaypoints={missionOpen || missionWaypoints.length ? missionWaypoints : undefined}
             missionLoop={missionLoop}
           />
+          <button
+            onClick={() => setBalanceOpen((v) => !v)}
+            title="Balance lab: push a free-standing robot and train it to stay upright"
+            className="rf-glass-hud"
+            style={{ position: 'absolute', bottom: 18, right: 190, zIndex: 30, padding: '7px 16px', borderRadius: 100, cursor: 'pointer', fontSize: 12, fontWeight: 600, color: 'inherit' }}
+          >
+            Balance lab
+          </button>
+          <button
+            onClick={() => setPhotoOpen((v) => !v)}
+            title="Build the simulated environment from a photo and train the robot in it"
+            className="rf-glass-hud"
+            style={{ position: 'absolute', bottom: 18, right: 300, zIndex: 30, padding: '7px 16px', borderRadius: 100, cursor: 'pointer', fontSize: 12, fontWeight: 600, color: 'inherit' }}
+          >
+            Train a skill
+          </button>
+          {photoOpen && <ScenePhotoPanel onClose={() => setPhotoOpen(false)} onShowToast={showToast} />}
+          {balanceOpen && <BalancePanel onClose={() => setBalanceOpen(false)} onShowToast={showToast} />}
           {!missionOpen && (
             <button
               onClick={() => setMissionOpen(true)}

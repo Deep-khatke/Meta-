@@ -628,10 +628,20 @@ export async function interpretAIPrompt(prompt: string, baseScenarioId?: string)
   return res.json();
 }
 
+function getChatAuthHeaders(): Record<string, string> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const token = localStorage.getItem('roboforge_token');
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  return headers;
+}
+
 export async function sendAIChatMessage(req: AIChatRequest): Promise<AIChatResponse> {
   const res = await fetch(`${API_BASE}/ai/chat`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getChatAuthHeaders(),
+    credentials: 'include',
     body: JSON.stringify(req),
   });
   if (!res.ok) {
@@ -642,7 +652,10 @@ export async function sendAIChatMessage(req: AIChatRequest): Promise<AIChatRespo
 }
 
 export async function fetchAIChatHistory(sessionId: string = 'default_session', limit: number = 50): Promise<{ history: any[] }> {
-  const res = await fetch(`${API_BASE}/ai/chat/history?session_id=${encodeURIComponent(sessionId)}&limit=${limit}`);
+  const res = await fetch(`${API_BASE}/ai/chat/history?session_id=${encodeURIComponent(sessionId)}&limit=${limit}`, {
+    headers: getChatAuthHeaders(),
+    credentials: 'include',
+  });
   if (!res.ok) {
     return { history: [] };
   }
@@ -652,6 +665,8 @@ export async function fetchAIChatHistory(sessionId: string = 'default_session', 
 export async function clearAIChatHistory(sessionId: string = 'default_session'): Promise<any> {
   const res = await fetch(`${API_BASE}/ai/chat/history?session_id=${encodeURIComponent(sessionId)}`, {
     method: 'DELETE',
+    headers: getChatAuthHeaders(),
+    credentials: 'include',
   });
   if (!res.ok) {
     return { status: 'error' };
@@ -1295,3 +1310,22 @@ export function getROS2PackageExportUrl(): string {
 }
 
 
+
+const balPost = async (path: string) => {
+  const res = await fetch(`${API_BASE}/balance/${path}`, { method: 'POST' });
+  if (!res.ok) throw new Error((await res.text()) || res.statusText);
+  return res.json();
+};
+export const balanceStatus = async () => (await fetch(`${API_BASE}/balance/status`)).json();
+export const balanceSpawn = (kind: string, clear = true) => balPost(`spawn?kind=${kind}&clear=${clear}`);
+export const balancePush = (angle?: number, strength?: number) => {
+  const q = new URLSearchParams();
+  if (angle !== undefined) q.set('angle_deg', String(angle));
+  if (strength) q.set('strength', String(strength));
+  return balPost(`push?${q}`);
+};
+export const balanceTrain = (kind: string | undefined, timesteps: number) =>
+  balPost(`train?${kind ? `kind=${kind}&` : ''}timesteps=${timesteps}`);
+export const balanceStop = () => balPost('stop');
+export const balanceReset = () => balPost('reset');
+export const balanceUntrain = () => balPost('untrain');

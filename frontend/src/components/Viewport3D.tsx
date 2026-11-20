@@ -14,6 +14,7 @@ import { createRoverModel, RoverModel } from './robots/roverModel';
 import { createDroneModel } from './robots/droneModel';
 import { createArmLinkVisual } from './robots/armModel';
 import { createRobotMaterials } from './robots/palette';
+import { designedLinkVisuals } from './robots/presetVisuals';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 
 interface Viewport3DProps {
@@ -382,6 +383,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
       );
 
       const armMats = createRobotMaterials();
+      const designed = designedLinkVisuals(gr.links.map((l) => l.name));
       const buildLinkNode = (linkName: string): THREE.Group => {
         const linkGroup = new THREE.Group();
         linkGroup.name = `link_${linkName}`;
@@ -391,7 +393,14 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
         const linkData = gr.links.find((l) => l.name === linkName);
         if (linkData) {
           const geom = linkData.visual || linkData.collision;
-          if (geom) {
+          const designedVisual = designed ? designed.get(linkName) : null;
+          if (designedVisual) {
+            designedVisual.traverse((c: any) => {
+              c.userData = { id: 'generic_robot', linkName, isRobot: true };
+              if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; }
+            });
+            linkGroup.add(designedVisual);
+          } else if (geom) {
             const parentJoint = parentJointByChild.get(linkName);
             const jointAxis = parentJoint
               ? new THREE.Vector3(parentJoint.axis?.[0] ?? 0, parentJoint.axis?.[1] ?? 0, parentJoint.axis?.[2] ?? 1)
@@ -1443,6 +1452,53 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     });
   }, [sceneInstance, simState?.rl_ghosts]);
 
+  // Balance-training ghosts: the live states of the real PPO training environments, drawn as
+  // translucent copies of the robot. Layout offset is display-only; pose/joints are the env's own.
+  const balGhostRef = useRef<THREE.Group | null>(null);
+  useEffect(() => {
+    if (!sceneInstance) return;
+    const ghosts = simState?.balance_ghosts || [];
+    const names = simState?.balance_ghost_joints || [];
+    let pool = balGhostRef.current;
+    if (!pool) {
+      pool = new THREE.Group();
+      pool.name = 'balance_ghosts';
+      sceneInstance.add(pool);
+      balGhostRef.current = pool;
+    }
+    const src = genericRobotGroupRef.current;
+    if (ghosts.length === 0 || !src) {
+      pool.children.slice().forEach((c) => pool!.remove(c));
+      return;
+    }
+    while (pool.children.length < ghosts.length) {
+      const g = src.clone(true);
+      g.traverse((o: any) => {
+        if (o.isLine || o.isLineSegments || o.userData?.isHierarchyLine) { o.visible = false; return; }
+        if (o.isMesh) {
+          o.material = new THREE.MeshBasicMaterial({ color: 0x60a5fa, transparent: true, opacity: 0.3, depthWrite: false });
+        }
+      });
+      pool.add(g);
+    }
+    const R = 1.3;
+    pool.children.forEach((child: any, i: number) => {
+      const g = ghosts[i];
+      child.visible = !!g;
+      if (!g) return;
+      const a = (i / ghosts.length) * Math.PI * 2;
+      child.position.set(g[0] + R * Math.cos(a), g[1] + R * Math.sin(a), g[2]);
+      child.quaternion.set(g[4], g[5], g[6], g[3]);
+      names.forEach((n, k) => {
+        const node = jointMotionNodesRef.current.get(n);
+        const jm = child.getObjectByName(`joint_motion_${n}`);
+        if (node && jm) jm.quaternion.setFromAxisAngle(node.axis, g[8 + k] ?? 0);
+      });
+      const pushed = g[7] > 0.5;
+      child.traverse((o: any) => { if (o.isMesh) o.material.color.setHex(pushed ? 0xf59e0b : 0x60a5fa); });
+    });
+  }, [sceneInstance, simState?.balance_ghosts]);
+
   // Mission planner path: numbered waypoint markers + connecting line (closed if looping).
   useEffect(() => {
     if (!sceneInstance) return;
@@ -1618,6 +1674,13 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
           }
         }
       });
+    }
+
+    // Free-standing generic robot: follow the simulated base pose
+    if (simState.generic_base_pose && simState.generic_base_pose.length === 7 && genericRobotGroupRef.current) {
+      const bp = simState.generic_base_pose;
+      genericRobotGroupRef.current.position.set(bp[0], bp[1], bp[2]);
+      genericRobotGroupRef.current.quaternion.set(bp[4], bp[5], bp[6], bp[3]);
     }
 
     // Generic Robot Joint Positions Synchronization

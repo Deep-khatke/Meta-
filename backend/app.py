@@ -64,6 +64,8 @@ from backend.rl_training_manager import training_manager
 from backend.rl_evaluator import RLEvaluator
 from backend.ai_assistant import AIExperimentAssistant
 from backend.ai_reasoning_service import get_ai_reasoning_service
+from backend import balance as balance_lab
+from backend import scene_vision, scene_task
 from backend.rl_refinement import HypothesisRefinementEngine
 from backend.chat_memory import chat_memory
 from backend.asset_models import (
@@ -661,6 +663,124 @@ async def new_project(name: str = "New Scene", template: str = "empty", robot_ty
     engine.rebuild_model(preserve_state=False)
     await broadcast_json({"type": "project_updated", "data": engine.project.model_dump()})
     return proj
+
+
+def _balance_kind(kind):
+    if kind in ("humanoid", "dog"):
+        return kind
+    gr = engine.project.generic_robot
+    if gr is not None:
+        names = {l.name for l in gr.links}
+        if "pelvis" in names: return "humanoid"
+        if "fl_thigh" in names: return "dog"
+    raise HTTPException(status_code=400, detail="kind must be humanoid or dog")
+
+
+@app.post("/api/balance/spawn")
+async def balance_spawn(kind: str = "dog", clear: bool = True):
+    res = balance_lab.spawn(_balance_kind(kind), project_manager, engine, clear)
+    await broadcast_json({"type": "project_updated", "data": engine.project.model_dump()})
+    return res
+
+
+@app.post("/api/balance/push")
+def balance_push(angle_deg: Optional[float] = None, strength: Optional[float] = None):
+    return balance_lab.push(engine, angle_deg, strength)
+
+
+@app.post("/api/balance/train")
+def balance_train(kind: Optional[str] = None, timesteps: int = 200000):
+    k = _balance_kind(kind)
+    return balance_lab.trainer.start(k, max(20000, min(1500000, int(timesteps))), engine)
+
+
+@app.post("/api/balance/stop")
+def balance_stop():
+    balance_lab.trainer.stop()
+    return {"status": "stopping"}
+
+
+@app.post("/api/balance/untrain")
+def balance_untrain():
+    return balance_lab.untrain(engine)
+
+
+@app.post("/api/balance/reset")
+def balance_reset():
+    engine.reset()
+    engine.play()
+    return {"status": "success"}
+
+
+@app.get("/api/balance/status")
+def balance_status():
+    return balance_lab.get_status(engine)
+
+
+class SceneImageRequest(BaseModel):
+    image: str
+    mime: Optional[str] = None
+    hint: str = ""
+    name: str = "photo"
+
+
+@app.post("/api/scene/from-image")
+async def scene_from_image(req: SceneImageRequest):
+    try:
+        res = await asyncio.to_thread(scene_vision.from_image, req.image, req.mime, req.hint, project_manager, engine, req.name)
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    await broadcast_json({"type": "project_updated", "data": engine.project.model_dump()})
+    return res
+
+
+@app.get("/api/scene/context")
+def scene_context():
+    return scene_vision.CTX
+
+
+class SceneTrainRequest(BaseModel):
+    task: str = "climb"
+    target: Optional[str] = None
+    timesteps: int = 300000
+
+
+@app.post("/api/scene/task/train")
+async def scene_task_train(req: SceneTrainRequest):
+    res = await asyncio.to_thread(scene_task.trainer.start, req.task, req.target,
+                                  max(20000, min(2000000, req.timesteps)), project_manager, engine)
+    await broadcast_json({"type": "project_updated", "data": engine.project.model_dump()})
+    return res
+
+
+@app.post("/api/scene/task/stop")
+def scene_task_stop():
+    scene_task.trainer.stop()
+    return {"status": "stopping"}
+
+
+@app.get("/api/scene/task/status")
+def scene_task_status():
+    s = dict(scene_task.trainer.status)
+    s["controller_active"] = getattr(engine, "balance_controller", None) is not None
+    return s
+
+
+@app.post("/api/robot/spawn-preset")
+async def spawn_robot_preset(preset: str = "humanoid"):
+    """Spawn an articulated preset (humanoid, dog or arm) as the active robot."""
+    service = get_ai_reasoning_service(project_manager, engine=engine)
+    p = preset.lower().strip()
+    if p in ("humanoid", "biped"):
+        res = service.tool_spawn_humanoid()
+    elif p in ("dog", "quadruped", "robot_dog"):
+        res = service.tool_spawn_dog()
+    elif p == "arm":
+        res = service.tool_spawn_arm(joints=4)
+    else:
+        raise HTTPException(status_code=400, detail="preset must be one of: humanoid, dog, arm")
+    await broadcast_json({"type": "project_updated", "data": engine.project.model_dump()})
+    return res
 
 
 @app.post("/api/project/save")
@@ -2619,16 +2739,19 @@ def interpret_experiment_prompt(req: AIAssistantPromptRequest, request: Request)
 
 @app.post("/api/ai/chat", response_model=AIChatResponse)
 async def ai_conversational_chat(req: AIChatRequest, request: Request):
-    """Executes a telemetry-grounded conversational agent loop supporting supervised & autonomous modes, with multi-turn memory."""
+    """Executes a telemetry-grounded conversational agent loop supporting supervised & autonomous modes, with user-isolated database memory."""
     credit_hold = check_and_reserve_credits(request, "ai_chat")
     try:
-        session_id = req.session_id or "default_session"
-        # If frontend didn't supply chat_history, load from persistent memory
-        if not req.chat_history:
-            req.chat_history = chat_memory.get_history(session_id, limit=20)
+        user = _get_user_from_request_optional(request)
+        user_id = user["id"] if user else (req.session_id or "guest")
 
-        # Record user turn
-        chat_memory.append_message(session_id=session_id, role="user", content=req.prompt)
+        # Load conversation history from persistent database if not explicitly passed by frontend
+        if not req.chat_history:
+            db_history = db.get_user_chat_history(user_id=user_id, limit=20)
+            req.chat_history = [{"role": h["role"], "content": h["content"]} for h in db_history]
+
+        # Record user turn in the database
+        db.save_chat_message(user_id=user_id, role="user", content=req.prompt)
 
         service = get_ai_reasoning_service(project_manager, engine=engine, agent_interface=agent_interface)
         res = service.chat(req)
@@ -2640,14 +2763,20 @@ async def ai_conversational_chat(req: AIChatRequest, request: Request):
             except Exception as b_err:
                 logger.warning("Failed to broadcast project_updated after AI chat action: %s", b_err)
 
-        # Record assistant reply and actions
-        chat_memory.append_message(
-            session_id=session_id,
+        # Record assistant reply and metadata in the database
+        thought_steps_json = json.dumps([t.model_dump() for t in res.thought_steps]) if res.thought_steps else None
+        actions_json = json.dumps(res.actions_executed) if res.actions_executed else None
+        response_json = json.dumps(res.model_dump())
+        db.save_chat_message(
+            user_id=user_id,
             role="assistant",
             content=res.reply,
-            response_data=res.model_dump(),
-            actions_executed=res.actions_executed
+            model=getattr(res, "provider", None),
+            thought_steps=thought_steps_json,
+            actions_executed=actions_json,
+            response_data=response_json,
         )
+
         if credit_hold:
             credit_service.commitCredits(credit_hold[1])
         return res
@@ -2682,16 +2811,20 @@ async def ai_conversational_chat(req: AIChatRequest, request: Request):
 
 
 @app.get("/api/ai/chat/history")
-def get_ai_chat_history(session_id: str = "default_session", limit: int = 50):
-    """Retrieves stored multi-turn conversation messages for a session."""
-    return {"history": chat_memory.get_history(session_id, limit=limit)}
+def get_ai_chat_history(request: Request, session_id: Optional[str] = None, limit: int = 50):
+    """Retrieves stored multi-turn conversation messages for the current user from the database."""
+    user = _get_user_from_request_optional(request)
+    user_id = user["id"] if user else (session_id or "guest")
+    return {"history": db.get_user_chat_history(user_id=user_id, limit=limit)}
 
 
 @app.delete("/api/ai/chat/history")
-def delete_ai_chat_history(session_id: str = "default_session"):
-    """Clears stored multi-turn conversation messages for a session."""
-    chat_memory.clear_history(session_id)
-    return {"status": "cleared", "session_id": session_id}
+def delete_ai_chat_history(request: Request, session_id: Optional[str] = None):
+    """Clears stored multi-turn conversation messages for the current user from the database."""
+    user = _get_user_from_request_optional(request)
+    user_id = user["id"] if user else (session_id or "guest")
+    deleted_count = db.clear_user_chat_history(user_id=user_id)
+    return {"status": "cleared", "user_id": user_id, "deleted_count": deleted_count}
 
 
 @app.post("/api/ai/approve-action", response_model=AIChatResponse)

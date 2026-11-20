@@ -46,6 +46,49 @@ from backend.motion_planning import GridAStarPlanner
 logger = logging.getLogger("roboforge.ai_reasoning")
 
 
+def _is_unset_key(key: Optional[str]) -> bool:
+    """True for empty keys and obvious placeholders such as REPLACE_WITH_YOUR_KEY."""
+    k = (key or "").strip()
+    if not k:
+        return True
+    return k.upper().startswith("REPLACE") or k.upper() in ("CHANGEME", "YOUR_KEY_HERE", "TODO", "XXX")
+
+
+def _gemini_request(model: str, key: str, endpoint: Optional[str] = None):
+    """Return (url, headers) for a Gemini generateContent call.
+
+    endpoint "developer" uses the Gemini Developer API; "vertex" uses Vertex AI's express-mode endpoint.
+    Defaults to the GEMINI_ENDPOINT environment variable, then "developer". The key travels in a header,
+    never in the URL, so it cannot leak into request logs.
+    """
+    ep = (endpoint or os.getenv("GEMINI_ENDPOINT") or "developer").strip().lower()
+    headers = {"Content-Type": "application/json", "x-goog-api-key": key}
+    if ep == "vertex":
+        return f"https://aiplatform.googleapis.com/v1/publishers/google/models/{model}:generateContent", headers
+    return f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent", headers
+
+
+def _parse_json_lenient(text: str) -> dict:
+    """Parse model output as JSON, tolerating code fences and surrounding prose."""
+    t = (text or "").strip()
+    if t.startswith("```"):
+        t = re.sub(r"^```[a-zA-Z]*\n?", "", t)
+        t = re.sub(r"\n?```$", "", t)
+    try:
+        return json.loads(t)
+    except Exception:
+        m = re.search(r"\{.*\}", t, re.DOTALL)
+        if m:
+            return json.loads(m.group(0))
+        raise
+
+
+def _gemini_text(body: dict) -> str:
+    """Join the answer text parts of a generateContent response, skipping any 'thought' parts."""
+    parts = (body.get("candidates") or [{}])[0].get("content", {}).get("parts", [])
+    return "".join(p.get("text", "") for p in parts if not p.get("thought")).strip()
+
+
 class AIReasoningService:
     """
     Unified, provider-independent reasoning service.
@@ -89,6 +132,13 @@ class AIReasoningService:
             "teleport_robot",
             "add_robot",
             "spawn_arm",
+            "spawn_humanoid",
+            "spawn_balance_robot",
+            "train_scene_task",
+            "push_robot",
+            "train_balance",
+            "stop_balance_training",
+            "spawn_dog",
             "play_joint_keyframes",
             "add_drone",
             "control_drone",
@@ -951,6 +1001,68 @@ class AIReasoningService:
             "details": f"Spawned articulated arm '{robot.name}' with {n_joints} joints into the scene. It is now the active robot and you can drive its joints or train a reach policy on it.",
         }
 
+    def tool_train_scene_task(self, task: str = "climb", target: Optional[str] = None, timesteps: int = 300000) -> Dict[str, Any]:
+        from backend import scene_task
+        res = scene_task.trainer.start(str(task), target, max(20000, min(2000000, int(timesteps))), self.pm, self.engine)
+        res["action"] = "train_scene_task"
+        return res
+
+    def tool_spawn_balance_robot(self, kind: str = "dog", clear: bool = True) -> Dict[str, Any]:
+        from backend import balance
+        return balance.spawn("humanoid" if "human" in str(kind).lower() or "biped" in str(kind).lower() else "dog", self.pm, self.engine, bool(clear))
+
+    def tool_push_robot(self, angle_deg: Optional[float] = None, strength: Optional[float] = None) -> Dict[str, Any]:
+        from backend import balance
+        return balance.push(self.engine, angle_deg, strength)
+
+    def tool_train_balance(self, kind: Optional[str] = None, timesteps: int = 200000) -> Dict[str, Any]:
+        from backend import balance
+        if not kind:
+            names = {l.name for l in (self.engine.project.generic_robot.links if self.engine.project.generic_robot else [])}
+            kind = "humanoid" if "pelvis" in names else "dog"
+        kind = "humanoid" if "human" in str(kind).lower() else "dog"
+        return balance.trainer.start(kind, max(20000, min(1500000, int(timesteps))), self.engine)
+
+    def tool_stop_balance_training(self) -> Dict[str, Any]:
+        from backend import balance
+        balance.trainer.stop()
+        return {"status": "success", "details": "Stopping balance training."}
+
+    def _spawn_preset(self, kind: str) -> Dict[str, Any]:
+        """Spawn a fixed-base articulated preset (humanoid or robot dog) as the active generic robot."""
+        from backend.robot_presets import build_preset
+        robot = build_preset(kind)
+        if robot is None:
+            return {"action": f"spawn_{kind}", "status": "error", "details": f"Unknown robot preset '{kind}'."}
+        proj = self.pm.get_current()
+        proj.generic_robot = robot
+        self.pm.update_project(proj)
+        if getattr(self, "engine", None) is not None:
+            try:
+                self.engine.project = proj
+                self.engine.rebuild_model(preserve_state=False)
+            except Exception as e:
+                logger.warning("Engine rebuild error on spawn_%s: %s", kind, e)
+        names = [j.name for j in robot.joints]
+        return {
+            "action": f"spawn_{kind}",
+            "status": "success",
+            "name": robot.name,
+            "joint_count": len(names),
+            "joints": names,
+            "is_fixed_base": True,
+            "details": (f"Spawned {robot.name} with {len(names)} actuated joints. It is mounted at standing height; "
+                        "pose its joints, or play a motion ('walk', 'wave', 'home') with play_joint_keyframes."),
+        }
+
+    def tool_spawn_humanoid(self, name: Optional[str] = None) -> Dict[str, Any]:
+        """Tool: spawns the articulated humanoid (14 joints) into the scene."""
+        return self._spawn_preset("humanoid")
+
+    def tool_spawn_dog(self, name: Optional[str] = None) -> Dict[str, Any]:
+        """Tool: spawns the articulated quadruped robot dog (12 joints) into the scene."""
+        return self._spawn_preset("dog")
+
     def tool_play_joint_keyframes(
         self,
         keyframes: Optional[List[Dict[str, Any]]] = None,
@@ -967,6 +1079,14 @@ class AIReasoningService:
                     "details": "No articulated arm in the scene. Spawn or import an arm first."}
 
         jnames = [j.name for j in gr.joints]
+
+        # Authored motions for the humanoid and robot-dog presets (walk, wave, sit, home).
+        if not keyframes:
+            from backend.robot_presets import preset_motion
+            _pm = preset_motion(getattr(gr, "name", ""), motion, jnames)
+            if _pm:
+                keyframes = _pm["keyframes"]
+                loop = bool(loop or _pm["loop"])
 
         # Auto-author a named motion if no explicit keyframes were supplied.
         if not keyframes:
@@ -3804,6 +3924,21 @@ class AIReasoningService:
                     name=params.get("name"),
                     preset=params.get("preset") or params.get("type"),
                 )
+            elif tool_name == "train_scene_task":
+                return self.tool_train_scene_task(task=params.get("task", "climb"), target=params.get("target"),
+                                                  timesteps=params.get("timesteps", 300000))
+            elif tool_name == "spawn_balance_robot":
+                return self.tool_spawn_balance_robot(kind=params.get("kind", "dog"), clear=params.get("clear", True))
+            elif tool_name == "push_robot":
+                return self.tool_push_robot(angle_deg=params.get("angle_deg"), strength=params.get("strength"))
+            elif tool_name == "train_balance":
+                return self.tool_train_balance(kind=params.get("kind"), timesteps=params.get("timesteps", 200000))
+            elif tool_name == "stop_balance_training":
+                return self.tool_stop_balance_training()
+            elif tool_name in ("spawn_humanoid", "add_humanoid", "create_humanoid", "spawn_biped", "add_biped"):
+                return self.tool_spawn_humanoid(name=params.get("name"))
+            elif tool_name in ("spawn_dog", "add_dog", "create_dog", "spawn_robot_dog", "spawn_quadruped", "add_quadruped"):
+                return self.tool_spawn_dog(name=params.get("name"))
             elif tool_name in ("play_joint_keyframes", "joint_keyframes", "animate_joints", "play_keyframes", "move_joints_sequence", "wave", "arm_motion"):
                 return self.tool_play_joint_keyframes(
                     keyframes=params.get("keyframes"),
@@ -4235,16 +4370,16 @@ class AIReasoningService:
                 data = json.loads(clean_text)
         elif gemini_key:
             model = provider_info.get("model", "gemini-2.0-flash")
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={gemini_key}"
+            url, _gem_headers = _gemini_request(model, gemini_key)
             payload = {
                 "contents": [{"role": "user", "parts": [{"text": f"SYSTEM INSTRUCTION:\n{system_instruction}\n\n{user_content}"}]}],
                 "generationConfig": {"responseMimeType": "application/json", "temperature": 0.2}
             }
             try:
-                with httpx.Client(timeout=25.0) as client:
-                    res = client.post(url, json=payload, headers={"Content-Type": "application/json"})
+                with httpx.Client(timeout=60.0) as client:
+                    res = client.post(url, json=payload, headers=_gem_headers)
                     res.raise_for_status()
-                    raw_text = res.json()["candidates"][0]["content"]["parts"][0]["text"]
+                    raw_text = _gemini_text(res.json())
                     data = json.loads(raw_text)
             except Exception as e:
                 # Gemini is primary; fall back to local Ollama on any failure (quota/429, network).
@@ -4649,6 +4784,8 @@ class AIReasoningService:
         kind, _, model = tag.partition(":")
         if kind == "primary":
             return provider_info.get("active_provider", model)
+        if kind == "fallback" and "gemini" in model.lower():
+            return f"Google Gemini backup ({model})"
         if kind == "fallback":
             m = model.lower()
             if "nemotron" in m or "nvidia" in m:
@@ -4762,7 +4899,12 @@ class AIReasoningService:
             "- 'teleport_robot': {position: [x,y,z], yaw: float}\n"
             "- 'add_robot': {name: str, position: [x,y,z], color: str, mass: float}\n"
             "- 'spawn_arm': {joints: int (default 4), name: str, preset: 'kr6'|'scara' (optional)}  -- USE THIS for ANY articulated arm / manipulator / 'N joint arm' request. 'add_robot' only makes a wheeled rover and must NOT be used for arms.\n"
-            "- 'play_joint_keyframes': {motion: 'wave'|'reach'|'home' (auto-generates the motion), OR keyframes: [{targets:{joint_name: angle_rad}, duration: sec}], loop: bool}  -- USE THIS to make an arm MOVE/perform a gesture (e.g. 'make the arm wave hi'). Prefer motion:'wave' for a greeting.\n"
+            "- 'train_scene_task': {task:'walk'|'climb'|'go_to'|'reach', target?:'<object label from the photo scene>', timesteps?} -- real PPO training. 'walk' needs NO photo or target: it trains the legged robot (dog by default, or the current humanoid) to walk forward (use ~2000000 timesteps). 'climb'/'go_to'/'reach' use objects from the user's uploaded photo scene (climb stairs, walk to an object, arm reaches an object). Use whenever the user asks to train a robot to walk or to do something in their photo.\n"
+            "- 'spawn_balance_robot': {kind:'dog'|'humanoid'} -- spawn an UNTRAINED free-standing robot for balance training.\n"
+            "- 'push_robot': {angle_deg?, strength?} -- shove the balance robot. 'train_balance': {kind?, timesteps?} -- real PPO training so it stays upright. 'stop_balance_training': {}.\n"
+            "- 'spawn_humanoid': {}  -- spawn a humanoid robot (14 joints). USE THIS for 'humanoid', 'biped', 'human robot'.\n"
+            "- 'spawn_dog': {}  -- spawn a quadruped robot dog (12 joints). USE THIS for 'robot dog', 'dog', 'quadruped'.\n"
+            "- 'play_joint_keyframes': {motion: 'wave'|'walk'|'sit'|'reach'|'home' (auto-generates the motion; 'walk' is a walk-in-place cycle for a humanoid or robot dog), OR keyframes: [{targets:{joint_name: angle_rad}, duration: sec}], loop: bool}  -- USE THIS to make an arm MOVE/perform a gesture (e.g. 'make the arm wave hi'). Prefer motion:'wave' for a greeting.\n"
             "- 'add_drone': {name: str, position: [x,y,z], mass: float}\n"
             "- 'control_drone': {command: 'takeoff'|'land'|'hover'|'fly_to', altitude: float, drone_name: str}\n"
             "- 'train_drone_policy': {drone_name: str, task: 'takeoff_and_land'|'hover', timesteps: int}\n"
@@ -4889,7 +5031,8 @@ class AIReasoningService:
         # Compact, high-signal scene summary (not a raw JSON dump) so the model reasons about the
         # few facts that matter and spends its tokens on the decision, not on parsing a blob.
         scene_summary = self._compact_scene_summary(context)
-        user_content = f"User Request: {prompt}\n\nLive Scene:\n{scene_summary}"
+        from backend import scene_vision as _sv
+        user_content = f"User Request: {prompt}\n\nLive Scene:\n{scene_summary}" + _sv.context_block()
         if tool_results:
             # Follow-up iteration in the agentic loop: show what the previous actions actually did
             # so the model can react (use real joint names, recover from failures, decide next step).
@@ -5029,7 +5172,7 @@ class AIReasoningService:
                     return None
         elif gemini_key:
             model = provider_info.get("model", "gemini-2.0-flash")
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={gemini_key}"
+            url, _gem_headers = _gemini_request(model, gemini_key)
             gemini_contents = []
             for m in conversation_messages:
                 if m["role"] == "system":
@@ -5041,19 +5184,62 @@ class AIReasoningService:
                 "contents": gemini_contents,
                 "generationConfig": {"responseMimeType": "application/json", "temperature": 0.2}
             }
+            def _gemini_call(m_name, key_, endpoint_):
+                u, h = _gemini_request(m_name, key_, endpoint_)
+                with httpx.Client(timeout=60.0) as client:
+                    r = client.post(u, json=payload, headers=h)
+                    r.raise_for_status()
+                    return _parse_json_lenient(_gemini_text(r.json()))
+
+            # Tiered reasoning. Tier 1: main Gemini key. Tier 2: backup Gemini key. Tier 3: Nemotron via
+            # OpenRouter. Tier 4: return None so the built-in deterministic engine handles the request.
+            data = None
             try:
-                with httpx.Client(timeout=25.0) as client:
-                    res = client.post(url, json=payload, headers={"Content-Type": "application/json"})
-                    res.raise_for_status()
-                    raw_text = res.json()["candidates"][0]["content"]["parts"][0]["text"]
-                    data = json.loads(raw_text)
+                data = _gemini_call(model, gemini_key, os.getenv("GEMINI_ENDPOINT"))
+                self._last_reasoning_provider = f"primary:{model}"
             except Exception as e:
-                # Gemini is primary; on any failure (quota/429, network, invalid key)
-                # transparently fall back to local Ollama before giving up.
-                logger.warning("Gemini primary reasoning failed (%s). Attempting Ollama fallback.", e)
-                data = self._ollama_chat_fallback(system_instruction, conversation_messages)
-                if data is None:
-                    return None
+                logger.warning("Tier 1 (Gemini main) failed: %s", e)
+
+            if data is None:
+                b_key = os.getenv("GEMINI_BACKUP_API_KEY", "").strip()
+                if b_key and not _is_unset_key(b_key):
+                    b_model = os.getenv("GEMINI_BACKUP_MODEL", "").strip() or model
+                    try:
+                        logger.info("Falling back to Gemini backup key (%s).", b_model)
+                        data = _gemini_call(b_model, b_key, os.getenv("GEMINI_BACKUP_ENDPOINT", "vertex"))
+                        self._last_reasoning_provider = f"fallback:{b_model}"
+                    except Exception as e:
+                        logger.warning("Tier 2 (Gemini backup) failed: %s", e)
+
+            for _n in range(2, 10):                     # extra Gemini keys: GEMINI_BACKUP2_*, GEMINI_BACKUP3_*, ...
+                if data is not None:
+                    break
+                bn_key = os.getenv(f"GEMINI_BACKUP{_n}_API_KEY", "").strip()
+                if not bn_key or _is_unset_key(bn_key):
+                    continue
+                bn_model = os.getenv(f"GEMINI_BACKUP{_n}_MODEL", "").strip() or model
+                try:
+                    logger.info("Falling back to Gemini backup key %d (%s).", _n, bn_model)
+                    data = _gemini_call(bn_model, bn_key, os.getenv(f"GEMINI_BACKUP{_n}_ENDPOINT", "developer"))
+                    self._last_reasoning_provider = f"fallback{_n}:{bn_model}"
+                except Exception as e:
+                    logger.warning("Gemini backup key %d failed: %s", _n, e)
+
+            if data is None:
+                n_base = os.getenv("FALLBACK_COMPAT_BASE_URL", "").strip()
+                n_key = os.getenv("FALLBACK_COMPAT_API_KEY", "").strip()
+                n_model = os.getenv("FALLBACK_COMPAT_MODEL", "").strip()
+                if n_base and n_model and not _is_unset_key(n_key):
+                    try:
+                        logger.info("Falling back to %s.", n_model)
+                        data = self._compat_chat_once(n_base, n_key, n_model, conversation_messages)
+                        self._last_reasoning_provider = f"fallback:{n_model}"
+                    except Exception as e:
+                        logger.warning("Tier 3 (Nemotron) failed: %s", e)
+
+            if data is None:
+                logger.warning("All model tiers failed; using the built-in deterministic engine.")
+                return None
         elif openai_key:
             model = provider_info.get("model", "gpt-4o-mini")
             url = "https://api.openai.com/v1/chat/completions"
