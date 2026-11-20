@@ -3600,8 +3600,8 @@ if os.path.isdir(frontend_dist):
         # Do not intercept API, WebSocket, Docs or schema routes
         if full_path.startswith("api") or full_path.startswith("ws") or full_path.startswith("docs") or full_path.startswith("openapi.json"):
             raise HTTPException(status_code=404, detail="Not Found")
-        target_path = os.path.join(frontend_dist, full_path)
-        if full_path and os.path.isfile(target_path):
+        target_path = os.path.normpath(os.path.join(frontend_dist, full_path))
+        if full_path and target_path.startswith(frontend_dist + os.sep) and os.path.isfile(target_path):
             return FileResponse(target_path)
         index_file = os.path.join(frontend_dist, "index.html")
         if os.path.isfile(index_file):

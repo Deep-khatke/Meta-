@@ -1004,6 +1004,31 @@ class AIReasoningService:
             "details": f"Spawned articulated arm '{robot.name}' with {n_joints} joints into the scene. It is now the active robot and you can drive its joints or train a reach policy on it.",
         }
 
+    def _learning_lab_results(self) -> str:
+        """Compact, real metrics from the balance / skill / imitation labs for the educator to teach with."""
+        out = []
+        try:
+            from backend import balance, scene_task
+            from backend.imitation import lab
+            b = balance.trainer.status
+            if b.get("eval"):
+                e = b["eval"]
+                out.append(f"- Balance ({b.get('kind')}): stayed upright after a {e['push_newtons']:.0f} N push in "
+                           f"{e['untrained'] * 100:.0f}% of trials untrained vs {e['trained'] * 100:.0f}% after PPO training.")
+            t = scene_task.trainer.status
+            if t.get("eval"):
+                u, tr = t["eval"]["untrained"], t["eval"]["trained"]
+                extra = f", mean speed {tr['mean_speed_mps']:.2f} m/s" if "mean_speed_mps" in tr else ""
+                out.append(f"- Skill '{t.get('task')}' ({t.get('robot')}): success {u['success_rate'] * 100:.0f}% untrained vs "
+                           f"{tr['success_rate'] * 100:.0f}% trained{extra}.")
+            r = (lab.status or {}).get("results") or {}
+            if r:
+                out.append("- Imitation (arm reach, success = tip within 3 cm): " + ", ".join(
+                    f"{k.replace('_', ' ')} {v['success_rate'] * 100:.0f}%" for k, v in r.items()) + f"; {len(lab.obs)} demo samples.")
+        except Exception:  # metrics are a teaching aid; never break chat over them
+            pass
+        return "\n".join(out)
+
     def tool_record_demos(self, source: str = "expert", count: int = 100) -> Dict[str, Any]:
         from backend.imitation import lab
         s = str(source).lower()
@@ -5072,7 +5097,18 @@ class AIReasoningService:
                 "   - '💡 Everyday Analogy': The intuitive real-world metaphor.\n"
                 "   - '🤖 What I Did in 3D Sim': What was changed in the simulation and what to watch for in the 3D viewport.\n"
                 "3. Always conclude with 2-3 interactive follow-up exploration suggestions for what to test next in the simulation.\n"
+                "4. Teach with the student's OWN results: if 'Learning-lab results' are given below, quote those real measured "
+                "numbers (e.g. survival before vs after training, success rates per stage) and explain what they mean. Never invent results.\n"
+                "5. Hands-on labs you can run for them (use the real tools): balance lab (spawn_balance_robot, push_robot, "
+                "train_balance = reinforcement learning by trial and error), walking (train_scene_task task 'walk'), "
+                "learning from a photo (the user uploads a photo; train_scene_task), imitation learning on the arm "
+                "(record_demos expert, train_from_demos = learning by copying a teacher; DAgger = the teacher corrects the student's own mistakes).\n"
+                "6. End every reply with one line '**Quick check:**' asking a single short multiple-choice question (A/B/C) about the concept; "
+                "if the user's message answers a previous quick check, say whether it was right and why, in one or two sentences.\n"
             )
+            _labs = self._learning_lab_results()
+            if _labs:
+                system_instruction += "\nLearning-lab results (real, measured in this session):\n" + _labs + "\n"
 
         # Compact, high-signal scene summary (not a raw JSON dump) so the model reasons about the
         # few facts that matter and spends its tokens on the decision, not on parsing a blob.
@@ -6175,9 +6211,13 @@ class AIReasoningService:
                     "- 🎯 **Ask Me Anything**: Ask *\"Why doesn't the robot fall over?\"*, *\"What is a degree of freedom?\"*, or *\"How do drone rotors work?\"*.\n"
                     "- 🛠️ **Learn by Building**: Tell me what you want to build (e.g. *\"Teach me how a rover steers around obstacles\"*), and I will both build it in our 3D physics simulator and explain the concepts step-by-step!\n"
                     "- 💡 **Everyday Analogies**: Don't worry about heavy math — I explain concepts using everyday things like bicycles, boats, and shopping carts.\n\n"
+                    "- **Learning labs**: watch a robot dog learn to stay upright when pushed, teach the arm by demonstration "
+                    "(imitation learning), train a robot to walk, or turn a photo of a room into a simulation.\n\n"
                     "What would you like to build or explore?"
                 )
                 suggestions = [
+                    "Teach me reinforcement learning: push an untrained robot dog",
+                    "Teach me imitation learning with the robot arm",
                     "🚗 How does differential steering work? Build an arena",
                     "🚁 Why do drones have 4 rotors? Test hover in 3D",
                     "🦾 What does Degrees of Freedom mean? Move the robot arm",
@@ -6644,6 +6684,30 @@ class AIReasoningService:
                     "🚁 Why do drones spin opposite rotors? Test in 3D",
                     "✈️ Test altitude hold at 2.0 meters",
                     "🕹️ How does PID control the drone's tilt?"
+                ]
+            elif any(w in prompt_lower for w in ["balance", "push", "upright", "fall", "topple"]):
+                suggestions = [
+                    "Spawn an untrained robot dog and push it",
+                    "Train the dog to stay upright with reinforcement learning",
+                    "Why does a trained robot survive pushes that topple an untrained one?",
+                ]
+            elif any(w in prompt_lower for w in ["imitat", "demo", "copy", "dagger", "cloning"]):
+                suggestions = [
+                    "Record 200 expert demonstrations for the arm",
+                    "Train the arm from the demos and compare the stages",
+                    "Why does DAgger beat plain behaviour cloning?",
+                ]
+            elif any(w in prompt_lower for w in ["walk", "gait", "legs", "quadruped", "humanoid"]):
+                suggestions = [
+                    "Train the dog to walk",
+                    "What does the reward tell a walking robot?",
+                    "Why is walking harder to learn than balancing?",
+                ]
+            elif any(w in prompt_lower for w in ["photo", "picture", "image", "stairs", "camera"]):
+                suggestions = [
+                    "How does a photo become a physics scene?",
+                    "Train the robot to climb the stairs from my photo",
+                    "Why are sizes from one photo only estimates?",
                 ]
             elif any(w in prompt_lower for w in ["arm", "joint", "dof", "kinematics", "manipulator"]):
                 suggestions = [
