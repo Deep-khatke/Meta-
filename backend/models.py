@@ -386,6 +386,8 @@ class SimulationState(BaseModel):
     # Parallel "swarm" ghost rovers during live training: [x, y, yaw, status]
     # status: 0 = trying, 1 = reached goal, 2 = crashed
     rl_ghosts: List[List[float]] = Field(default_factory=list)
+    balance_ghosts: List[List[float]] = Field(default_factory=list)
+    balance_ghost_joints: List[str] = Field(default_factory=list)
     rl_swarm_success: int = 0
     rl_swarm_size: int = 0
 

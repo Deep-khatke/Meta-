@@ -262,6 +262,8 @@ export interface SimulationState {
   imu_angular_velocity?: [number, number, number];
   joint_positions?: Record<string, number>;
   generic_base_pose?: number[] | null;
+  balance_ghosts?: number[][];
+  balance_ghost_joints?: string[];
   joint_velocities?: Record<string, number>;
   joint_torques?: Record<string, number>;
   encoder_ticks?: Record<string, number>;

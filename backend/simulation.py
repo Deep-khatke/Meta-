@@ -266,6 +266,8 @@ class MuJoCoEngine:
         self.rl_training_best_reward: float = 0.0
         self.rl_training_attempts: int = 0
         self.rl_ghosts: list = []
+        self.balance_ghosts: list = []
+        self.balance_ghost_joints: list = []
         self.rl_swarm_success: int = 0
         self.rl_swarm_size: int = 0
         # Snapshots
@@ -2041,6 +2043,8 @@ class MuJoCoEngine:
             rl_training_best_reward=float(getattr(self, "rl_training_best_reward", 0.0) or 0.0),
             rl_training_attempts=int(getattr(self, "rl_training_attempts", 0) or 0),
             rl_ghosts=[list(g) for g in (getattr(self, "rl_ghosts", None) or [])],
+            balance_ghosts=[list(g) for g in (getattr(self, "balance_ghosts", None) or [])],
+            balance_ghost_joints=list(getattr(self, "balance_ghost_joints", None) or []),
             rl_swarm_success=int(getattr(self, "rl_swarm_success", 0) or 0),
             rl_swarm_size=int(getattr(self, "rl_swarm_size", 0) or 0),
             rl_target_position=(list(self.active_rl_policy_target_pos)
