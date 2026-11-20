@@ -663,6 +663,23 @@ async def new_project(name: str = "New Scene", template: str = "empty", robot_ty
     return proj
 
 
+@app.post("/api/robot/spawn-preset")
+async def spawn_robot_preset(preset: str = "humanoid"):
+    """Spawn an articulated preset (humanoid, dog or arm) as the active robot."""
+    service = get_ai_reasoning_service(project_manager, engine=engine)
+    p = preset.lower().strip()
+    if p in ("humanoid", "biped"):
+        res = service.tool_spawn_humanoid()
+    elif p in ("dog", "quadruped", "robot_dog"):
+        res = service.tool_spawn_dog()
+    elif p == "arm":
+        res = service.tool_spawn_arm(joints=4)
+    else:
+        raise HTTPException(status_code=400, detail="preset must be one of: humanoid, dog, arm")
+    await broadcast_json({"type": "project_updated", "data": engine.project.model_dump()})
+    return res
+
+
 @app.post("/api/project/save")
 def save_project(filename: Optional[str] = None):
     try:

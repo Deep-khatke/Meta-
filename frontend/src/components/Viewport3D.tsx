@@ -14,6 +14,7 @@ import { createRoverModel, RoverModel } from './robots/roverModel';
 import { createDroneModel } from './robots/droneModel';
 import { createArmLinkVisual } from './robots/armModel';
 import { createRobotMaterials } from './robots/palette';
+import { designedLinkVisuals } from './robots/presetVisuals';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 
 interface Viewport3DProps {
@@ -382,6 +383,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
       );
 
       const armMats = createRobotMaterials();
+      const designed = designedLinkVisuals(gr.links.map((l) => l.name));
       const buildLinkNode = (linkName: string): THREE.Group => {
         const linkGroup = new THREE.Group();
         linkGroup.name = `link_${linkName}`;
@@ -391,7 +393,14 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
         const linkData = gr.links.find((l) => l.name === linkName);
         if (linkData) {
           const geom = linkData.visual || linkData.collision;
-          if (geom) {
+          const designedVisual = designed ? designed.get(linkName) : null;
+          if (designedVisual) {
+            designedVisual.traverse((c: any) => {
+              c.userData = { id: 'generic_robot', linkName, isRobot: true };
+              if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; }
+            });
+            linkGroup.add(designedVisual);
+          } else if (geom) {
             const parentJoint = parentJointByChild.get(linkName);
             const jointAxis = parentJoint
               ? new THREE.Vector3(parentJoint.axis?.[0] ?? 0, parentJoint.axis?.[1] ?? 0, parentJoint.axis?.[2] ?? 1)
