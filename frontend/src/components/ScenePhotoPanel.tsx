@@ -30,9 +30,9 @@ export const ScenePhotoPanel: React.FC<Props> = ({ onClose, onShowToast }) => {
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [hint, setHint] = useState('');
-  const [task, setTask] = useState('climb');
+  const [task, setTask] = useState('walk');
   const [target, setTarget] = useState('');
-  const [steps, setSteps] = useState(300000);
+  const [steps, setSteps] = useState(2000000);
   const file = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -64,7 +64,7 @@ export const ScenePhotoPanel: React.FC<Props> = ({ onClose, onShowToast }) => {
   const train = async () => {
     setBusy(true);
     try {
-      const res = await call('task/train', 'POST', { task, target: target || null, timesteps: steps });
+      const res = await call('task/train', 'POST', { task, target: task === 'walk' ? null : target || null, timesteps: steps });
       onShowToast(res.status === 'started' ? res.details : res.details || 'Could not start');
     } catch (e: any) { onShowToast(e.message); }
     setBusy(false);
@@ -79,7 +79,7 @@ export const ScenePhotoPanel: React.FC<Props> = ({ onClose, onShowToast }) => {
       maxHeight: '70vh', overflowY: 'auto',
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <strong style={{ fontSize: 13 }}>Scene from photo</strong>
+        <strong style={{ fontSize: 13 }}>Train a skill</strong>
         <button className="rf-btn" onClick={onClose} style={{ padding: 4 }}><X size={13} /></button>
       </div>
       <input style={{ ...input, marginTop: 8 }} placeholder="Optional measurements, e.g. each step is 15 cm high"
@@ -88,7 +88,7 @@ export const ScenePhotoPanel: React.FC<Props> = ({ onClose, onShowToast }) => {
         onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])} />
       <button className="rf-btn rf-btn-primary" style={{ width: '100%', marginTop: 8, justifyContent: 'center' }}
         disabled={busy || training} onClick={() => file.current?.click()}>
-        <Upload size={12} />{busy ? 'Working...' : 'Upload photo of the environment'}
+        <Upload size={12} />{busy ? 'Working...' : 'Upload photo of the environment (optional)'}
       </button>
       {preview && <img src={preview} alt="uploaded" style={{ width: '100%', borderRadius: 8, marginTop: 8 }} />}
 
@@ -104,10 +104,11 @@ export const ScenePhotoPanel: React.FC<Props> = ({ onClose, onShowToast }) => {
         </div>
       )}
 
-      {ctx?.active && (
+      {(
         <div style={box}>
           <div style={{ display: 'flex', gap: 6 }}>
             <select style={input} value={task} onChange={(e) => setTask(e.target.value)}>
+              <option value="walk">Walk forward (no photo needed)</option>
               <option value="climb">Walk / climb to</option>
               <option value="reach">Arm reach / pick</option>
             </select>

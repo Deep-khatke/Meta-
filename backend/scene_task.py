@@ -57,7 +57,7 @@ def task_obs(model, data, c, last_a) -> np.ndarray:
     qj, qd = data.qpos[c.qadr], data.qvel[c.dadr] * 0.05
     if c.free:
         R = data.xmat[c.root].reshape(3, 3)
-        rel = np.clip(R.T @ (c.goal - data.xpos[c.root]), -4.0, 4.0)
+        rel = np.array([c.goal[0], 0.0, 0.0]) if c.task == "walk" else np.clip(R.T @ (c.goal - data.xpos[c.root]), -4.0, 4.0)
         return np.concatenate([R.T @ [0, 0, -1.0], data.qvel[3:6] * 0.25, R.T @ data.qvel[0:3], rel, qj, qd, last_a]).astype(np.float32)
     ee = data.xpos[c.ee]
     return np.concatenate([c.goal - ee, ee, qj, qd, last_a]).astype(np.float32)
@@ -79,7 +79,7 @@ class SceneTaskEnv(gym.Env):
         self.goal0 = np.asarray(goal, dtype=float)
         self.n = self.c.n
         self.sub = max(1, int(round(CTRL_DT / float(self.model.opt.timestep))))
-        eps = episode_seconds or (4.0 if not self.c.free else 8.0)
+        eps = episode_seconds or (4.0 if not self.c.free else (10.0 if task == "walk" else 8.0))
         self.max_steps = int(eps / (self.sub * float(self.model.opt.timestep)))
         self.rng = np.random.default_rng(seed)
         self.observation_space = spaces.Box(-np.inf, np.inf, (len(self._obs_dummy()),), np.float32)
@@ -88,6 +88,7 @@ class SceneTaskEnv(gym.Env):
         self.prev = 0.0
         self.t = 0
         self.z0 = 0.4
+        self.x0 = 0.0
         self.fall_h = 0.2
 
     def _obs_dummy(self):
@@ -118,6 +119,7 @@ class SceneTaskEnv(gym.Env):
         self.last_a = np.zeros(c.n)
         self.t = 0
         self.prev = self._dist()
+        self.x0 = float(d.xpos[c.root][0])
         return task_obs(m, d, c, self.last_a), {}
 
     def step(self, action):
@@ -128,6 +130,8 @@ class SceneTaskEnv(gym.Env):
             mujoco.mj_step(m, d)
         self.t += 1
         dist = self._dist()
+        if c.task == "walk":
+            dist = self.prev
         r = 6.0 * (self.prev - dist) - 0.01 * float(np.mean((a - self.last_a) ** 2))
         self.prev, self.last_a = dist, a
         term, success = False, False
@@ -136,11 +140,18 @@ class SceneTaskEnv(gym.Env):
             up = float((R.T @ [0, 0, -1.0])[2] * -1)
             h = float(d.xpos[c.root][2])
             r += 0.05 + 0.1 * up - 0.002 * float(d.qvel[c.dadr] @ d.qvel[c.dadr]) * 0.01
+            if c.task == "walk":
+                vb = R.T @ d.qvel[0:3]
+                cmd = c.goal[0]
+                r += (0.5 + 1.5 * math.exp(-((vb[0] - cmd) / 0.15) ** 2) + 0.3 * up - 0.5 * vb[1] ** 2
+                      - 0.1 * float(d.qvel[5]) ** 2 - 0.3 * abs(h - self.z0))
             if h < self.fall_h or up < 0.4 or np.isnan(h):
-                r -= 5.0
+                r -= 30.0 if c.task == "walk" else 5.0
                 term = True
+            elif c.task == "walk":
+                pass
             # at the goal: horizontal distance small and body is at (or above) the goal height
-            elif np.linalg.norm(c.goal[:2] - d.xpos[c.root][:2]) < 0.35 and h > c.goal[2] - 0.08:
+            elif c.task != "walk" and np.linalg.norm(c.goal[:2] - d.xpos[c.root][:2]) < 0.35 and h > c.goal[2] - 0.08:
                 r += 20.0
                 term = success = True
         else:
@@ -148,11 +159,15 @@ class SceneTaskEnv(gym.Env):
             if dist < 0.06:
                 r += 10.0
                 term = success = True
-        return task_obs(m, d, c, a), float(r), term, self.t >= self.max_steps, {"success": success}
+        trunc = self.t >= self.max_steps
+        if c.task == "walk" and (trunc or term):
+            self.speed = (float(d.xpos[c.root][0]) - self.x0) / (self.t * self.sub * float(m.opt.timestep))
+            success = (not term) and self.speed >= 0.5 * c.goal[0]
+        return task_obs(m, d, c, a), float(r), term, trunc, {"success": success}
 
 
 def evaluate(env: SceneTaskEnv, policy, trials: int = 20) -> Dict[str, float]:
-    ok, best = 0, []
+    ok, best, spd = 0, [], []
     for i in range(trials):
         obs, _ = env.reset(seed=1000 + i)
         done, success = False, False
@@ -162,7 +177,11 @@ def evaluate(env: SceneTaskEnv, policy, trials: int = 20) -> Dict[str, float]:
             success, done = info["success"], te or tr
         ok += int(success)
         best.append(env._dist())
-    return {"success_rate": ok / trials, "final_distance_m": float(np.mean(best))}
+        spd.append(getattr(env, "speed", 0.0))
+    out = {"success_rate": ok / trials, "final_distance_m": float(np.mean(best))}
+    if env.c.task == "walk":
+        out["mean_speed_mps"] = float(np.mean(spd))
+    return out
 
 
 class TaskController:
@@ -247,18 +266,31 @@ class SceneTrainer:
         if self.running():
             return {"status": "busy", "details": "A scene training run is already in progress."}
         tl = task.lower()
-        task = "reach" if any(k in tl for k in ("reach", "pick", "grab", "grasp", "touch", "lift", "arm")) else (
-            "go_to" if any(k in tl for k in ("climb", "stair", "walk", "go", "navigate", "step", "run")) else tl)
-        if task not in ("reach", "go_to"):
-            return {"status": "error", "details": "task must be 'climb', 'go_to' or 'reach'."}
-        try:
-            label, pos = resolve_target(target)
-        except ValueError as e:
-            return {"status": "error", "details": str(e)}
+        if any(k in tl for k in ("reach", "pick", "grab", "grasp", "touch", "lift", "arm")):
+            task = "reach"
+        elif any(k in tl for k in ("climb", "stair", "navigate", "step")) or (target and any(k in tl for k in ("go", "walk", "run"))):
+            task = "go_to"
+        elif any(k in tl for k in ("walk", "run", "trot", "gait", "go", "forward")):
+            task = "walk"
+        if task == "go_to" and not target and not scene_vision.CTX["active"]:
+            task = "walk"
+        if task not in ("reach", "go_to", "walk"):
+            return {"status": "error", "details": "task must be 'walk', 'climb', 'go_to' or 'reach'."}
+        if task == "walk":
+            label, pos = "forward", [0.0, 0.0, 0.0]
+        else:
+            try:
+                label, pos = resolve_target(target)
+            except ValueError as e:
+                return {"status": "error", "details": str(e)}
         robot = ensure_robot(task, pm, engine)
         proj = engine.project
         goal = list(pos)
-        if task == "go_to":                                   # stand ON the target: add the robot's standing height
+        if task == "walk":
+            humanoid = any(l.name == "pelvis" for l in proj.generic_robot.links)
+            goal = [0.2 if humanoid else 0.3, 0.0, 0.0]   # commanded forward speed, m/s
+            probe = None
+        elif task == "go_to":                                   # stand ON the target: add the robot's standing height
             probe = SceneTaskEnv(proj, task, goal)
             probe.reset()
             goal[2] = float(pos[2]) + probe.z0
@@ -281,7 +313,7 @@ class SceneTrainer:
         self.thread = threading.Thread(target=self._run, args=(task, goal, int(timesteps), proj, engine), daemon=True)
         self.thread.start()
         return {"status": "started", "task": task, "target": label, "robot": robot, "timesteps": int(timesteps),
-                "details": f"Training {robot} to {'reach' if task == 'reach' else 'walk to'} '{label}' with real PPO. "
+                "details": f"Training {robot} to {'reach' if task == 'reach' else ('walk forward at ' + str(goal[0]) + ' m/s' if task == 'walk' else 'walk to ' + chr(39) + label + chr(39))} with real PPO. "
                            "Watch the ghosts: they are the parallel training environments."}
 
     def stop(self) -> None:

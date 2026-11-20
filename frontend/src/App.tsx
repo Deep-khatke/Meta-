@@ -1194,7 +1194,7 @@ export const AppContent: React.FC = () => {
             className="rf-glass-hud"
             style={{ position: 'absolute', bottom: 18, right: 300, zIndex: 30, padding: '7px 16px', borderRadius: 100, cursor: 'pointer', fontSize: 12, fontWeight: 600, color: 'inherit' }}
           >
-            Scene from photo
+            Train a skill
           </button>
           {photoOpen && <ScenePhotoPanel onClose={() => setPhotoOpen(false)} onShowToast={showToast} />}
           {balanceOpen && <BalancePanel onClose={() => setBalanceOpen(false)} onShowToast={showToast} />}

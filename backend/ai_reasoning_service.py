@@ -4898,7 +4898,7 @@ class AIReasoningService:
             "- 'teleport_robot': {position: [x,y,z], yaw: float}\n"
             "- 'add_robot': {name: str, position: [x,y,z], color: str, mass: float}\n"
             "- 'spawn_arm': {joints: int (default 4), name: str, preset: 'kr6'|'scara' (optional)}  -- USE THIS for ANY articulated arm / manipulator / 'N joint arm' request. 'add_robot' only makes a wheeled rover and must NOT be used for arms.\n"
-            "- 'train_scene_task': {task:'climb'|'go_to'|'reach', target:'<object label from the photo scene>', timesteps?} -- real PPO training in the scene built from the user's uploaded photo (climb stairs, walk to an object, arm reaches/picks an object). Use whenever the user asks to train a robot for something in their photo.\n"
+            "- 'train_scene_task': {task:'walk'|'climb'|'go_to'|'reach', target?:'<object label from the photo scene>', timesteps?} -- real PPO training. 'walk' needs NO photo or target: it trains the legged robot (dog by default, or the current humanoid) to walk forward (use ~2000000 timesteps). 'climb'/'go_to'/'reach' use objects from the user's uploaded photo scene (climb stairs, walk to an object, arm reaches an object). Use whenever the user asks to train a robot to walk or to do something in their photo.\n"
             "- 'spawn_balance_robot': {kind:'dog'|'humanoid'} -- spawn an UNTRAINED free-standing robot for balance training.\n"
             "- 'push_robot': {angle_deg?, strength?} -- shove the balance robot. 'train_balance': {kind?, timesteps?} -- real PPO training so it stays upright. 'stop_balance_training': {}.\n"
             "- 'spawn_humanoid': {}  -- spawn a humanoid robot (14 joints). USE THIS for 'humanoid', 'biped', 'human robot'.\n"
