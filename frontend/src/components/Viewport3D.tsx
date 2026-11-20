@@ -1599,6 +1599,13 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
       });
     }
 
+    // Free-standing generic robot: follow the simulated base pose
+    if (simState.generic_base_pose && simState.generic_base_pose.length === 7 && genericRobotGroupRef.current) {
+      const bp = simState.generic_base_pose;
+      genericRobotGroupRef.current.position.set(bp[0], bp[1], bp[2]);
+      genericRobotGroupRef.current.quaternion.set(bp[4], bp[5], bp[6], bp[3]);
+    }
+
     // Generic Robot Joint Positions Synchronization
     if (simState.joint_positions && jointMotionNodesRef.current.size > 0) {
       Object.entries(simState.joint_positions).forEach(([jName, val]) => {

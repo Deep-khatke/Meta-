@@ -133,6 +133,10 @@ class AIReasoningService:
             "add_robot",
             "spawn_arm",
             "spawn_humanoid",
+            "spawn_balance_robot",
+            "push_robot",
+            "train_balance",
+            "stop_balance_training",
             "spawn_dog",
             "play_joint_keyframes",
             "add_drone",
@@ -995,6 +999,27 @@ class AIReasoningService:
             "is_fixed_base": robot.is_fixed_base,
             "details": f"Spawned articulated arm '{robot.name}' with {n_joints} joints into the scene. It is now the active robot and you can drive its joints or train a reach policy on it.",
         }
+
+    def tool_spawn_balance_robot(self, kind: str = "dog", clear: bool = True) -> Dict[str, Any]:
+        from backend import balance
+        return balance.spawn("humanoid" if "human" in str(kind).lower() or "biped" in str(kind).lower() else "dog", self.pm, self.engine, bool(clear))
+
+    def tool_push_robot(self, angle_deg: Optional[float] = None, strength: Optional[float] = None) -> Dict[str, Any]:
+        from backend import balance
+        return balance.push(self.engine, angle_deg, strength)
+
+    def tool_train_balance(self, kind: Optional[str] = None, timesteps: int = 200000) -> Dict[str, Any]:
+        from backend import balance
+        if not kind:
+            names = {l.name for l in (self.engine.project.generic_robot.links if self.engine.project.generic_robot else [])}
+            kind = "humanoid" if "pelvis" in names else "dog"
+        kind = "humanoid" if "human" in str(kind).lower() else "dog"
+        return balance.trainer.start(kind, max(20000, min(1500000, int(timesteps))), self.engine)
+
+    def tool_stop_balance_training(self) -> Dict[str, Any]:
+        from backend import balance
+        balance.trainer.stop()
+        return {"status": "success", "details": "Stopping balance training."}
 
     def _spawn_preset(self, kind: str) -> Dict[str, Any]:
         """Spawn a fixed-base articulated preset (humanoid or robot dog) as the active generic robot."""
@@ -3892,6 +3917,14 @@ class AIReasoningService:
                     name=params.get("name"),
                     preset=params.get("preset") or params.get("type"),
                 )
+            elif tool_name == "spawn_balance_robot":
+                return self.tool_spawn_balance_robot(kind=params.get("kind", "dog"), clear=params.get("clear", True))
+            elif tool_name == "push_robot":
+                return self.tool_push_robot(angle_deg=params.get("angle_deg"), strength=params.get("strength"))
+            elif tool_name == "train_balance":
+                return self.tool_train_balance(kind=params.get("kind"), timesteps=params.get("timesteps", 200000))
+            elif tool_name == "stop_balance_training":
+                return self.tool_stop_balance_training()
             elif tool_name in ("spawn_humanoid", "add_humanoid", "create_humanoid", "spawn_biped", "add_biped"):
                 return self.tool_spawn_humanoid(name=params.get("name"))
             elif tool_name in ("spawn_dog", "add_dog", "create_dog", "spawn_robot_dog", "spawn_quadruped", "add_quadruped"):
@@ -4855,6 +4888,8 @@ class AIReasoningService:
             "- 'teleport_robot': {position: [x,y,z], yaw: float}\n"
             "- 'add_robot': {name: str, position: [x,y,z], color: str, mass: float}\n"
             "- 'spawn_arm': {joints: int (default 4), name: str, preset: 'kr6'|'scara' (optional)}  -- USE THIS for ANY articulated arm / manipulator / 'N joint arm' request. 'add_robot' only makes a wheeled rover and must NOT be used for arms.\n"
+            "- 'spawn_balance_robot': {kind:'dog'|'humanoid'} -- spawn an UNTRAINED free-standing robot for balance training.\n"
+            "- 'push_robot': {angle_deg?, strength?} -- shove the balance robot. 'train_balance': {kind?, timesteps?} -- real PPO training so it stays upright. 'stop_balance_training': {}.\n"
             "- 'spawn_humanoid': {}  -- spawn a humanoid robot (14 joints). USE THIS for 'humanoid', 'biped', 'human robot'.\n"
             "- 'spawn_dog': {}  -- spawn a quadruped robot dog (12 joints). USE THIS for 'robot dog', 'dog', 'quadruped'.\n"
             "- 'play_joint_keyframes': {motion: 'wave'|'walk'|'sit'|'reach'|'home' (auto-generates the motion; 'walk' is a walk-in-place cycle for a humanoid or robot dog), OR keyframes: [{targets:{joint_name: angle_rad}, duration: sec}], loop: bool}  -- USE THIS to make an arm MOVE/perform a gesture (e.g. 'make the arm wave hi'). Prefer motion:'wave' for a greeting.\n"

@@ -64,6 +64,7 @@ from backend.rl_training_manager import training_manager
 from backend.rl_evaluator import RLEvaluator
 from backend.ai_assistant import AIExperimentAssistant
 from backend.ai_reasoning_service import get_ai_reasoning_service
+from backend import balance as balance_lab
 from backend.rl_refinement import HypothesisRefinementEngine
 from backend.chat_memory import chat_memory
 from backend.asset_models import (
@@ -661,6 +662,58 @@ async def new_project(name: str = "New Scene", template: str = "empty", robot_ty
     engine.rebuild_model(preserve_state=False)
     await broadcast_json({"type": "project_updated", "data": engine.project.model_dump()})
     return proj
+
+
+def _balance_kind(kind):
+    if kind in ("humanoid", "dog"):
+        return kind
+    gr = engine.project.generic_robot
+    if gr is not None:
+        names = {l.name for l in gr.links}
+        if "pelvis" in names: return "humanoid"
+        if "fl_thigh" in names: return "dog"
+    raise HTTPException(status_code=400, detail="kind must be humanoid or dog")
+
+
+@app.post("/api/balance/spawn")
+async def balance_spawn(kind: str = "dog", clear: bool = True):
+    res = balance_lab.spawn(_balance_kind(kind), project_manager, engine, clear)
+    await broadcast_json({"type": "project_updated", "data": engine.project.model_dump()})
+    return res
+
+
+@app.post("/api/balance/push")
+def balance_push(angle_deg: Optional[float] = None, strength: Optional[float] = None):
+    return balance_lab.push(engine, angle_deg, strength)
+
+
+@app.post("/api/balance/train")
+def balance_train(kind: Optional[str] = None, timesteps: int = 200000):
+    k = _balance_kind(kind)
+    return balance_lab.trainer.start(k, max(20000, min(1500000, int(timesteps))), engine)
+
+
+@app.post("/api/balance/stop")
+def balance_stop():
+    balance_lab.trainer.stop()
+    return {"status": "stopping"}
+
+
+@app.post("/api/balance/untrain")
+def balance_untrain():
+    return balance_lab.untrain(engine)
+
+
+@app.post("/api/balance/reset")
+def balance_reset():
+    engine.reset()
+    engine.play()
+    return {"status": "success"}
+
+
+@app.get("/api/balance/status")
+def balance_status():
+    return balance_lab.get_status(engine)
 
 
 @app.post("/api/robot/spawn-preset")
