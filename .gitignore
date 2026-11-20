@@ -34,8 +34,9 @@ htmlcov/
 # Node / Frontend
 node_modules/
 frontend/node_modules/
-frontend/dist/
-dist/
+# frontend/dist is tracked for single-container cloud deployment
+!frontend/dist/
+!frontend/dist/**
 .npm
 .eslintcache
 

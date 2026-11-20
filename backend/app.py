@@ -3589,7 +3589,16 @@ import os
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
-frontend_dist = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend", "dist"))
+_candidate_dirs = [
+    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")),
+    os.path.abspath(os.path.join(os.path.dirname(__file__), "frontend", "dist")),
+    os.path.abspath("frontend/dist"),
+    "/app/frontend/dist",
+]
+
+frontend_dist = next((d for d in _candidate_dirs if os.path.isdir(d)), _candidate_dirs[0])
+logger.info("Resolved frontend distribution directory: %s (exists=%s)", frontend_dist, os.path.isdir(frontend_dist))
+
 if os.path.isdir(frontend_dist):
     assets_dir = os.path.join(frontend_dist, "assets")
     if os.path.isdir(assets_dir):
