@@ -187,6 +187,10 @@ class MuJoCoEngine:
         
         # Generic joint control targets: joint_name -> commanded position/velocity/torque
         self.joint_targets: Dict[str, float] = {}
+        # Free-standing balance lab: optional learned controller and a pending push on the base.
+        self.balance_controller = None
+        self._push_vec: Optional[List[float]] = None
+        self._push_left = 0
         self.joint_actuator_ids: Dict[str, int] = {}
 
         # Joint keyframe animation: play a user-defined sequence of joint poses in order, smoothly
@@ -1483,12 +1487,38 @@ class MuJoCoEngine:
         with self._physics_lock:
             return self._step_impl()
 
+    def push_root(self, force_xyz, duration_s: float = 0.1):
+        """Shove the free-standing robot's base with a horizontal force for `duration_s` seconds."""
+        self._push_vec = [float(v) for v in force_xyz]
+        self._push_left = max(1, int(round(duration_s / self.project.settings.timestep)))
+
+    def _balance_hooks(self):
+        gr = self.project.generic_robot
+        if gr is None or gr.is_fixed_base or self.model is None:
+            return
+        bc = self.balance_controller
+        if bc is not None and self.step_count % bc.substeps_for(self) == 0:
+            try:
+                bc.tick(self)
+            except Exception as e:  # a broken policy must never take the simulator down
+                self.log("warning", f"Balance controller disabled: {e}")
+                self.balance_controller = None
+        bid = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, gr.root_link)
+        if bid < 0:
+            return
+        if self._push_left > 0 and self._push_vec:
+            self.data.xfrc_applied[bid, 0:3] = self._push_vec
+            self._push_left -= 1
+            if self._push_left == 0:
+                self.data.xfrc_applied[bid, :] = 0.0
+
     def _step_impl(self):
         """Advances physics by one simulation timestep and computes rolling real-time factor."""
         if not self.model or not self.data:
             return
         
         try:
+            self._balance_hooks()
             self.apply_control()
             mujoco.mj_step(self.model, self.data)
             
@@ -1943,6 +1973,13 @@ class MuJoCoEngine:
             )
 
         # Joint telemetry for all model joints
+        generic_base_pose = None
+        _gr = self.project.generic_robot
+        if _gr is not None and not _gr.is_fixed_base and self.model is not None:
+            _bid = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, _gr.root_link)
+            if _bid >= 0:
+                generic_base_pose = [float(v) for v in self.data.xpos[_bid]] + [float(v) for v in self.data.xquat[_bid]]
+
         joint_positions: Dict[str, float] = {}
         joint_velocities: Dict[str, float] = {}
         joint_torques: Dict[str, float] = {}
@@ -1985,6 +2022,7 @@ class MuJoCoEngine:
             imu_linear_acceleration=imu_acc,
             imu_angular_velocity=imu_gyr,
             joint_positions=joint_positions,
+            generic_base_pose=generic_base_pose,
             joint_velocities=joint_velocities,
             joint_torques=joint_torques,
             encoder_ticks=encoder_ticks,

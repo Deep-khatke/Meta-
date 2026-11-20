@@ -1279,3 +1279,22 @@ export function getROS2PackageExportUrl(): string {
 }
 
 
+
+const balPost = async (path: string) => {
+  const res = await fetch(`${API_BASE}/balance/${path}`, { method: 'POST' });
+  if (!res.ok) throw new Error((await res.text()) || res.statusText);
+  return res.json();
+};
+export const balanceStatus = async () => (await fetch(`${API_BASE}/balance/status`)).json();
+export const balanceSpawn = (kind: string, clear = true) => balPost(`spawn?kind=${kind}&clear=${clear}`);
+export const balancePush = (angle?: number, strength?: number) => {
+  const q = new URLSearchParams();
+  if (angle !== undefined) q.set('angle_deg', String(angle));
+  if (strength) q.set('strength', String(strength));
+  return balPost(`push?${q}`);
+};
+export const balanceTrain = (kind: string | undefined, timesteps: number) =>
+  balPost(`train?${kind ? `kind=${kind}&` : ''}timesteps=${timesteps}`);
+export const balanceStop = () => balPost('stop');
+export const balanceReset = () => balPost('reset');
+export const balanceUntrain = () => balPost('untrain');
