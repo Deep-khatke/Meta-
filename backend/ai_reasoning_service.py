@@ -134,6 +134,7 @@ class AIReasoningService:
             "spawn_arm",
             "spawn_humanoid",
             "spawn_balance_robot",
+            "train_scene_task",
             "push_robot",
             "train_balance",
             "stop_balance_training",
@@ -999,6 +1000,12 @@ class AIReasoningService:
             "is_fixed_base": robot.is_fixed_base,
             "details": f"Spawned articulated arm '{robot.name}' with {n_joints} joints into the scene. It is now the active robot and you can drive its joints or train a reach policy on it.",
         }
+
+    def tool_train_scene_task(self, task: str = "climb", target: Optional[str] = None, timesteps: int = 300000) -> Dict[str, Any]:
+        from backend import scene_task
+        res = scene_task.trainer.start(str(task), target, max(20000, min(2000000, int(timesteps))), self.pm, self.engine)
+        res["action"] = "train_scene_task"
+        return res
 
     def tool_spawn_balance_robot(self, kind: str = "dog", clear: bool = True) -> Dict[str, Any]:
         from backend import balance
@@ -3917,6 +3924,9 @@ class AIReasoningService:
                     name=params.get("name"),
                     preset=params.get("preset") or params.get("type"),
                 )
+            elif tool_name == "train_scene_task":
+                return self.tool_train_scene_task(task=params.get("task", "climb"), target=params.get("target"),
+                                                  timesteps=params.get("timesteps", 300000))
             elif tool_name == "spawn_balance_robot":
                 return self.tool_spawn_balance_robot(kind=params.get("kind", "dog"), clear=params.get("clear", True))
             elif tool_name == "push_robot":
@@ -4888,6 +4898,7 @@ class AIReasoningService:
             "- 'teleport_robot': {position: [x,y,z], yaw: float}\n"
             "- 'add_robot': {name: str, position: [x,y,z], color: str, mass: float}\n"
             "- 'spawn_arm': {joints: int (default 4), name: str, preset: 'kr6'|'scara' (optional)}  -- USE THIS for ANY articulated arm / manipulator / 'N joint arm' request. 'add_robot' only makes a wheeled rover and must NOT be used for arms.\n"
+            "- 'train_scene_task': {task:'climb'|'go_to'|'reach', target:'<object label from the photo scene>', timesteps?} -- real PPO training in the scene built from the user's uploaded photo (climb stairs, walk to an object, arm reaches/picks an object). Use whenever the user asks to train a robot for something in their photo.\n"
             "- 'spawn_balance_robot': {kind:'dog'|'humanoid'} -- spawn an UNTRAINED free-standing robot for balance training.\n"
             "- 'push_robot': {angle_deg?, strength?} -- shove the balance robot. 'train_balance': {kind?, timesteps?} -- real PPO training so it stays upright. 'stop_balance_training': {}.\n"
             "- 'spawn_humanoid': {}  -- spawn a humanoid robot (14 joints). USE THIS for 'humanoid', 'biped', 'human robot'.\n"
@@ -5002,7 +5013,8 @@ class AIReasoningService:
         # Compact, high-signal scene summary (not a raw JSON dump) so the model reasons about the
         # few facts that matter and spends its tokens on the decision, not on parsing a blob.
         scene_summary = self._compact_scene_summary(context)
-        user_content = f"User Request: {prompt}\n\nLive Scene:\n{scene_summary}"
+        from backend import scene_vision as _sv
+        user_content = f"User Request: {prompt}\n\nLive Scene:\n{scene_summary}" + _sv.context_block()
         if tool_results:
             # Follow-up iteration in the agentic loop: show what the previous actions actually did
             # so the model can react (use real joint names, recover from failures, decide next step).

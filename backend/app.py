@@ -65,6 +65,7 @@ from backend.rl_evaluator import RLEvaluator
 from backend.ai_assistant import AIExperimentAssistant
 from backend.ai_reasoning_service import get_ai_reasoning_service
 from backend import balance as balance_lab
+from backend import scene_vision, scene_task
 from backend.rl_refinement import HypothesisRefinementEngine
 from backend.chat_memory import chat_memory
 from backend.asset_models import (
@@ -714,6 +715,55 @@ def balance_reset():
 @app.get("/api/balance/status")
 def balance_status():
     return balance_lab.get_status(engine)
+
+
+class SceneImageRequest(BaseModel):
+    image: str
+    mime: Optional[str] = None
+    hint: str = ""
+    name: str = "photo"
+
+
+@app.post("/api/scene/from-image")
+async def scene_from_image(req: SceneImageRequest):
+    try:
+        res = await asyncio.to_thread(scene_vision.from_image, req.image, req.mime, req.hint, project_manager, engine, req.name)
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    await broadcast_json({"type": "project_updated", "data": engine.project.model_dump()})
+    return res
+
+
+@app.get("/api/scene/context")
+def scene_context():
+    return scene_vision.CTX
+
+
+class SceneTrainRequest(BaseModel):
+    task: str = "climb"
+    target: Optional[str] = None
+    timesteps: int = 300000
+
+
+@app.post("/api/scene/task/train")
+async def scene_task_train(req: SceneTrainRequest):
+    res = await asyncio.to_thread(scene_task.trainer.start, req.task, req.target,
+                                  max(20000, min(2000000, req.timesteps)), project_manager, engine)
+    await broadcast_json({"type": "project_updated", "data": engine.project.model_dump()})
+    return res
+
+
+@app.post("/api/scene/task/stop")
+def scene_task_stop():
+    scene_task.trainer.stop()
+    return {"status": "stopping"}
+
+
+@app.get("/api/scene/task/status")
+def scene_task_status():
+    s = dict(scene_task.trainer.status)
+    s["controller_active"] = getattr(engine, "balance_controller", None) is not None
+    return s
 
 
 @app.post("/api/robot/spawn-preset")

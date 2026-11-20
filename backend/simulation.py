@@ -1496,7 +1496,7 @@ class MuJoCoEngine:
 
     def _balance_hooks(self):
         gr = self.project.generic_robot
-        if gr is None or gr.is_fixed_base or self.model is None:
+        if gr is None or self.model is None:
             return
         bc = self.balance_controller
         if bc is not None and self.step_count % bc.substeps_for(self) == 0:
@@ -1505,6 +1505,8 @@ class MuJoCoEngine:
             except Exception as e:  # a broken policy must never take the simulator down
                 self.log("warning", f"Balance controller disabled: {e}")
                 self.balance_controller = None
+        if gr.is_fixed_base:
+            return
         bid = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, gr.root_link)
         if bid < 0:
             return
