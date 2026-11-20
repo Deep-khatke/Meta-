@@ -56,6 +56,9 @@ def _call_gemini(img_b64: str, mime: str, hint: str) -> Dict[str, Any]:
         (os.getenv("GEMINI_API_KEY", ""), os.getenv("GEMINI_MODEL", "gemini-3-flash-preview"), os.getenv("GEMINI_ENDPOINT")),
         (os.getenv("GEMINI_BACKUP_API_KEY", ""), os.getenv("GEMINI_BACKUP_MODEL") or os.getenv("GEMINI_MODEL", "gemini-3-flash-preview"),
          os.getenv("GEMINI_BACKUP_ENDPOINT", "vertex")),
+    ] + [
+        (os.getenv(f"GEMINI_BACKUP{n}_API_KEY", ""), os.getenv(f"GEMINI_BACKUP{n}_MODEL") or os.getenv("GEMINI_MODEL", "gemini-3-flash-preview"),
+         os.getenv(f"GEMINI_BACKUP{n}_ENDPOINT", "developer")) for n in range(2, 10)
     ]
     last = "no Gemini key configured"
     for key, model, ep in tiers:
