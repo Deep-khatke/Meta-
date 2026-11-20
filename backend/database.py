@@ -8,8 +8,9 @@ import hashlib
 import secrets
 import time
 import os
+import json
 import logging
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 
 logger = logging.getLogger("roboforge.db")
 
@@ -46,6 +47,21 @@ def init_db():
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
             )
         """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS chat_messages (
+                id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                session_id TEXT NOT NULL DEFAULT 'default',
+                role TEXT NOT NULL,
+                content TEXT NOT NULL,
+                model TEXT,
+                thought_steps TEXT,
+                actions_executed TEXT,
+                response_data TEXT,
+                created_at REAL NOT NULL
+            )
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_chat_user_time ON chat_messages(user_id, created_at)")
         conn.commit()
     logger.info("RoboForge database initialized at %s", DB_PATH)
     try:
@@ -219,6 +235,99 @@ def upsert_google_user(google_sub: str, email: str, name: str, picture: Optional
     user = get_user_by_id(user_id)
     token = create_session(user_id)
     return {"user": user, "token": token}
+
+
+def save_chat_message(
+    user_id: str,
+    role: str,
+    content: str,
+    model: Optional[str] = None,
+    thought_steps: Optional[str] = None,
+    actions_executed: Optional[str] = None,
+    response_data: Optional[str] = None,
+    session_id: str = "default",
+) -> Dict[str, Any]:
+    """Saves a user or assistant chat message associated with a user in the database."""
+    msg_id = f"msg_{int(time.time() * 1000)}_{secrets.token_hex(4)}"
+    now = time.time()
+    with get_db() as conn:
+        conn.execute(
+            """
+            INSERT INTO chat_messages (
+                id, user_id, session_id, role, content, model, thought_steps, actions_executed, response_data, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (msg_id, user_id, session_id, role, content, model, thought_steps, actions_executed, response_data, now)
+        )
+        conn.commit()
+    return {
+        "id": msg_id,
+        "user_id": user_id,
+        "session_id": session_id,
+        "role": role,
+        "content": content,
+        "model": model,
+        "created_at": now
+    }
+
+
+def get_user_chat_history(user_id: str, limit: int = 50, session_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Retrieves chat messages for a specific user from the database."""
+    with get_db() as conn:
+        if session_id:
+            rows = conn.execute(
+                """
+                SELECT id, user_id, session_id, role, content, model, thought_steps, actions_executed, response_data, created_at
+                FROM chat_messages
+                WHERE user_id = ? AND session_id = ?
+                ORDER BY created_at ASC
+                LIMIT ?
+                """,
+                (user_id, session_id, limit)
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                """
+                SELECT id, user_id, session_id, role, content, model, thought_steps, actions_executed, response_data, created_at
+                FROM chat_messages
+                WHERE user_id = ?
+                ORDER BY created_at ASC
+                LIMIT ?
+                """,
+                (user_id, limit)
+            ).fetchall()
+
+        results = []
+        for r in rows:
+            row_dict = dict(r)
+            if row_dict.get("response_data"):
+                try:
+                    row_dict["response"] = json.loads(row_dict["response_data"])
+                except Exception:
+                    row_dict["response"] = None
+            if row_dict.get("actions_executed"):
+                try:
+                    row_dict["actions_executed"] = json.loads(row_dict["actions_executed"])
+                except Exception:
+                    pass
+            if row_dict.get("thought_steps"):
+                try:
+                    row_dict["thought_steps"] = json.loads(row_dict["thought_steps"])
+                except Exception:
+                    pass
+            results.append(row_dict)
+        return results
+
+
+def clear_user_chat_history(user_id: str, session_id: Optional[str] = None) -> int:
+    """Deletes chat messages for a specific user from the database."""
+    with get_db() as conn:
+        if session_id:
+            cur = conn.execute("DELETE FROM chat_messages WHERE user_id = ? AND session_id = ?", (user_id, session_id))
+        else:
+            cur = conn.execute("DELETE FROM chat_messages WHERE user_id = ?", (user_id,))
+        conn.commit()
+        return cur.rowcount
 
 
 # Automatically create tables on import

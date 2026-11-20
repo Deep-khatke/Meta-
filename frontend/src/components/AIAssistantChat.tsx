@@ -25,6 +25,7 @@ import {
   clearAIChatHistory
 } from '../services/api';
 import { AgentAvatar } from './AgentAvatar';
+import { useAuth } from '../context/AuthContext';
 
 export interface PersistentChatMessage {
   id: string;
@@ -47,7 +48,6 @@ interface AIAssistantChatProps {
   onSwitchView?: (view: 'metrics' | 'compare' | 'rl_training' | 'benchmark' | 'ai_assistant' | 'hypotheses') => void;
 }
 
-const STORAGE_KEY = 'roboforge_ai_chat_workspace_history_v5';
 const MODE_STORAGE_KEY = 'roboforge_ai_chat_mode_v5';
 
 // Code Block with Copy Button
@@ -180,23 +180,16 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
   onMissionWaypoints,
   onSwitchView,
 }) => {
+  const { user } = useAuth();
+
   // Mode: autonomous (instant executive actions) vs supervised (asks approval)
   const [mode, setMode] = useState<'supervised' | 'autonomous'>(() => {
     const saved = localStorage.getItem(MODE_STORAGE_KEY);
     return saved === 'supervised' ? 'supervised' : 'autonomous';
   });
 
-  // Chat message history
-  const [messages, setMessages] = useState<PersistentChatMessage[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch {}
-    return [];
-  });
+  // Chat message history loaded directly from backend Database for this authenticated user
+  const [messages, setMessages] = useState<PersistentChatMessage[]>([]);
 
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -233,11 +226,8 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
     }
   }, [inputValue]);
 
-  // Persist messages whenever updated
+  // Scroll to bottom whenever messages or loading changes
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
-    } catch {}
     scrollToBottom();
   }, [messages, isLoading]);
 
@@ -246,22 +236,42 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
     localStorage.setItem(MODE_STORAGE_KEY, mode);
   }, [mode]);
 
-  // Fetch provider status and chat memory on mount
+  // Fetch provider status on mount
   useEffect(() => {
     fetchAIStatus().then(setAiStatus).catch(() => {});
-    fetchAIChatHistory('default_session', 30).then((res) => {
-      if (res?.history && res.history.length > 0) {
-        const hydrated: PersistentChatMessage[] = res.history.map((h: any) => ({
-          id: h.id || `hist_${h.timestamp}`,
-          sender: h.role === 'user' ? 'user' : 'assistant',
-          text: h.content,
-          timestamp: h.timestamp ? h.timestamp * 1000 : Date.now(),
-          response: h.response,
-        }));
-        setMessages(hydrated);
-      }
-    }).catch(() => {});
   }, []);
+
+  // Fetch user-isolated chat history from the persistent Database whenever user logs in, logs out, or switches accounts
+  useEffect(() => {
+    let isMounted = true;
+    const sessionId = user?.id ? `user_${user.id}` : 'guest_session';
+
+    fetchAIChatHistory(sessionId, 50)
+      .then((res) => {
+        if (!isMounted) return;
+        if (res?.history && Array.isArray(res.history)) {
+          const hydrated: PersistentChatMessage[] = res.history.map((h: any) => ({
+            id: h.id || `hist_${h.created_at || Date.now()}`,
+            sender: h.role === 'assistant' ? 'assistant' : 'user',
+            text: h.content,
+            timestamp: h.created_at ? h.created_at * 1000 : Date.now(),
+            response: h.response || undefined,
+            thought_steps: h.thought_steps || undefined,
+            actions_executed: h.actions_executed || undefined,
+          }));
+          setMessages(hydrated);
+        } else {
+          setMessages([]);
+        }
+      })
+      .catch(() => {
+        if (isMounted) setMessages([]);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.id]);
 
   // Smooth token typewriter glide
   useEffect(() => {
@@ -295,9 +305,9 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
 
   const handleClearHistory = async () => {
     setMessages([]);
+    const sessionId = user?.id ? `user_${user.id}` : 'guest_session';
     try {
-      localStorage.removeItem(STORAGE_KEY);
-      await clearAIChatHistory('default_session');
+      await clearAIChatHistory(sessionId);
     } catch {}
     onShowToast('Conversation cleared.');
   };
@@ -328,13 +338,14 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
         content: m.text,
       }));
 
+      const sessionId = user?.id ? `user_${user.id}` : 'guest_session';
       const chatReq: AIChatRequest = {
         prompt,
         mode,
         selected_scenario_id: selectedScenarioId,
         max_iterations: 5,
         max_experiments: 8,
-        session_id: 'default_session',
+        session_id: sessionId,
         chat_history: chatHistory,
       };
 
