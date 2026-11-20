@@ -2618,16 +2618,19 @@ def interpret_experiment_prompt(req: AIAssistantPromptRequest, request: Request)
 
 @app.post("/api/ai/chat", response_model=AIChatResponse)
 async def ai_conversational_chat(req: AIChatRequest, request: Request):
-    """Executes a telemetry-grounded conversational agent loop supporting supervised & autonomous modes, with multi-turn memory."""
+    """Executes a telemetry-grounded conversational agent loop supporting supervised & autonomous modes, with user-isolated database memory."""
     credit_hold = check_and_reserve_credits(request, "ai_chat")
     try:
-        session_id = req.session_id or "default_session"
-        # If frontend didn't supply chat_history, load from persistent memory
-        if not req.chat_history:
-            req.chat_history = chat_memory.get_history(session_id, limit=20)
+        user = _get_user_from_request_optional(request)
+        user_id = user["id"] if user else (req.session_id or "guest")
 
-        # Record user turn
-        chat_memory.append_message(session_id=session_id, role="user", content=req.prompt)
+        # Load conversation history from persistent database if not explicitly passed by frontend
+        if not req.chat_history:
+            db_history = db.get_user_chat_history(user_id=user_id, limit=20)
+            req.chat_history = [{"role": h["role"], "content": h["content"]} for h in db_history]
+
+        # Record user turn in the database
+        db.save_chat_message(user_id=user_id, role="user", content=req.prompt)
 
         service = get_ai_reasoning_service(project_manager, engine=engine, agent_interface=agent_interface)
         res = service.chat(req)
@@ -2639,14 +2642,20 @@ async def ai_conversational_chat(req: AIChatRequest, request: Request):
             except Exception as b_err:
                 logger.warning("Failed to broadcast project_updated after AI chat action: %s", b_err)
 
-        # Record assistant reply and actions
-        chat_memory.append_message(
-            session_id=session_id,
+        # Record assistant reply and metadata in the database
+        thought_steps_json = json.dumps([t.model_dump() for t in res.thought_steps]) if res.thought_steps else None
+        actions_json = json.dumps(res.actions_executed) if res.actions_executed else None
+        response_json = json.dumps(res.model_dump())
+        db.save_chat_message(
+            user_id=user_id,
             role="assistant",
             content=res.reply,
-            response_data=res.model_dump(),
-            actions_executed=res.actions_executed
+            model=getattr(res, "provider", None),
+            thought_steps=thought_steps_json,
+            actions_executed=actions_json,
+            response_data=response_json,
         )
+
         if credit_hold:
             credit_service.commitCredits(credit_hold[1])
         return res
@@ -2681,16 +2690,20 @@ async def ai_conversational_chat(req: AIChatRequest, request: Request):
 
 
 @app.get("/api/ai/chat/history")
-def get_ai_chat_history(session_id: str = "default_session", limit: int = 50):
-    """Retrieves stored multi-turn conversation messages for a session."""
-    return {"history": chat_memory.get_history(session_id, limit=limit)}
+def get_ai_chat_history(request: Request, session_id: Optional[str] = None, limit: int = 50):
+    """Retrieves stored multi-turn conversation messages for the current user from the database."""
+    user = _get_user_from_request_optional(request)
+    user_id = user["id"] if user else (session_id or "guest")
+    return {"history": db.get_user_chat_history(user_id=user_id, limit=limit)}
 
 
 @app.delete("/api/ai/chat/history")
-def delete_ai_chat_history(session_id: str = "default_session"):
-    """Clears stored multi-turn conversation messages for a session."""
-    chat_memory.clear_history(session_id)
-    return {"status": "cleared", "session_id": session_id}
+def delete_ai_chat_history(request: Request, session_id: Optional[str] = None):
+    """Clears stored multi-turn conversation messages for the current user from the database."""
+    user = _get_user_from_request_optional(request)
+    user_id = user["id"] if user else (session_id or "guest")
+    deleted_count = db.clear_user_chat_history(user_id=user_id)
+    return {"status": "cleared", "user_id": user_id, "deleted_count": deleted_count}
 
 
 @app.post("/api/ai/approve-action", response_model=AIChatResponse)

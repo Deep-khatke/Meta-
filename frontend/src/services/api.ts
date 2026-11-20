@@ -611,10 +611,20 @@ export async function interpretAIPrompt(prompt: string, baseScenarioId?: string)
   return res.json();
 }
 
+function getChatAuthHeaders(): Record<string, string> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const token = localStorage.getItem('roboforge_token');
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  return headers;
+}
+
 export async function sendAIChatMessage(req: AIChatRequest): Promise<AIChatResponse> {
   const res = await fetch(`${API_BASE}/ai/chat`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getChatAuthHeaders(),
+    credentials: 'include',
     body: JSON.stringify(req),
   });
   if (!res.ok) {
@@ -625,7 +635,10 @@ export async function sendAIChatMessage(req: AIChatRequest): Promise<AIChatRespo
 }
 
 export async function fetchAIChatHistory(sessionId: string = 'default_session', limit: number = 50): Promise<{ history: any[] }> {
-  const res = await fetch(`${API_BASE}/ai/chat/history?session_id=${encodeURIComponent(sessionId)}&limit=${limit}`);
+  const res = await fetch(`${API_BASE}/ai/chat/history?session_id=${encodeURIComponent(sessionId)}&limit=${limit}`, {
+    headers: getChatAuthHeaders(),
+    credentials: 'include',
+  });
   if (!res.ok) {
     return { history: [] };
   }
@@ -635,6 +648,8 @@ export async function fetchAIChatHistory(sessionId: string = 'default_session', 
 export async function clearAIChatHistory(sessionId: string = 'default_session'): Promise<any> {
   const res = await fetch(`${API_BASE}/ai/chat/history?session_id=${encodeURIComponent(sessionId)}`, {
     method: 'DELETE',
+    headers: getChatAuthHeaders(),
+    credentials: 'include',
   });
   if (!res.ok) {
     return { status: 'error' };
