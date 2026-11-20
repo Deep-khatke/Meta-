@@ -132,6 +132,8 @@ class AIReasoningService:
             "teleport_robot",
             "add_robot",
             "spawn_arm",
+            "spawn_humanoid",
+            "spawn_dog",
             "play_joint_keyframes",
             "add_drone",
             "control_drone",
@@ -994,6 +996,41 @@ class AIReasoningService:
             "details": f"Spawned articulated arm '{robot.name}' with {n_joints} joints into the scene. It is now the active robot and you can drive its joints or train a reach policy on it.",
         }
 
+    def _spawn_preset(self, kind: str) -> Dict[str, Any]:
+        """Spawn a fixed-base articulated preset (humanoid or robot dog) as the active generic robot."""
+        from backend.robot_presets import build_preset
+        robot = build_preset(kind)
+        if robot is None:
+            return {"action": f"spawn_{kind}", "status": "error", "details": f"Unknown robot preset '{kind}'."}
+        proj = self.pm.get_current()
+        proj.generic_robot = robot
+        self.pm.update_project(proj)
+        if getattr(self, "engine", None) is not None:
+            try:
+                self.engine.project = proj
+                self.engine.rebuild_model(preserve_state=False)
+            except Exception as e:
+                logger.warning("Engine rebuild error on spawn_%s: %s", kind, e)
+        names = [j.name for j in robot.joints]
+        return {
+            "action": f"spawn_{kind}",
+            "status": "success",
+            "name": robot.name,
+            "joint_count": len(names),
+            "joints": names,
+            "is_fixed_base": True,
+            "details": (f"Spawned {robot.name} with {len(names)} actuated joints. It is mounted at standing height; "
+                        "pose its joints, or play a motion ('walk', 'wave', 'home') with play_joint_keyframes."),
+        }
+
+    def tool_spawn_humanoid(self, name: Optional[str] = None) -> Dict[str, Any]:
+        """Tool: spawns the articulated humanoid (14 joints) into the scene."""
+        return self._spawn_preset("humanoid")
+
+    def tool_spawn_dog(self, name: Optional[str] = None) -> Dict[str, Any]:
+        """Tool: spawns the articulated quadruped robot dog (12 joints) into the scene."""
+        return self._spawn_preset("dog")
+
     def tool_play_joint_keyframes(
         self,
         keyframes: Optional[List[Dict[str, Any]]] = None,
@@ -1010,6 +1047,14 @@ class AIReasoningService:
                     "details": "No articulated arm in the scene. Spawn or import an arm first."}
 
         jnames = [j.name for j in gr.joints]
+
+        # Authored motions for the humanoid and robot-dog presets (walk, wave, sit, home).
+        if not keyframes:
+            from backend.robot_presets import preset_motion
+            _pm = preset_motion(getattr(gr, "name", ""), motion, jnames)
+            if _pm:
+                keyframes = _pm["keyframes"]
+                loop = bool(loop or _pm["loop"])
 
         # Auto-author a named motion if no explicit keyframes were supplied.
         if not keyframes:
@@ -3847,6 +3892,10 @@ class AIReasoningService:
                     name=params.get("name"),
                     preset=params.get("preset") or params.get("type"),
                 )
+            elif tool_name in ("spawn_humanoid", "add_humanoid", "create_humanoid", "spawn_biped", "add_biped"):
+                return self.tool_spawn_humanoid(name=params.get("name"))
+            elif tool_name in ("spawn_dog", "add_dog", "create_dog", "spawn_robot_dog", "spawn_quadruped", "add_quadruped"):
+                return self.tool_spawn_dog(name=params.get("name"))
             elif tool_name in ("play_joint_keyframes", "joint_keyframes", "animate_joints", "play_keyframes", "move_joints_sequence", "wave", "arm_motion"):
                 return self.tool_play_joint_keyframes(
                     keyframes=params.get("keyframes"),
@@ -4806,7 +4855,9 @@ class AIReasoningService:
             "- 'teleport_robot': {position: [x,y,z], yaw: float}\n"
             "- 'add_robot': {name: str, position: [x,y,z], color: str, mass: float}\n"
             "- 'spawn_arm': {joints: int (default 4), name: str, preset: 'kr6'|'scara' (optional)}  -- USE THIS for ANY articulated arm / manipulator / 'N joint arm' request. 'add_robot' only makes a wheeled rover and must NOT be used for arms.\n"
-            "- 'play_joint_keyframes': {motion: 'wave'|'reach'|'home' (auto-generates the motion), OR keyframes: [{targets:{joint_name: angle_rad}, duration: sec}], loop: bool}  -- USE THIS to make an arm MOVE/perform a gesture (e.g. 'make the arm wave hi'). Prefer motion:'wave' for a greeting.\n"
+            "- 'spawn_humanoid': {}  -- spawn a humanoid robot (14 joints). USE THIS for 'humanoid', 'biped', 'human robot'.\n"
+            "- 'spawn_dog': {}  -- spawn a quadruped robot dog (12 joints). USE THIS for 'robot dog', 'dog', 'quadruped'.\n"
+            "- 'play_joint_keyframes': {motion: 'wave'|'walk'|'sit'|'reach'|'home' (auto-generates the motion; 'walk' is a walk-in-place cycle for a humanoid or robot dog), OR keyframes: [{targets:{joint_name: angle_rad}, duration: sec}], loop: bool}  -- USE THIS to make an arm MOVE/perform a gesture (e.g. 'make the arm wave hi'). Prefer motion:'wave' for a greeting.\n"
             "- 'add_drone': {name: str, position: [x,y,z], mass: float}\n"
             "- 'control_drone': {command: 'takeoff'|'land'|'hover'|'fly_to', altitude: float, drone_name: str}\n"
             "- 'train_drone_policy': {drone_name: str, task: 'takeoff_and_land'|'hover', timesteps: int}\n"

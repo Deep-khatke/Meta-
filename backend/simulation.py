@@ -744,7 +744,9 @@ class MuJoCoEngine:
             if self.project.robot is not None and self.project.generic_robot and hasattr(self.project.generic_robot, "base_position"):
                 bx, by, bz = self.project.generic_robot.base_position
                 if abs(bx) < 0.4 and abs(by) < 0.4:
-                    self.project.generic_robot.base_position = [2.5, 2.5, 0.05]
+                    # Move it clear of the rover, but keep the robot's own standing height: tall robots
+                    # (humanoid, robot dog) are mounted at their hip height and would sink into the floor.
+                    self.project.generic_robot.base_position = [2.5, 2.5, bz if bz > 0.05 else 0.05]
 
             xml_str = self.generate_mjcf_xml()
             self.model = mujoco.MjModel.from_xml_string(xml_str)
