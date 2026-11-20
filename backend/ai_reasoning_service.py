@@ -46,16 +46,41 @@ from backend.motion_planning import GridAStarPlanner
 logger = logging.getLogger("roboforge.ai_reasoning")
 
 
-def _gemini_request(model: str, key: str):
+def _is_unset_key(key: Optional[str]) -> bool:
+    """True for empty keys and obvious placeholders such as REPLACE_WITH_YOUR_KEY."""
+    k = (key or "").strip()
+    if not k:
+        return True
+    return k.upper().startswith("REPLACE") or k.upper() in ("CHANGEME", "YOUR_KEY_HERE", "TODO", "XXX")
+
+
+def _gemini_request(model: str, key: str, endpoint: Optional[str] = None):
     """Return (url, headers) for a Gemini generateContent call.
 
-    Keys in the Vertex AI express format (prefix "AQ.") are sent to the Vertex endpoint; ordinary
-    Google AI Studio keys keep using the Gemini Developer API. The key goes in a header, never the URL.
+    endpoint "developer" uses the Gemini Developer API; "vertex" uses Vertex AI's express-mode endpoint.
+    Defaults to the GEMINI_ENDPOINT environment variable, then "developer". The key travels in a header,
+    never in the URL, so it cannot leak into request logs.
     """
+    ep = (endpoint or os.getenv("GEMINI_ENDPOINT") or "developer").strip().lower()
     headers = {"Content-Type": "application/json", "x-goog-api-key": key}
-    if (key or "").startswith("AQ."):
+    if ep == "vertex":
         return f"https://aiplatform.googleapis.com/v1/publishers/google/models/{model}:generateContent", headers
     return f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent", headers
+
+
+def _parse_json_lenient(text: str) -> dict:
+    """Parse model output as JSON, tolerating code fences and surrounding prose."""
+    t = (text or "").strip()
+    if t.startswith("```"):
+        t = re.sub(r"^```[a-zA-Z]*\n?", "", t)
+        t = re.sub(r"\n?```$", "", t)
+    try:
+        return json.loads(t)
+    except Exception:
+        m = re.search(r"\{.*\}", t, re.DOTALL)
+        if m:
+            return json.loads(m.group(0))
+        raise
 
 
 def _gemini_text(body: dict) -> str:
@@ -4667,6 +4692,8 @@ class AIReasoningService:
         kind, _, model = tag.partition(":")
         if kind == "primary":
             return provider_info.get("active_provider", model)
+        if kind == "fallback" and "gemini" in model.lower():
+            return f"Google Gemini backup ({model})"
         if kind == "fallback":
             m = model.lower()
             if "nemotron" in m or "nvidia" in m:
@@ -5041,19 +5068,48 @@ class AIReasoningService:
                 "contents": gemini_contents,
                 "generationConfig": {"responseMimeType": "application/json", "temperature": 0.2}
             }
-            try:
+            def _gemini_call(m_name, key_, endpoint_):
+                u, h = _gemini_request(m_name, key_, endpoint_)
                 with httpx.Client(timeout=60.0) as client:
-                    res = client.post(url, json=payload, headers=_gem_headers)
-                    res.raise_for_status()
-                    raw_text = _gemini_text(res.json())
-                    data = json.loads(raw_text)
+                    r = client.post(u, json=payload, headers=h)
+                    r.raise_for_status()
+                    return _parse_json_lenient(_gemini_text(r.json()))
+
+            # Tiered reasoning. Tier 1: main Gemini key. Tier 2: backup Gemini key. Tier 3: Nemotron via
+            # OpenRouter. Tier 4: return None so the built-in deterministic engine handles the request.
+            data = None
+            try:
+                data = _gemini_call(model, gemini_key, os.getenv("GEMINI_ENDPOINT"))
+                self._last_reasoning_provider = f"primary:{model}"
             except Exception as e:
-                # Gemini is primary; on any failure (quota/429, network, invalid key)
-                # transparently fall back to local Ollama before giving up.
-                logger.warning("Gemini primary reasoning failed (%s). Attempting Ollama fallback.", e)
-                data = self._ollama_chat_fallback(system_instruction, conversation_messages)
-                if data is None:
-                    return None
+                logger.warning("Tier 1 (Gemini main) failed: %s", e)
+
+            if data is None:
+                b_key = os.getenv("GEMINI_BACKUP_API_KEY", "").strip()
+                if b_key and not _is_unset_key(b_key):
+                    b_model = os.getenv("GEMINI_BACKUP_MODEL", "").strip() or model
+                    try:
+                        logger.info("Falling back to Gemini backup key (%s).", b_model)
+                        data = _gemini_call(b_model, b_key, os.getenv("GEMINI_BACKUP_ENDPOINT", "vertex"))
+                        self._last_reasoning_provider = f"fallback:{b_model}"
+                    except Exception as e:
+                        logger.warning("Tier 2 (Gemini backup) failed: %s", e)
+
+            if data is None:
+                n_base = os.getenv("FALLBACK_COMPAT_BASE_URL", "").strip()
+                n_key = os.getenv("FALLBACK_COMPAT_API_KEY", "").strip()
+                n_model = os.getenv("FALLBACK_COMPAT_MODEL", "").strip()
+                if n_base and n_model and not _is_unset_key(n_key):
+                    try:
+                        logger.info("Falling back to %s.", n_model)
+                        data = self._compat_chat_once(n_base, n_key, n_model, conversation_messages)
+                        self._last_reasoning_provider = f"fallback:{n_model}"
+                    except Exception as e:
+                        logger.warning("Tier 3 (Nemotron) failed: %s", e)
+
+            if data is None:
+                logger.warning("All model tiers failed; using the built-in deterministic engine.")
+                return None
         elif openai_key:
             model = provider_info.get("model", "gpt-4o-mini")
             url = "https://api.openai.com/v1/chat/completions"
