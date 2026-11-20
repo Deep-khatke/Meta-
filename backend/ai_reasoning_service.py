@@ -5194,6 +5194,17 @@ class AIReasoningService:
                         logger.warning("Tier 2 (Gemini backup) failed: %s", e)
 
             if data is None:
+                b2_key = os.getenv("GEMINI_BACKUP2_API_KEY", "").strip()
+                if b2_key and not _is_unset_key(b2_key):
+                    b2_model = os.getenv("GEMINI_BACKUP2_MODEL", "").strip() or model
+                    try:
+                        logger.info("Falling back to second Gemini backup key (%s).", b2_model)
+                        data = _gemini_call(b2_model, b2_key, os.getenv("GEMINI_BACKUP2_ENDPOINT", "developer"))
+                        self._last_reasoning_provider = f"fallback2:{b2_model}"
+                    except Exception as e:
+                        logger.warning("Tier 2b (Gemini backup 2) failed: %s", e)
+
+            if data is None:
                 n_base = os.getenv("FALLBACK_COMPAT_BASE_URL", "").strip()
                 n_key = os.getenv("FALLBACK_COMPAT_API_KEY", "").strip()
                 n_model = os.getenv("FALLBACK_COMPAT_MODEL", "").strip()
