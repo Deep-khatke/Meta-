@@ -5193,16 +5193,19 @@ class AIReasoningService:
                     except Exception as e:
                         logger.warning("Tier 2 (Gemini backup) failed: %s", e)
 
-            if data is None:
-                b2_key = os.getenv("GEMINI_BACKUP2_API_KEY", "").strip()
-                if b2_key and not _is_unset_key(b2_key):
-                    b2_model = os.getenv("GEMINI_BACKUP2_MODEL", "").strip() or model
-                    try:
-                        logger.info("Falling back to second Gemini backup key (%s).", b2_model)
-                        data = _gemini_call(b2_model, b2_key, os.getenv("GEMINI_BACKUP2_ENDPOINT", "developer"))
-                        self._last_reasoning_provider = f"fallback2:{b2_model}"
-                    except Exception as e:
-                        logger.warning("Tier 2b (Gemini backup 2) failed: %s", e)
+            for _n in range(2, 10):                     # extra Gemini keys: GEMINI_BACKUP2_*, GEMINI_BACKUP3_*, ...
+                if data is not None:
+                    break
+                bn_key = os.getenv(f"GEMINI_BACKUP{_n}_API_KEY", "").strip()
+                if not bn_key or _is_unset_key(bn_key):
+                    continue
+                bn_model = os.getenv(f"GEMINI_BACKUP{_n}_MODEL", "").strip() or model
+                try:
+                    logger.info("Falling back to Gemini backup key %d (%s).", _n, bn_model)
+                    data = _gemini_call(bn_model, bn_key, os.getenv(f"GEMINI_BACKUP{_n}_ENDPOINT", "developer"))
+                    self._last_reasoning_provider = f"fallback{_n}:{bn_model}"
+                except Exception as e:
+                    logger.warning("Gemini backup key %d failed: %s", _n, e)
 
             if data is None:
                 n_base = os.getenv("FALLBACK_COMPAT_BASE_URL", "").strip()
