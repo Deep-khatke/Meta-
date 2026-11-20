@@ -297,6 +297,11 @@ class ObjectPhysicsState(BaseModel):
     target_altitude: Optional[float] = None
     rotors_active: bool = False
     is_secondary_robot: bool = False
+    thrusts: Optional[List[float]] = None # [M1, M2, M3, M4] in Newtons
+    attitude_euler: Optional[List[float]] = None # [roll_deg, pitch_deg, yaw_deg]
+    angular_velocity: Optional[List[float]] = None # [wx, wy, wz] in rad/s
+    climb_rate: Optional[float] = None
+    battery_pct: Optional[float] = 100.0
 
 
 class ContactInfo(BaseModel):

@@ -236,6 +236,11 @@ export interface ObjectPhysicsState {
   target_altitude?: number;
   rotors_active?: boolean;
   is_secondary_robot?: boolean;
+  thrusts?: [number, number, number, number];
+  attitude_euler?: [number, number, number]; // [roll_deg, pitch_deg, yaw_deg]
+  angular_velocity?: [number, number, number]; // [wx, wy, wz]
+  climb_rate?: number;
+  battery_pct?: number;
 }
 
 export interface ContactInfo {
@@ -535,7 +540,7 @@ export interface AgentThoughtStep {
 
 export interface AIChatRequest {
   prompt: string;
-  mode?: 'supervised' | 'autonomous';
+  mode?: 'supervised' | 'autonomous' | 'educator';
   mission_id?: string;
   selected_scenario_id?: string;
   max_iterations?: number;
@@ -553,7 +558,7 @@ export interface AIChatResponse {
   provider: string;
   is_model_inference: boolean;
   is_fallback: boolean;
-  mode: 'supervised' | 'autonomous';
+  mode: 'supervised' | 'autonomous' | 'educator';
   thought_steps: AgentThoughtStep[];
   observed_facts: Record<string, any>;
   tools_invoked: string[];
@@ -573,6 +578,9 @@ export interface AIChatResponse {
     [key: string]: any;
   }>;
   error_message?: string | null;
+  follow_up_suggestions?: string[];
+  educational_analogy?: string | null;
+  beginner_concept?: string | null;
 }
 
 export interface AIApprovalRequest {

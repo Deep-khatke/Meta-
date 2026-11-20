@@ -117,6 +117,19 @@ class DroneFlightController:
         self.current_velocity: List[float] = [0.0, 0.0, 0.0]
         self.current_position: List[float] = [0.0, 0.0, 0.0]
         self._hold_yaw: Optional[float] = None
+        # Real-time Manual Teleoperation & FPV Dynamics
+        self.teleop_pitch: float = 0.0  # -1.0 (backward) to +1.0 (forward)
+        self.teleop_roll: float = 0.0   # -1.0 (left) to +1.0 (right)
+        self.teleop_yaw: float = 0.0    # -1.0 (ccw) to +1.0 (cw)
+        self.teleop_climb: float = 0.0  # -1.0 (descend) to +1.0 (climb)
+        self.flight_submode: str = "stabilize"  # "stabilize", "acro", "alt_hold"
+        self.last_teleop_time: float = 0.0
+        self.current_thrusts: List[float] = [0.0, 0.0, 0.0, 0.0]
+        self.current_euler: List[float] = [0.0, 0.0, 0.0] # [roll, pitch, yaw] in degrees
+        self.current_angular_velocity: List[float] = [0.0, 0.0, 0.0]
+        self.battery_capacity_s: float = 900.0  # ~15 min nominal at hover
+        self.flight_time_s: float = 0.0
+        self.battery_pct: float = 100.0
         # PID flight control parameters
         self.kp_z = 40.0
         self.kd_z = 15.0
@@ -124,6 +137,17 @@ class DroneFlightController:
         self.kd_xy = 6.5
         self.kp_yaw = 5.0
         self.kd_yaw = 2.0
+
+    def set_teleop(self, pitch: float, roll: float, yaw: float, climb: float, mode: str = "stabilize"):
+        """Sets real-time manual flight control inputs (normalized -1.0 to +1.0)."""
+        self.teleop_pitch = max(-1.0, min(1.0, float(pitch)))
+        self.teleop_roll = max(-1.0, min(1.0, float(roll)))
+        self.teleop_yaw = max(-1.0, min(1.0, float(yaw)))
+        self.teleop_climb = max(-1.0, min(1.0, float(climb)))
+        self.flight_submode = mode if mode in ("stabilize", "acro", "alt_hold") else "stabilize"
+        self.last_teleop_time = time.time()
+        self.flight_mode = "manual"
+        self.rotors_active = True
 
     def takeoff(self, altitude: float = 1.5):
         self.target_altitude = max(0.4, float(altitude))
@@ -1362,8 +1386,14 @@ class MuJoCoEngine:
                         and getattr(self, "active_rl_policy_target", None) == drone_id):
                     continue
 
-                # Flight-mode progression for the manual autopilot.
-                if drone.flight_mode == "takeoff" and pos[2] >= (drone.target_altitude - 0.1):
+                # Flight-mode progression for autopilot / manual teleoperation
+                now_wall = time.time()
+                is_manual_teleop = (now_wall - getattr(drone, "last_teleop_time", 0.0)) < 0.45
+
+                if is_manual_teleop:
+                    drone.flight_mode = "manual"
+                    drone.rotors_active = True
+                elif drone.flight_mode == "takeoff" and pos[2] >= (drone.target_altitude - 0.1):
                     drone.flight_mode = "hover"
                     if not drone.target_position:
                         drone.target_position = [float(pos[0]), float(pos[1]), float(drone.target_altitude)]
@@ -1382,63 +1412,81 @@ class MuJoCoEngine:
                 mass = float(self.model.body_subtreemass[bid])
                 hover = self.rotor_hover_thrust(drone_id)  # per-rotor thrust to hold weight
 
-                # 1) Outer loop: altitude PD + horizontal GUIDANCE. For XY we target a velocity
-                #    toward the waypoint (capped), then damp to it — this avoids the tilt/overshoot
-                #    runaway a raw position-PD causes. Desired accel = k*(v_des - v_actual).
-                az_des = 6.0 * (drone.target_altitude - float(pos[2])) - 4.0 * float(lvel[2])
-                if drone.target_position:
-                    ex = float(drone.target_position[0] - pos[0])
-                    ey = float(drone.target_position[1] - pos[1])
-                else:
-                    ex = ey = 0.0
-                dist_xy = math.hypot(ex, ey)
-                cruise = 0.9  # m/s cruise toward waypoint (gentle)
-                scale = (cruise / dist_xy) * min(1.0, dist_xy / 1.2) if dist_xy > 1e-3 else 0.0
-                vx_des, vy_des = ex * scale, ey * scale
-                # Slow, heavily-damped horizontal accel so the outer loop stays well below the
-                # attitude loop's bandwidth (prevents the tilt/translation spiral).
-                ax_des = float(np.clip(0.8 * (vx_des - float(lvel[0])), -1.6, 1.6))
-                ay_des = float(np.clip(0.8 * (vy_des - float(lvel[1])), -1.6, 1.6))
-
-                # 2) Total collective thrust needed = (weight + vertical accel) corrected for tilt,
-                #    so a tilted drone still holds altitude. bz[2] = cos(tilt).
-                tilt_cos = max(0.4, float(bz[2]))
-                total_thrust = mass * (g + az_des) / tilt_cos
-                total_thrust = float(np.clip(total_thrust, 0.0, 4.0 * hover * 2.2))
-
-                # 3) Horizontal accel is achieved by TILTING: convert desired world accel into
-                #    desired roll/pitch (small-angle), rotated into the body yaw frame.
-                cy, sy = math.cos(yaw_now), math.sin(yaw_now)
-                ax_b = cy * ax_des + sy * ay_des
-                ay_b = -sy * ax_des + cy * ay_des
-                max_tilt = 0.18  # rad (~10 deg) cap — gentle, well within attitude authority
-                des_pitch = float(np.clip(ax_b / g, -max_tilt, max_tilt))   # +pitch -> accelerate +x_body
-                des_roll = float(np.clip(-ay_b / g, -max_tilt, max_tilt))   # +roll  -> accelerate -y_body
-
-                # 4) Inner loop: attitude PD -> desired body torques (small, calibrated).
                 avx, avy, avz = float(avel[0]), float(avel[1]), float(avel[2])
-                # Moment of inertia estimate for gains (thin plate ~ m*L^2/12 scale).
                 Ixx = max(1e-3, float(self.model.body_inertia[bid][0])) if hasattr(self.model, "body_inertia") else mass * 0.01
-                k_ang = 60.0 * Ixx
-                k_rate = 14.0 * Ixx
-                tau_roll = k_ang * (des_roll - roll_now) - k_rate * avx
-                tau_pitch = k_ang * (des_pitch - pitch_now) - k_rate * avy
-                # Hold heading at the yaw captured when flight began (not just damp rate), so XY
-                # motion doesn't slowly rotate the frame and cross-couple roll<->pitch into a spiral.
-                if getattr(drone, "_hold_yaw", None) is None:
-                    drone._hold_yaw = yaw_now
-                yaw_err = yaw_now - drone._hold_yaw
-                while yaw_err > math.pi:
-                    yaw_err -= 2 * math.pi
-                while yaw_err < -math.pi:
-                    yaw_err += 2 * math.pi
-                tau_yaw = -1.2 * Ixx * yaw_err - 0.3 * Ixx * avz
+                cy, sy = math.cos(yaw_now), math.sin(yaw_now)
 
-                # 5) MIXER: convert total thrust + desired torques into 4 rotor thrusts, SIZED BY
-                #    THE REAL LEVER ARM so apply_rotor_thrusts (which applies force at each rotor
-                #    site) produces exactly these torques from the physics — no double-counting.
-                #    Rotor i at (sign_x*arm, sign_y*arm). τ_pitch about +y = Σ(-sign_x*arm*T_i);
-                #    τ_roll about +x = Σ(sign_y*arm*T_i). So ΔT for a unit torque = τ/(4*arm).
+                if is_manual_teleop and getattr(drone, "flight_submode", "stabilize") == "acro":
+                    # --- ACRO MODE: Direct agile roll/pitch/yaw rate torque injection ---
+                    k_rate = 14.0 * Ixx
+                    tau_roll = (drone.teleop_roll * 2.5 * Ixx) - k_rate * avx
+                    tau_pitch = (drone.teleop_pitch * 2.5 * Ixx) - k_rate * avy
+                    tau_yaw = (-drone.teleop_yaw * 1.5 * Ixx) - 0.3 * Ixx * avz
+                    tilt_cos = max(0.35, float(bz[2]))
+                    throttle = float(np.clip(1.0 + drone.teleop_climb * 0.8, 0.1, 2.2))
+                    total_thrust = float(np.clip((4.0 * hover * throttle) / tilt_cos, 0.0, 4.0 * hover * 2.5))
+                else:
+                    # --- STABILIZE / ALT-HOLD / AUTOPILOT ---
+                    if is_manual_teleop:
+                        # 1. Altitude manual climb/descend or hold
+                        dt_sim = self.project.settings.timestep
+                        if abs(drone.teleop_climb) > 0.01:
+                            drone.target_altitude = float(np.clip(drone.target_altitude + drone.teleop_climb * (2.2 * dt_sim), 0.15, 20.0))
+                        az_des = 7.0 * (drone.target_altitude - float(pos[2])) - 4.2 * float(lvel[2])
+
+                        # 2. Heading yaw manual slew or lock
+                        if abs(drone.teleop_yaw) > 0.01:
+                            if getattr(drone, "_hold_yaw", None) is None:
+                                drone._hold_yaw = yaw_now
+                            drone._hold_yaw -= drone.teleop_yaw * (3.0 * dt_sim)
+
+                        # 3. Horizontal manual pitch/roll in body heading frame
+                        ax_b = float(drone.teleop_pitch * 3.2)
+                        ay_b = float(-drone.teleop_roll * 3.2)
+                        max_tilt = 0.42  # ~24 degrees tilt authority for responsive manual flying
+                        des_pitch = float(np.clip(ax_b / g - 0.15 * (float(lvel[0])*cy + float(lvel[1])*sy), -max_tilt, max_tilt))
+                        des_roll = float(np.clip(-ay_b / g - 0.15 * (-float(lvel[0])*sy + float(lvel[1])*cy), -max_tilt, max_tilt))
+                    else:
+                        # Autopilot Waypoint Navigation
+                        az_des = 6.0 * (drone.target_altitude - float(pos[2])) - 4.0 * float(lvel[2])
+                        if drone.target_position:
+                            ex = float(drone.target_position[0] - pos[0])
+                            ey = float(drone.target_position[1] - pos[1])
+                        else:
+                            ex = ey = 0.0
+                        dist_xy = math.hypot(ex, ey)
+                        cruise = 0.9
+                        scale = (cruise / dist_xy) * min(1.0, dist_xy / 1.2) if dist_xy > 1e-3 else 0.0
+                        vx_des, vy_des = ex * scale, ey * scale
+                        ax_des = float(np.clip(0.8 * (vx_des - float(lvel[0])), -1.6, 1.6))
+                        ay_des = float(np.clip(0.8 * (vy_des - float(lvel[1])), -1.6, 1.6))
+                        ax_b = cy * ax_des + sy * ay_des
+                        ay_b = -sy * ax_des + cy * ay_des
+                        max_tilt = 0.18
+                        des_pitch = float(np.clip(ax_b / g, -max_tilt, max_tilt))
+                        des_roll = float(np.clip(-ay_b / g, -max_tilt, max_tilt))
+
+                    # Altitude & Total Thrust calculation
+                    tilt_cos = max(0.35, float(bz[2]))
+                    total_thrust = mass * (g + az_des) / tilt_cos
+                    total_thrust = float(np.clip(total_thrust, 0.0, 4.0 * hover * 2.5))
+
+                    # Attitude inner loop
+                    k_ang = 60.0 * Ixx
+                    k_rate = 14.0 * Ixx
+                    tau_roll = k_ang * (des_roll - roll_now) - k_rate * avx
+                    tau_pitch = k_ang * (des_pitch - pitch_now) - k_rate * avy
+
+                    if getattr(drone, "_hold_yaw", None) is None:
+                        drone._hold_yaw = yaw_now
+                    yaw_err = yaw_now - drone._hold_yaw
+                    while yaw_err > math.pi:
+                        yaw_err -= 2 * math.pi
+                    while yaw_err < -math.pi:
+                        yaw_err += 2 * math.pi
+                    tau_yaw = -1.2 * Ixx * yaw_err - 0.3 * Ixx * avz
+
+                # 5) MIXER: convert total thrust + desired torques into 4 rotor thrusts
                 try:
                     _sz = next((o.size[0] for o in self.project.objects if o.id == drone_id and o.size), 0.22)
                     arm_len = max(0.08, float(_sz) * 1.15)
@@ -1450,13 +1498,17 @@ class MuJoCoEngine:
                 spin = [1.0, -1.0, -1.0, 1.0]
                 d_pitch = tau_pitch / (4.0 * arm_len)
                 d_roll = tau_roll / (4.0 * arm_len)
-                d_yaw = tau_yaw / (4.0 * 0.012)   # yaw from rotor drag coeff (0.012 in apply_rotor_thrusts)
+                d_yaw = tau_yaw / (4.0 * 0.012)
                 thrusts = []
                 for i in range(4):
-                    # +pitch (nose up) needs MORE rear thrust -> -sign_x; +roll needs more +y(left)
-                    # thrust? τ_roll about +x = sign_y*arm*T, so +τ_roll -> +sign_y.
                     t = base - sign_x[i] * d_pitch + sign_y[i] * d_roll + spin[i] * d_yaw
-                    thrusts.append(float(np.clip(t, 0.0, 3.0 * hover)))
+                    thrusts.append(float(np.clip(t, 0.0, 3.2 * hover)))
+                drone.current_thrusts = list(thrusts)
+                drone.current_euler = [float(math.degrees(roll_now)), float(math.degrees(pitch_now)), float(math.degrees(yaw_now))]
+                drone.current_angular_velocity = [float(avx), float(avy), float(avz)]
+                drone.flight_time_s += float(self.project.settings.timestep)
+                drain_factor = sum(thrusts) / max(1e-3, 4.0 * hover)
+                drone.battery_pct = max(0.0, float(100.0 - (drone.flight_time_s / drone.battery_capacity_s) * 100.0 * drain_factor))
                 self.apply_rotor_thrusts(drone_id, thrusts)
 
             # Apply planar propulsion forces to secondary ground rovers
@@ -1806,6 +1858,17 @@ class MuJoCoEngine:
                 rotors_on = drone_ctrl.rotors_active if drone_ctrl else False
                 is_sec = obj.id in self.secondary_robot_controllers
 
+                # Extract angular velocity
+                avel = [0.0, 0.0, 0.0]
+                if jnt >= 0:
+                    dof = self.model.jnt_dofadr[jnt]
+                    avel = [float(self.data.qvel[dof+3]), float(self.data.qvel[dof+4]), float(self.data.qvel[dof+5])]
+
+                thrusts_val = list(getattr(drone_ctrl, "current_thrusts", [0.0, 0.0, 0.0, 0.0])) if is_drone else None
+                euler_val = list(getattr(drone_ctrl, "current_euler", [0.0, 0.0, 0.0])) if is_drone else None
+                climb_rate_val = float(lvel[2]) if is_drone else None
+                battery_val = float(getattr(drone_ctrl, "battery_pct", 100.0)) if is_drone else None
+
                 objects_state[obj.id] = ObjectPhysicsState(
                     id=obj.id,
                     position=pos,
@@ -1816,7 +1879,12 @@ class MuJoCoEngine:
                     altitude=alt,
                     target_altitude=t_alt,
                     rotors_active=rotors_on,
-                    is_secondary_robot=is_sec
+                    is_secondary_robot=is_sec,
+                    thrusts=thrusts_val,
+                    attitude_euler=euler_val,
+                    angular_velocity=avel,
+                    climb_rate=climb_rate_val,
+                    battery_pct=battery_val
                 )
 
         # Contacts / Collisions with MuJoCo contact normal & tangent forces and penetration
@@ -2152,6 +2220,52 @@ class MuJoCoEngine:
             self.play()
         self.log("info", f"Drone '{ctrl.name}' flying to waypoint [{pos[0]}, {pos[1]}, {pos[2]}].")
         return {"status": "success", "drone_id": ctrl.drone_id, "name": ctrl.name, "target_position": pos, "flight_mode": "waypoint"}
+
+    def set_drone_teleop(self, identifier: str = "drone", pitch: float = 0.0, roll: float = 0.0, yaw: float = 0.0, climb: float = 0.0, mode: str = "stabilize") -> Dict[str, Any]:
+        """Commands real-time manual 4-axis flight inputs to the quadcopter."""
+        ctrl = self._find_drone_controller(identifier)
+        if not ctrl:
+            d_id = self.spawn_drone_if_absent()
+            ctrl = self._find_drone_controller(d_id)
+        if not ctrl:
+            return {"status": "error", "message": f"Drone '{identifier}' not found in simulation."}
+
+        # If drone is currently grounded, auto-takeoff when flight input is pressed
+        if ctrl.flight_mode == "grounded" and (abs(pitch) > 0.05 or abs(roll) > 0.05 or climb > 0.05):
+            ctrl.takeoff(max(0.6, ctrl.current_altitude + 0.6))
+
+        ctrl.set_teleop(pitch, roll, yaw, climb, mode)
+        if self.status != "running":
+            self.play()
+        return {
+            "status": "success",
+            "drone_id": ctrl.drone_id,
+            "flight_mode": ctrl.flight_mode,
+            "mode": mode,
+            "inputs": {"pitch": pitch, "roll": roll, "yaw": yaw, "climb": climb}
+        }
+
+    def spawn_drone_if_absent(self) -> str:
+        """Ensures at least one drone exists in the scene, dynamically spawning ScoutDrone-01 if absent."""
+        existing = next((o.id for o in self.project.objects if "drone" in o.name.lower() or o.id.startswith("drone") or "quad" in o.name.lower()), None)
+        if existing:
+            return existing
+        import uuid as _uuid
+        drone_id = f"drone_{_uuid.uuid4().hex[:6]}"
+        drone_obj = SceneObject(
+            id=drone_id,
+            name="ScoutDrone-01",
+            type="box",
+            position=[0.0, 0.0, 0.15],
+            size=[0.22, 0.22, 0.08],
+            color="#38bdf8",
+            is_static=False,
+            mass=1.2,
+        )
+        self.project.objects.append(drone_obj)
+        self.rebuild_model(preserve_state=True)
+        self.log("info", f"Spawned ScoutDrone-01 ({drone_id}) into simulation.")
+        return drone_id
 
     def command_secondary_robot_drive(self, identifier: str = "robot", linear_velocity: float = 1.0, angular_velocity: float = 0.0) -> Dict[str, Any]:
         """Commands a secondary ground rover to drive with specified linear and angular velocity."""

@@ -82,6 +82,23 @@ export async function postTeleop(cmd: TeleopCommand): Promise<any> {
   return res.json();
 }
 
+export async function postDroneTeleop(req: { drone_id?: string; pitch: number; roll: number; yaw: number; climb: number; mode?: string }): Promise<any> {
+  const res = await fetch(`${API_BASE}/drone/teleop`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req),
+  });
+  return res.json();
+}
+
+export async function spawnDrone(): Promise<{ status: string; drone_id: string }> {
+  const res = await fetch(`${API_BASE}/drone/spawn`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  return res.json();
+}
+
 export async function addSceneObject(obj: Omit<SceneObject, 'id'>): Promise<SceneObject> {
   const res = await fetch(`${API_BASE}/scene/objects`, {
     method: 'POST',
@@ -983,6 +1000,20 @@ export class SimulationSocket {
       // REST fallback ONLY for a real (non-zero) command, so a disconnected socket can never
       // flood the backend with teleop requests (which otherwise return 502 in a tight loop).
       postTeleop({ linear, angular }).catch(() => {});
+    }
+  }
+
+  public sendDroneTeleop(pitch: number, roll: number, yaw: number, climb: number, mode: string = 'stabilize', droneId: string = 'drone') {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify({ type: 'drone_teleop', drone_id: droneId, pitch, roll, yaw, climb, mode }));
+    } else if (pitch !== 0 || roll !== 0 || yaw !== 0 || climb !== 0) {
+      postDroneTeleop({ drone_id: droneId, pitch, roll, yaw, climb, mode }).catch(() => {});
+    }
+  }
+
+  public sendDroneAction(action: 'takeoff' | 'land' | 'hover' | 'spawn', altitude: number = 1.5, droneId: string = 'drone') {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify({ type: 'drone_action', action, altitude, drone_id: droneId }));
     }
   }
 

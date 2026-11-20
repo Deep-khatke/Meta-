@@ -4716,6 +4716,7 @@ class AIReasoningService:
         provider_info: Dict[str, Any],
         chat_history: Optional[List[Dict[str, Any]]] = None,
         tool_results: Optional[List[Dict[str, Any]]] = None,
+        mode: Optional[str] = "supervised",
     ) -> Optional[Dict[str, Any]]:
         """
         Invokes configured model (Ollama or cloud LLM) to perform genuine robotics reasoning
@@ -4867,6 +4868,23 @@ class AIReasoningService:
             "4. NEVER invent metaphoric obstacles or fake objects for non-robotics concepts.\n"
             "5. Prefer real tools over prose. It is always better to DO the action than to describe it."
         )
+
+        if mode == "educator":
+            system_instruction += (
+                "\n\n=======================================================\n"
+                "CRITICAL PEDAGOGICAL INSTRUCTION: EDUCATOR MODE IS ACTIVE.\n"
+                "=======================================================\n"
+                "You are an inspiring, world-class Robotics Professor & Patient Mentor for beginners.\n"
+                "1. Break down every concept or telemetry reading using simple everyday analogies "
+                "(e.g. differential steering = rowing a boat with two oars or pushing a shopping cart; "
+                "PID controller = cruise control maintaining highway speed; LiDAR = a laser tape measure spinning in a circle; "
+                "DoF = joints in a human arm).\n"
+                "2. When asked to build, spawn, move, or train, EMIT THE REAL ACTIONS in 'actions', but ALSO explain in your 'reply':\n"
+                "   - '🎓 Concept Spotlight': A simple 1-sentence breakdown of the robotics principle.\n"
+                "   - '💡 Everyday Analogy': The intuitive real-world metaphor.\n"
+                "   - '🤖 What I Did in 3D Sim': What was changed in the simulation and what to watch for in the 3D viewport.\n"
+                "3. Always conclude with 2-3 interactive follow-up exploration suggestions for what to test next in the simulation.\n"
+            )
 
         # Compact, high-signal scene summary (not a raw JSON dump) so the model reasons about the
         # few facts that matter and spends its tokens on the decision, not on parsing a blob.
@@ -5917,24 +5935,55 @@ class AIReasoningService:
         }
         words = clean_prompt.split()
         if clean_prompt in greetings or (words and words[0] in {"hey", "hi", "hello"} and len(words) <= 3):
-            reply = (
-                "Hi! I'm RoboForge AI — your robotics co-pilot with direct control over your live MuJoCo physics simulation.\n\n"
-                "I can execute real changes in your workspace and think through complex engineering problems:\n"
-                "- **Manipulate Scene**: Spawn obstacles, create custom courses, add drones or secondary robots.\n"
-                "- **Tune Hardware**: Set robot velocities, teleport robot positions, or configure LiDAR and IMU sensors.\n"
-                "- **Physics & Control**: Adjust gravity, step or reset the simulation, and move navigation targets.\n"
-                "- **Autonomous Research**: Formulate empirical trials, train PPO policies, and diagnose telemetry.\n\n"
-                "What would you like to build or explore?"
-            )
+            if req.mode == "educator":
+                reply = (
+                    "👋 **Welcome to RoboForge Educator Mode!**\n\n"
+                    "I'm your robotics teacher and autonomous lab partner. My goal is to make robotics simple, fun, and intuitive — whether you're building your very first robot or curious about how real machines think.\n\n"
+                    "Here's what we can do together:\n"
+                    "- 🎯 **Ask Me Anything**: Ask *\"Why doesn't the robot fall over?\"*, *\"What is a degree of freedom?\"*, or *\"How do drone rotors work?\"*.\n"
+                    "- 🛠️ **Learn by Building**: Tell me what you want to build (e.g. *\"Teach me how a rover steers around obstacles\"*), and I will both build it in our 3D physics simulator and explain the concepts step-by-step!\n"
+                    "- 💡 **Everyday Analogies**: Don't worry about heavy math — I explain concepts using everyday things like bicycles, boats, and shopping carts.\n\n"
+                    "What would you like to build or explore?"
+                )
+                suggestions = [
+                    "🚗 How does differential steering work? Build an arena",
+                    "🚁 Why do drones have 4 rotors? Test hover in 3D",
+                    "🦾 What does Degrees of Freedom mean? Move the robot arm",
+                    "⚡ Explain how LiDAR sees through the room"
+                ]
+            else:
+                reply = (
+                    "Hi! I'm RoboForge AI — your robotics co-pilot with direct control over your live MuJoCo physics simulation.\n\n"
+                    "I can execute real changes in your workspace and think through complex engineering problems:\n"
+                    "- **Manipulate Scene**: Spawn obstacles, create custom courses, add drones or secondary robots.\n"
+                    "- **Tune Hardware**: Set robot velocities, teleport robot positions, or configure LiDAR and IMU sensors.\n"
+                    "- **Physics & Control**: Adjust gravity, step or reset the simulation, and move navigation targets.\n"
+                    "- **Autonomous Research**: Formulate empirical trials, train PPO policies, and diagnose telemetry.\n\n"
+                    "What would you like to build or explore?"
+                )
+                suggestions = [
+                    "Train an autonomous rover with PPO",
+                    "Assemble a 6-DOF robotic arm",
+                    "Simulate an autonomous drone hover",
+                    "Spawn randomized obstacle arena"
+                ]
             return AIChatResponse(
                 reply=reply,
                 provider=provider_info["active_provider"],
                 is_model_inference=True if provider_info.get("provider_type") in ("ollama", "llm", "openai_compat") else False,
                 is_fallback=False,
                 mode=req.mode,
-                thought_steps=[],
+                thought_steps=[
+                    AgentThoughtStep(
+                        step="educate",
+                        title="RoboForge Educator Initialized",
+                        detail="Active pedagogical co-pilot initialized with beginner-friendly analogies and autonomous demonstrations.",
+                        status="success"
+                    )
+                ] if req.mode == "educator" else [],
                 tools_invoked=["chat"],
-                actions_executed=[]
+                actions_executed=[],
+                follow_up_suggestions=suggestions
             )
 
         context = self.gather_simulation_context()
@@ -6186,6 +6235,7 @@ class AIReasoningService:
                     model_reasoning = self._call_model_chat_reasoning(
                         prompt, context, provider_info, req.chat_history,
                         tool_results=(loop_tool_results if step_idx > 1 else None),
+                        mode=req.mode,
                     )
                     # The free tier flakes intermittently (empty/None). Retry once before giving up
                     # on this step, so a single bad response doesn't abort the whole task.
@@ -6193,6 +6243,7 @@ class AIReasoningService:
                         model_reasoning = self._call_model_chat_reasoning(
                             prompt, context, provider_info, req.chat_history,
                             tool_results=(loop_tool_results if step_idx > 1 else None),
+                            mode=req.mode,
                         )
                     if not model_reasoning:
                         break
@@ -6353,6 +6404,42 @@ class AIReasoningService:
         preserved_markers = ("ideation", "collaborative", "inspection", "diagnosis", "hardware", "tool:", "neural synthesis")
         thought_steps = [s for s in thought_steps if any(m in (s.title or "").lower() for m in preserved_markers)] or thought_steps
 
+        # Contextual follow-up suggestions for smooth interactive deck
+        suggestions: List[str] = []
+        if req.mode == "educator":
+            if any(w in prompt_lower for w in ["drone", "fly", "rotor", "altitude", "hover"]):
+                suggestions = [
+                    "🚁 Why do drones spin opposite rotors? Test in 3D",
+                    "✈️ Test altitude hold at 2.0 meters",
+                    "🕹️ How does PID control the drone's tilt?"
+                ]
+            elif any(w in prompt_lower for w in ["arm", "joint", "dof", "kinematics", "manipulator"]):
+                suggestions = [
+                    "🦾 What does Degrees of Freedom mean in human vs robot arms?",
+                    "🎯 Test reaching a 3D coordinate with inverse kinematics",
+                    "📐 How do robots avoid joint limit collisions?"
+                ]
+            elif any(w in prompt_lower for w in ["rover", "wheel", "steer", "obstacle", "course", "lidar"]):
+                suggestions = [
+                    "🚗 How does differential steering work like a rowboat?",
+                    "🎯 Spawn 8 obstacles and see the laser LiDAR rays in action",
+                    "⚡ What causes wheel slip on slippery surfaces?"
+                ]
+            else:
+                suggestions = [
+                    "🚗 Teach me how a rover steers around obstacles",
+                    "🚁 Simulate a quadcopter drone and explain altitude hold",
+                    "🦾 What are Degrees of Freedom (DoF)? Move the robot arm",
+                    "⚡ How does a PID controller work like car cruise control?"
+                ]
+        else:
+            if any(w in prompt_lower for w in ["drone", "fly", "rotor"]):
+                suggestions = ["Test Drone Teleop in Simulation", "Train Drone Altitude Policy", "Inspect IMU Telemetry"]
+            elif any(w in prompt_lower for w in ["arm", "manipulator", "kinematics"]):
+                suggestions = ["Inspect Robot Joint Specs", "Execute DLS Inverse Kinematics", "Open in Robot Studio"]
+            else:
+                suggestions = ["Train Autonomous Rover with PPO", "Spawn Obstacle Field in Arena", "Inspect Sim-to-Real Matrix"]
+
         return AIChatResponse(
             reply=reply,
             provider=self._resolve_served_provider_label(provider_info, is_model_inference),
@@ -6363,7 +6450,8 @@ class AIReasoningService:
             thought_process=thought_process,
             observed_facts=observed_facts,
             tools_invoked=tools_invoked,
-            actions_executed=actions_executed
+            actions_executed=actions_executed,
+            follow_up_suggestions=suggestions
         )
 
     def approve_action(self, req: AIApprovalRequest) -> AIChatResponse:

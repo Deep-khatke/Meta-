@@ -141,7 +141,7 @@ class AgentThoughtStep(BaseModel):
 
 class AIChatRequest(BaseModel):
     prompt: str
-    mode: Literal["supervised", "autonomous"] = "supervised"
+    mode: Literal["supervised", "autonomous", "educator"] = "supervised"
     session_id: Optional[str] = "default_session"
     chat_history: List[Dict[str, Any]] = Field(default_factory=list)
     mission_id: Optional[str] = None
@@ -166,6 +166,9 @@ class AIChatResponse(BaseModel):
     actions_executed: List[Dict[str, Any]] = Field(default_factory=list)
     thought_process: Optional[str] = None
     error_message: Optional[str] = None
+    follow_up_suggestions: List[str] = Field(default_factory=list)
+    educational_analogy: Optional[str] = None
+    beginner_concept: Optional[str] = None
 
 
 class AIApprovalRequest(BaseModel):

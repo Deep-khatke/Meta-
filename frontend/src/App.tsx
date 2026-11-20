@@ -24,6 +24,8 @@ import { EnvironmentCreatorModal } from './components/EnvironmentCreatorModal';
 import { RobotStudioModal } from './components/RobotStudioModal';
 import { LandingScreen, WorkspaceChoice } from './components/LandingScreen';
 import { WorkspaceSetupModal } from './components/WorkspaceSetupModal';
+import { GlobalHeader, ActiveWorkspace } from './components/GlobalHeader';
+import { AIWorkspace } from './components/ai-workspace/AIWorkspace';
 import { useKeyboardTeleop } from './hooks/useKeyboardTeleop';
 import { BrainCircuit, Sparkles, CheckCircle2, XCircle, X, Play, ShieldAlert, Upload, FileCode, AlertTriangle, FileText, Compass } from 'lucide-react';
 
@@ -160,6 +162,10 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
 
 export const AppContent: React.FC = () => {
   const [project, setProject] = useState<Project | null>(null);
+  // Persistent workspace switcher: AI Workspace is default landing experience
+  const [activeWorkspace, setActiveWorkspace] = useState<ActiveWorkspace>('ai');
+  // Educator Mode toggle: teaches robotics step-by-step with real-world analogies & autonomous demonstrations
+  const [isEducatorMode, setIsEducatorMode] = useState<boolean>(false);
   // Landing / onboarding: show the workspace chooser before entering the main app.
   const [showLanding, setShowLanding] = useState<boolean>(() => {
     try { return sessionStorage.getItem('roboforge_entered') !== '1'; } catch { return true; }
@@ -420,6 +426,7 @@ export const AppContent: React.FC = () => {
       }
       setSelectedObjectId(null);
       try { sessionStorage.setItem('roboforge_entered', '1'); } catch {}
+      setActiveWorkspace('ai');
       setShowLanding(false);
     } catch (e: any) {
       showToast(e.message || 'Failed to start workspace');
@@ -1041,8 +1048,62 @@ export const AppContent: React.FC = () => {
         </div>
       )}
 
-      {/* Top Application Toolbar */}
-      <Toolbar
+      {/* Global Application Header with Persistent Workspace Switcher & Educator Toggle */}
+      <GlobalHeader
+        activeWorkspace={activeWorkspace}
+        onSwitchWorkspace={setActiveWorkspace}
+        project={project}
+        simState={simState}
+        isConnected={isConnected}
+        onSaveProject={handleSaveProject}
+        onOpenURDFModal={() => setShowURDFModal(true)}
+        isEducatorMode={isEducatorMode}
+        onToggleEducatorMode={() => {
+          setIsEducatorMode((prev) => {
+            const next = !prev;
+            showToast(next ? '🎓 Educator Mode Activated: Learn robotics step-by-step!' : 'Autonomous Tool-Calling Mode Activated.');
+            return next;
+          });
+        }}
+      />
+
+      {activeWorkspace === 'ai' ? (
+        <AIWorkspace
+          project={project}
+          simState={simState}
+          isConnected={isConnected}
+          onPlay={handlePlay}
+          onPause={handlePause}
+          onStep={handleStep}
+          onReset={handleReset}
+          onChangeSpeed={handleChangeSpeed}
+          targetPosition={targetPosition}
+          onSelectTarget={setTargetPosition}
+          onUpdateObject={handleUpdateObject}
+          onShowToast={showToast}
+          isEducatorMode={isEducatorMode}
+          onToggleEducatorMode={() => {
+            setIsEducatorMode((prev) => {
+              const next = !prev;
+              showToast(next ? '🎓 Educator Mode Activated: Learn robotics step-by-step!' : 'Autonomous Tool-Calling Mode Activated.');
+              return next;
+            });
+          }}
+          onSwitchToEngineeringStudio={(section) => {
+            if (section) handleSelectWorkspaceSection(section);
+            setActiveWorkspace('engineering');
+          }}
+          onProjectLoaded={async () => {
+            try {
+              const p = await fetchProject();
+              setProject(p);
+            } catch {}
+          }}
+        />
+      ) : (
+        <>
+          {/* Top Application Toolbar */}
+          <Toolbar
         project={project}
         simState={simState}
         isConnected={isConnected}
@@ -1335,6 +1396,8 @@ export const AppContent: React.FC = () => {
         onSeekReplay={handleSeekReplay}
         forcedTab={workspaceSection === 'experiments' ? 'experiments' : workspaceSection === 'results' ? 'telemetry' : null}
       />
+        </>
+      )}
 
       {/* URDF Import Modal */}
       {showURDFModal && (

@@ -1138,16 +1138,43 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
       if (!canvasContainerRef.current || !rendererRef.current || !cameraRef.current) return;
       const w = canvasContainerRef.current.clientWidth;
       const h = canvasContainerRef.current.clientHeight;
+      if (w <= 0 || h <= 0) return;
       cameraRef.current.aspect = w / h;
       cameraRef.current.updateProjectionMatrix();
-      rendererRef.current.setSize(w, h);
+      rendererRef.current.setSize(w, h, true);
     };
 
     window.addEventListener('resize', handleResize);
 
+    // Responsive ResizeObserver: guarantees Three.js canvas dynamically resizes on split-pane sliding or panel expansion
+    let resizeObserver: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined' && canvasContainerRef.current) {
+      resizeObserver = new ResizeObserver(() => {
+        handleResize();
+      });
+      resizeObserver.observe(canvasContainerRef.current);
+    }
+
     let animId: number;
     const animate = () => {
       animId = requestAnimationFrame(animate);
+
+      // Frame-level fallback: instantly sync rendering resolution if container resized during animation frame
+      if (canvasContainerRef.current && rendererRef.current && cameraRef.current) {
+        const curW = canvasContainerRef.current.clientWidth;
+        const curH = canvasContainerRef.current.clientHeight;
+        if (curW > 0 && curH > 0) {
+          const dom = rendererRef.current.domElement;
+          const pixelRatio = Math.min(window.devicePixelRatio, 2);
+          const expW = Math.floor(curW * pixelRatio);
+          const expH = Math.floor(curH * pixelRatio);
+          if (dom.width !== expW || dom.height !== expH) {
+            cameraRef.current.aspect = curW / curH;
+            cameraRef.current.updateProjectionMatrix();
+            rendererRef.current.setSize(curW, curH, true);
+          }
+        }
+      }
 
       if (robotGroupRef.current) {
         robotGroupRef.current.position.lerp(targetRobotPosRef.current, 0.4);
@@ -1322,6 +1349,9 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
 
     return () => {
       window.removeEventListener('resize', handleResize);
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+      }
       cancelAnimationFrame(animId);
       controls.dispose();
       transformControls.dispose();

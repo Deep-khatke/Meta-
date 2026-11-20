@@ -551,6 +551,41 @@ textarea {
   to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes rf-suggestion-enter {
+  0% {
+    opacity: 0;
+    transform: translateY(16px) scale(0.97);
+  }
+  60% {
+    opacity: 0.9;
+    transform: translateY(-2px) scale(1.01);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes rf-educator-badge-glow {
+  0%, 100% {
+    box-shadow: 0 0 12px rgba(56, 189, 248, 0.35), inset 0 0 8px rgba(56, 189, 248, 0.15);
+  }
+  50% {
+    box-shadow: 0 0 22px rgba(56, 189, 248, 0.65), inset 0 0 12px rgba(56, 189, 248, 0.3);
+  }
+}
+
+@keyframes rf-feedback-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 .rf-ai-orb {
   position: relative;
   width: 30px;
@@ -644,6 +679,22 @@ textarea {
 @keyframes rf-fade-in {
   from { opacity: 0; transform: translateY(-4px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ChatGPT-style Streaming Typewriter Cursor */
+@keyframes rf-cursor-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.rf-streaming-cursor {
+  display: inline-block;
+  width: 7px;
+  height: 15px;
+  margin-left: 3px;
+  vertical-align: -1px;
+  border-radius: 2px;
+  animation: rf-cursor-blink 0.75s ease-in-out infinite;
 }
 
 /* Focus ring for keyboard accessibility without harming the dark theme */

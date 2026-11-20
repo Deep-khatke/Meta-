@@ -1175,6 +1175,24 @@ def command_drone_api(req: DroneCommandRequest):
         return engine.command_drone_fly_to(req.drone_id or "drone", req.position)
     raise HTTPException(status_code=400, detail=f"Unknown drone command: {req.command}")
 
+class DroneTeleopPayload(BaseModel):
+    drone_id: Optional[str] = "drone"
+    pitch: float = 0.0
+    roll: float = 0.0
+    yaw: float = 0.0
+    climb: float = 0.0
+    mode: Optional[str] = "stabilize"
+
+@app.post("/api/drone/teleop")
+def drone_teleop_api(req: DroneTeleopPayload):
+    return engine.set_drone_teleop(req.drone_id or "drone", req.pitch, req.roll, req.yaw, req.climb, req.mode or "stabilize")
+
+@app.post("/api/drone/spawn")
+async def drone_spawn_api():
+    d_id = engine.spawn_drone_if_absent()
+    await broadcast_json({"type": "project_updated", "data": engine.project.model_dump()})
+    return {"status": "success", "drone_id": d_id}
+
 @app.get("/api/drone/status")
 def get_drone_status_api():
     drones = []
@@ -3210,6 +3228,27 @@ async def websocket_endpoint(websocket: WebSocket):
                 linear = float(data.get("linear", 0.0))
                 angular = float(data.get("angular", 0.0))
                 engine.set_teleop(linear, angular)
+            elif msg_type == "drone_teleop":
+                d_id = data.get("drone_id", "drone")
+                p = float(data.get("pitch", 0.0))
+                r = float(data.get("roll", 0.0))
+                y = float(data.get("yaw", 0.0))
+                c = float(data.get("climb", 0.0))
+                m = data.get("mode", "stabilize")
+                engine.set_drone_teleop(d_id, p, r, y, c, m)
+            elif msg_type == "drone_action":
+                act = data.get("action")
+                d_id = data.get("drone_id", "drone")
+                if act == "takeoff":
+                    alt = float(data.get("altitude", 1.5))
+                    engine.command_drone_takeoff(d_id, alt)
+                elif act == "land":
+                    engine.command_drone_land(d_id)
+                elif act == "hover":
+                    engine.command_drone_hover(d_id)
+                elif act == "spawn":
+                    engine.spawn_drone_if_absent()
+                    await broadcast_json({"type": "project_updated", "data": engine.project.model_dump()})
             elif msg_type == "play":
                 engine.play()
             elif msg_type == "pause":
