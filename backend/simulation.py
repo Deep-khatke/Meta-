@@ -291,6 +291,8 @@ class MuJoCoEngine:
         self.rl_training_attempts: int = 0
         self.rl_ghosts: list = []
         self.balance_ghosts: list = []
+        self.demo_recorder = None
+        self.task_goal = None
         self.balance_ghost_joints: list = []
         self.rl_swarm_success: int = 0
         self.rl_swarm_size: int = 0
@@ -1557,6 +1559,13 @@ class MuJoCoEngine:
             except Exception as e:  # a broken policy must never take the simulator down
                 self.log("warning", f"Balance controller disabled: {e}")
                 self.balance_controller = None
+        rec = self.demo_recorder
+        if rec is not None and self.step_count % rec.substeps_for(self) == 0:
+            try:
+                rec.tick(self)
+            except Exception as e:
+                self.log("warning", f"Demo recorder stopped: {e}")
+                self.demo_recorder = None
         if gr.is_fixed_base:
             return
         bid = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, gr.root_link)
@@ -2095,6 +2104,7 @@ class MuJoCoEngine:
             imu_angular_velocity=imu_gyr,
             joint_positions=joint_positions,
             generic_base_pose=generic_base_pose,
+            task_goal=list(self.task_goal) if getattr(self, "task_goal", None) is not None else None,
             joint_velocities=joint_velocities,
             joint_torques=joint_torques,
             encoder_ticks=encoder_ticks,

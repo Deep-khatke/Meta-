@@ -49,12 +49,17 @@ def make_ctx(model, gr, goal, task, engine=None) -> SimpleNamespace:
         free=not gr.is_fixed_base, task=task, names=names, n=len(names), goal=np.asarray(goal, dtype=float),
         qadr=np.array([model.jnt_qposadr[i] for i in jid]), dadr=np.array([model.jnt_dofadr[i] for i in jid]),
         lo=np.array([j.limit.lower for j in joints]), hi=np.array([j.limit.upper for j in joints]),
-        root=bid(gr.root_link), ee=bid(leaves[-1]),
+        root=bid(gr.root_link), ee=bid(leaves[-1]), delta=(task == "imitation"),
         act=np.array([engine.joint_actuator_ids[n] for n in names]) if engine is not None else None)
 
 
-def to_targets(c, a: np.ndarray) -> np.ndarray:
+DELTA = 0.25  # rad per 50 Hz tick for relative (imitation) control
+
+
+def to_targets(c, a: np.ndarray, q=None) -> np.ndarray:
     a = np.clip(a, -1.0, 1.0)
+    if c.delta and q is not None:
+        return np.clip(q + a * DELTA, c.lo, c.hi)
     if c.free:
         return np.clip(a * LEG_SCALE, c.lo, c.hi)
     return c.lo + (a + 1.0) * 0.5 * (c.hi - c.lo)
@@ -67,7 +72,8 @@ def task_obs(model, data, c, last_a) -> np.ndarray:
         rel = np.array([c.goal[0], 0.0, 0.0]) if c.task == "walk" else np.clip(R.T @ (c.goal - data.xpos[c.root]), -4.0, 4.0)
         return np.concatenate([R.T @ [0, 0, -1.0], data.qvel[3:6] * 0.25, R.T @ data.qvel[0:3], rel, qj, qd, last_a]).astype(np.float32)
     ee = data.xpos[c.ee]
-    return np.concatenate([c.goal - ee, ee, qj, qd, last_a]).astype(np.float32)
+    err = (c.goal - ee) * (10.0 if c.delta else 1.0)      # imitation policy: amplify the tip error for precision
+    return np.concatenate([err, ee, qj, qd, last_a]).astype(np.float32)
 
 
 class SceneTaskEnv(gym.Env):
@@ -132,7 +138,7 @@ class SceneTaskEnv(gym.Env):
     def step(self, action):
         c, m, d = self.c, self.model, self.data
         a = np.clip(np.asarray(action, dtype=np.float64), -1, 1)
-        d.ctrl[c.act] = to_targets(c, a)
+        d.ctrl[c.act] = to_targets(c, a, d.qpos[c.qadr])
         for _ in range(self.sub):
             mujoco.mj_step(m, d)
         self.t += 1
@@ -161,6 +167,9 @@ class SceneTaskEnv(gym.Env):
             elif c.task != "walk" and np.linalg.norm(c.goal[:2] - d.xpos[c.root][:2]) < 0.35 and h > c.goal[2] - 0.08:
                 r += 20.0
                 term = success = True
+        elif c.delta:                       # imitation: no early stop; must reach AND hold, judged at 3 cm
+            r -= 0.02 * dist
+            success = dist < 0.03
         else:
             r -= 0.02 * dist
             if dist < 0.06:
@@ -210,7 +219,7 @@ class TaskController:
         obs = task_obs(engine.model, engine.data, self.c, self.last_a)
         a = np.clip(self.ppo.predict(obs, deterministic=True)[0], -1, 1)
         self.last_a = a
-        for nm, v in zip(self.c.names, to_targets(self.c, a)):
+        for nm, v in zip(self.c.names, to_targets(self.c, a, engine.data.qpos[self.c.qadr])):
             engine.joint_targets[nm] = float(v)
 
 

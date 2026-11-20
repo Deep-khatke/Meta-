@@ -1452,6 +1452,23 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     });
   }, [sceneInstance, simState?.rl_ghosts]);
 
+  // Goal marker for the imitation / task policy (display only, no collision).
+  useEffect(() => {
+    if (!sceneInstance) return;
+    let m = sceneInstance.getObjectByName('task_goal_marker') as THREE.Mesh | undefined;
+    const g = simState?.task_goal;
+    if (!g) { if (m) m.visible = false; return; }
+    if (!m) {
+      m = new THREE.Mesh(new THREE.SphereGeometry(0.03, 16, 12),
+        new THREE.MeshBasicMaterial({ color: 0x22c55e, transparent: true, opacity: 0.8, depthTest: false }));
+      m.name = 'task_goal_marker';
+      m.renderOrder = 10;
+      sceneInstance.add(m);
+    }
+    m.visible = true;
+    m.position.set(g[0], g[1], g[2]);
+  }, [sceneInstance, simState?.task_goal?.[0], simState?.task_goal?.[1], simState?.task_goal?.[2]]);
+
   // Balance-training ghosts: the live states of the real PPO training environments, drawn as
   // translucent copies of the robot. Layout offset is display-only; pose/joints are the env's own.
   const balGhostRef = useRef<THREE.Group | null>(null);
