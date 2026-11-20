@@ -3,8 +3,17 @@
 import math
 import logging
 from typing import Any, Dict, List, Optional, Tuple, Sequence
-import gymnasium as gym
-from gymnasium import spaces
+try:
+    import gymnasium as gym
+    from gymnasium import spaces
+    _GymEnvBase = gym.Env
+except Exception:
+    gym = None
+    class _SpacesMock:
+        Box = object
+        Discrete = object
+    spaces = _SpacesMock()
+    _GymEnvBase = object
 import numpy as np
 
 from backend.models import Project, RobotConfig, SceneObject, SimulationSettings
@@ -13,7 +22,7 @@ from backend.simulation import SimulationEngine, quat_to_yaw
 logger = logging.getLogger("roboforge.rl_env")
 
 
-class RoboForgeGymEnv(gym.Env):
+class RoboForgeGymEnv(_GymEnvBase):
     """Reinforcement learning environment wrapping real MuJoCo differential-drive physics."""
 
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 20}

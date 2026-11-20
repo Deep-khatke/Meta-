@@ -355,6 +355,8 @@ class SimulationState(BaseModel):
     
     # Generic Joint Telemetry (Positions, Velocities, Torques)
     joint_positions: Dict[str, float] = Field(default_factory=dict)
+    # [x, y, z, qw, qx, qy, qz] of a free-standing generic robot's base (None for fixed-base robots)
+    generic_base_pose: Optional[List[float]] = None
     joint_velocities: Dict[str, float] = Field(default_factory=dict)
     joint_torques: Dict[str, float] = Field(default_factory=dict)
     encoder_ticks: Dict[str, int] = Field(default_factory=dict)
@@ -384,6 +386,8 @@ class SimulationState(BaseModel):
     # Parallel "swarm" ghost rovers during live training: [x, y, yaw, status]
     # status: 0 = trying, 1 = reached goal, 2 = crashed
     rl_ghosts: List[List[float]] = Field(default_factory=list)
+    balance_ghosts: List[List[float]] = Field(default_factory=list)
+    balance_ghost_joints: List[str] = Field(default_factory=list)
     rl_swarm_success: int = 0
     rl_swarm_size: int = 0
 

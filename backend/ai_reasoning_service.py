@@ -133,6 +133,11 @@ class AIReasoningService:
             "add_robot",
             "spawn_arm",
             "spawn_humanoid",
+            "spawn_balance_robot",
+            "train_scene_task",
+            "push_robot",
+            "train_balance",
+            "stop_balance_training",
             "spawn_dog",
             "play_joint_keyframes",
             "add_drone",
@@ -995,6 +1000,33 @@ class AIReasoningService:
             "is_fixed_base": robot.is_fixed_base,
             "details": f"Spawned articulated arm '{robot.name}' with {n_joints} joints into the scene. It is now the active robot and you can drive its joints or train a reach policy on it.",
         }
+
+    def tool_train_scene_task(self, task: str = "climb", target: Optional[str] = None, timesteps: int = 300000) -> Dict[str, Any]:
+        from backend import scene_task
+        res = scene_task.trainer.start(str(task), target, max(20000, min(2000000, int(timesteps))), self.pm, self.engine)
+        res["action"] = "train_scene_task"
+        return res
+
+    def tool_spawn_balance_robot(self, kind: str = "dog", clear: bool = True) -> Dict[str, Any]:
+        from backend import balance
+        return balance.spawn("humanoid" if "human" in str(kind).lower() or "biped" in str(kind).lower() else "dog", self.pm, self.engine, bool(clear))
+
+    def tool_push_robot(self, angle_deg: Optional[float] = None, strength: Optional[float] = None) -> Dict[str, Any]:
+        from backend import balance
+        return balance.push(self.engine, angle_deg, strength)
+
+    def tool_train_balance(self, kind: Optional[str] = None, timesteps: int = 200000) -> Dict[str, Any]:
+        from backend import balance
+        if not kind:
+            names = {l.name for l in (self.engine.project.generic_robot.links if self.engine.project.generic_robot else [])}
+            kind = "humanoid" if "pelvis" in names else "dog"
+        kind = "humanoid" if "human" in str(kind).lower() else "dog"
+        return balance.trainer.start(kind, max(20000, min(1500000, int(timesteps))), self.engine)
+
+    def tool_stop_balance_training(self) -> Dict[str, Any]:
+        from backend import balance
+        balance.trainer.stop()
+        return {"status": "success", "details": "Stopping balance training."}
 
     def _spawn_preset(self, kind: str) -> Dict[str, Any]:
         """Spawn a fixed-base articulated preset (humanoid or robot dog) as the active generic robot."""
@@ -3892,6 +3924,17 @@ class AIReasoningService:
                     name=params.get("name"),
                     preset=params.get("preset") or params.get("type"),
                 )
+            elif tool_name == "train_scene_task":
+                return self.tool_train_scene_task(task=params.get("task", "climb"), target=params.get("target"),
+                                                  timesteps=params.get("timesteps", 300000))
+            elif tool_name == "spawn_balance_robot":
+                return self.tool_spawn_balance_robot(kind=params.get("kind", "dog"), clear=params.get("clear", True))
+            elif tool_name == "push_robot":
+                return self.tool_push_robot(angle_deg=params.get("angle_deg"), strength=params.get("strength"))
+            elif tool_name == "train_balance":
+                return self.tool_train_balance(kind=params.get("kind"), timesteps=params.get("timesteps", 200000))
+            elif tool_name == "stop_balance_training":
+                return self.tool_stop_balance_training()
             elif tool_name in ("spawn_humanoid", "add_humanoid", "create_humanoid", "spawn_biped", "add_biped"):
                 return self.tool_spawn_humanoid(name=params.get("name"))
             elif tool_name in ("spawn_dog", "add_dog", "create_dog", "spawn_robot_dog", "spawn_quadruped", "add_quadruped"):
@@ -4855,6 +4898,9 @@ class AIReasoningService:
             "- 'teleport_robot': {position: [x,y,z], yaw: float}\n"
             "- 'add_robot': {name: str, position: [x,y,z], color: str, mass: float}\n"
             "- 'spawn_arm': {joints: int (default 4), name: str, preset: 'kr6'|'scara' (optional)}  -- USE THIS for ANY articulated arm / manipulator / 'N joint arm' request. 'add_robot' only makes a wheeled rover and must NOT be used for arms.\n"
+            "- 'train_scene_task': {task:'walk'|'climb'|'go_to'|'reach', target?:'<object label from the photo scene>', timesteps?} -- real PPO training. 'walk' needs NO photo or target: it trains the legged robot (dog by default, or the current humanoid) to walk forward (use ~2000000 timesteps). 'climb'/'go_to'/'reach' use objects from the user's uploaded photo scene (climb stairs, walk to an object, arm reaches an object). Use whenever the user asks to train a robot to walk or to do something in their photo.\n"
+            "- 'spawn_balance_robot': {kind:'dog'|'humanoid'} -- spawn an UNTRAINED free-standing robot for balance training.\n"
+            "- 'push_robot': {angle_deg?, strength?} -- shove the balance robot. 'train_balance': {kind?, timesteps?} -- real PPO training so it stays upright. 'stop_balance_training': {}.\n"
             "- 'spawn_humanoid': {}  -- spawn a humanoid robot (14 joints). USE THIS for 'humanoid', 'biped', 'human robot'.\n"
             "- 'spawn_dog': {}  -- spawn a quadruped robot dog (12 joints). USE THIS for 'robot dog', 'dog', 'quadruped'.\n"
             "- 'play_joint_keyframes': {motion: 'wave'|'walk'|'sit'|'reach'|'home' (auto-generates the motion; 'walk' is a walk-in-place cycle for a humanoid or robot dog), OR keyframes: [{targets:{joint_name: angle_rad}, duration: sec}], loop: bool}  -- USE THIS to make an arm MOVE/perform a gesture (e.g. 'make the arm wave hi'). Prefer motion:'wave' for a greeting.\n"
@@ -4967,7 +5013,8 @@ class AIReasoningService:
         # Compact, high-signal scene summary (not a raw JSON dump) so the model reasons about the
         # few facts that matter and spends its tokens on the decision, not on parsing a blob.
         scene_summary = self._compact_scene_summary(context)
-        user_content = f"User Request: {prompt}\n\nLive Scene:\n{scene_summary}"
+        from backend import scene_vision as _sv
+        user_content = f"User Request: {prompt}\n\nLive Scene:\n{scene_summary}" + _sv.context_block()
         if tool_results:
             # Follow-up iteration in the agentic loop: show what the previous actions actually did
             # so the model can react (use real joint names, recover from failures, decide next step).

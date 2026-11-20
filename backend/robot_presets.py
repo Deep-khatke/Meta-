@@ -34,7 +34,7 @@ def _link(name: str, mass: float, gtype: str, size: Tuple[float, ...], gpos: V3)
     )
 
 
-def _build(name: str, root: str, links: LinkSpec, joints: JointSpec) -> GenericRobotModel:
+def _build(name: str, root: str, links: LinkSpec, joints: JointSpec, fixed: bool = True) -> GenericRobotModel:
     origins = {k: v[0] for k, v in links.items()}
     jm: List[JointModel] = []
     for jname, parent, child, axis, lo, hi, kp, kv in joints:
@@ -47,12 +47,12 @@ def _build(name: str, root: str, links: LinkSpec, joints: JointSpec) -> GenericR
         ))
     return GenericRobotModel(
         name=name, root_link=root, base_position=list(origins[root]), base_rpy=[0.0, 0.0, 0.0],
-        is_fixed_base=True,
+        is_fixed_base=fixed,
         links=[_link(k, v[1], v[2], v[3], v[4]) for k, v in links.items()], joints=jm,
     )
 
 
-def build_humanoid() -> GenericRobotModel:
+def build_humanoid(free: bool = False) -> GenericRobotModel:
     links: LinkSpec = {
         "pelvis": ((0, 0, 0.68), 5.0, "box", (0.085, 0.13, 0.055), (0, 0, 0)),
         "chest": ((0, 0, 0.74), 8.0, "box", (0.11, 0.17, 0.2), (0, 0, 0.23)),
@@ -68,7 +68,7 @@ def build_humanoid() -> GenericRobotModel:
         links[f"{side}_forearm"] = ((-0.01, s * 0.228, 0.8), 1.0, "cylinder", (0.03, 0.1), (0, 0, -0.1))
         links[f"{side}_thigh"] = ((0, s * 0.095, 0.64), 3.2, "cylinder", (0.055, 0.145), (0, 0, -0.145))
         links[f"{side}_shin"] = ((0.015, s * 0.1, 0.35), 2.4, "cylinder", (0.042, 0.13), (0, 0, -0.13))
-        links[f"{side}_foot"] = ((-0.01, s * 0.1, 0.085), 0.8, "box", (0.11, 0.05, 0.025), (0.055, 0, -0.05))
+        links[f"{side}_foot"] = ((-0.01, s * 0.1, 0.085), 0.8, "box", (0.11, 0.05, 0.025), (0.055, 0, -0.06))
         roll_lo, roll_hi = (-0.3, 3.0) if s > 0 else (-3.0, 0.3)
         joints += [
             (f"{side}_shoulder_roll", "chest", f"{side}_shoulder", _X, roll_lo, roll_hi, 120, 8),
@@ -78,13 +78,13 @@ def build_humanoid() -> GenericRobotModel:
             (f"{side}_knee", f"{side}_thigh", f"{side}_shin", _Y, 0.0, 2.4, 400, 20),
             (f"{side}_ankle", f"{side}_shin", f"{side}_foot", _Y, -0.7, 0.7, 150, 8),
         ]
-    return _build("ForgeBot Humanoid", "pelvis", links, joints)
+    return _build("ForgeBot Humanoid", "pelvis", links, joints, fixed=not free)
 
 
 _BZ = 0.44
 
 
-def build_dog() -> GenericRobotModel:
+def build_dog(free: bool = False) -> GenericRobotModel:
     links: LinkSpec = {"body": ((0, 0, _BZ), 8.0, "box", (0.26, 0.11, 0.075), (0, 0, 0))}
     joints: JointSpec = []
     for fr, hx in (("f", 0.22), ("r", -0.22)):
@@ -92,21 +92,21 @@ def build_dog() -> GenericRobotModel:
             p = f"{fr}{side}"
             links[f"{p}_hip_link"] = ((hx, s * 0.12, _BZ - 0.01), 0.5, "sphere", (0.04,), (0, 0, 0))
             links[f"{p}_thigh"] = ((hx, s * 0.148, _BZ - 0.01), 0.9, "cylinder", (0.035, 0.105), (-0.032, 0, -0.105))
-            links[f"{p}_shin"] = ((hx - 0.065, s * 0.148, 0.22), 0.5, "cylinder", (0.022, 0.098), (0.04, 0, -0.098))
+            links[f"{p}_shin"] = ((hx - 0.065, s * 0.148, 0.22), 0.5, "sphere", (0.024,), (0.08, 0, -0.196))
             joints += [
                 (f"{p}_abd", "body", f"{p}_hip_link", _X, -0.5, 0.5, 250, 12),
                 (f"{p}_hip", f"{p}_hip_link", f"{p}_thigh", _Y, -1.0, 1.0, 400, 20),
                 (f"{p}_knee", f"{p}_thigh", f"{p}_shin", _Y, -1.2, 1.2, 300, 15),
             ]
-    return _build("ForgeBot Dog", "body", links, joints)
+    return _build("ForgeBot Dog", "body", links, joints, fixed=not free)
 
 
-def build_preset(kind: str) -> Optional[GenericRobotModel]:
+def build_preset(kind: str, free: bool = False) -> Optional[GenericRobotModel]:
     k = (kind or "").lower()
     if k in ("humanoid", "biped"):
-        return build_humanoid()
+        return build_humanoid(free)
     if k in ("dog", "quadruped", "robot_dog"):
-        return build_dog()
+        return build_dog(free)
     return None
 
 
