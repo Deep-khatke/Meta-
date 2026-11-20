@@ -46,6 +46,24 @@ from backend.motion_planning import GridAStarPlanner
 logger = logging.getLogger("roboforge.ai_reasoning")
 
 
+def _gemini_request(model: str, key: str):
+    """Return (url, headers) for a Gemini generateContent call.
+
+    Keys in the Vertex AI express format (prefix "AQ.") are sent to the Vertex endpoint; ordinary
+    Google AI Studio keys keep using the Gemini Developer API. The key goes in a header, never the URL.
+    """
+    headers = {"Content-Type": "application/json", "x-goog-api-key": key}
+    if (key or "").startswith("AQ."):
+        return f"https://aiplatform.googleapis.com/v1/publishers/google/models/{model}:generateContent", headers
+    return f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent", headers
+
+
+def _gemini_text(body: dict) -> str:
+    """Join the answer text parts of a generateContent response, skipping any 'thought' parts."""
+    parts = (body.get("candidates") or [{}])[0].get("content", {}).get("parts", [])
+    return "".join(p.get("text", "") for p in parts if not p.get("thought")).strip()
+
+
 class AIReasoningService:
     """
     Unified, provider-independent reasoning service.
@@ -4235,16 +4253,16 @@ class AIReasoningService:
                 data = json.loads(clean_text)
         elif gemini_key:
             model = provider_info.get("model", "gemini-2.0-flash")
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={gemini_key}"
+            url, _gem_headers = _gemini_request(model, gemini_key)
             payload = {
                 "contents": [{"role": "user", "parts": [{"text": f"SYSTEM INSTRUCTION:\n{system_instruction}\n\n{user_content}"}]}],
                 "generationConfig": {"responseMimeType": "application/json", "temperature": 0.2}
             }
             try:
-                with httpx.Client(timeout=25.0) as client:
-                    res = client.post(url, json=payload, headers={"Content-Type": "application/json"})
+                with httpx.Client(timeout=60.0) as client:
+                    res = client.post(url, json=payload, headers=_gem_headers)
                     res.raise_for_status()
-                    raw_text = res.json()["candidates"][0]["content"]["parts"][0]["text"]
+                    raw_text = _gemini_text(res.json())
                     data = json.loads(raw_text)
             except Exception as e:
                 # Gemini is primary; fall back to local Ollama on any failure (quota/429, network).
@@ -5011,7 +5029,7 @@ class AIReasoningService:
                     return None
         elif gemini_key:
             model = provider_info.get("model", "gemini-2.0-flash")
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={gemini_key}"
+            url, _gem_headers = _gemini_request(model, gemini_key)
             gemini_contents = []
             for m in conversation_messages:
                 if m["role"] == "system":
@@ -5024,10 +5042,10 @@ class AIReasoningService:
                 "generationConfig": {"responseMimeType": "application/json", "temperature": 0.2}
             }
             try:
-                with httpx.Client(timeout=25.0) as client:
-                    res = client.post(url, json=payload, headers={"Content-Type": "application/json"})
+                with httpx.Client(timeout=60.0) as client:
+                    res = client.post(url, json=payload, headers=_gem_headers)
                     res.raise_for_status()
-                    raw_text = res.json()["candidates"][0]["content"]["parts"][0]["text"]
+                    raw_text = _gemini_text(res.json())
                     data = json.loads(raw_text)
             except Exception as e:
                 # Gemini is primary; on any failure (quota/429, network, invalid key)
