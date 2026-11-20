@@ -66,6 +66,7 @@ from backend.ai_assistant import AIExperimentAssistant
 from backend.ai_reasoning_service import get_ai_reasoning_service
 from backend import balance as balance_lab
 from backend import scene_vision, scene_task
+from backend.imitation import lab as imitation_lab
 from backend.rl_refinement import HypothesisRefinementEngine
 from backend.chat_memory import chat_memory
 from backend.asset_models import (
@@ -764,6 +765,58 @@ def scene_task_status():
     s = dict(scene_task.trainer.status)
     s["controller_active"] = getattr(engine, "balance_controller", None) is not None
     return s
+
+
+@app.post("/api/imitation/expert-demos")
+async def imitation_expert(n: int = 100):
+    res = await asyncio.to_thread(imitation_lab.add_expert, n, project_manager, engine)
+    await broadcast_json({"type": "project_updated", "data": engine.project.model_dump()})
+    return res
+
+
+@app.post("/api/imitation/record/start")
+async def imitation_record_start():
+    try:
+        res = imitation_lab.start_recording(project_manager, engine)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    await broadcast_json({"type": "project_updated", "data": engine.project.model_dump()})
+    return res
+
+
+@app.post("/api/imitation/record/stop")
+def imitation_record_stop():
+    return imitation_lab.stop_recording(engine)
+
+
+@app.delete("/api/imitation/demos")
+def imitation_clear():
+    return imitation_lab.clear()
+
+
+@app.post("/api/imitation/train")
+async def imitation_train(dagger_rounds: int = 8, finetune_steps: int = 0):
+    res = imitation_lab.train(project_manager, engine, max(0, min(20, dagger_rounds)), max(0, min(1000000, finetune_steps)))
+    await broadcast_json({"type": "project_updated", "data": engine.project.model_dump()})
+    return res
+
+
+@app.post("/api/imitation/goal")
+def imitation_goal(x: Optional[float] = None, y: Optional[float] = None, z: Optional[float] = None, target: Optional[str] = None):
+    goal = None
+    if target:
+        try:
+            goal = scene_task.resolve_target(target)[1]
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+    elif x is not None and y is not None and z is not None:
+        goal = [x, y, z]
+    return imitation_lab.deploy(engine, goal)
+
+
+@app.get("/api/imitation/status")
+def imitation_status():
+    return imitation_lab.summary(engine)
 
 
 @app.post("/api/robot/spawn-preset")

@@ -21,6 +21,7 @@ import { BottomPanel, TrajectoryPoint } from './components/BottomPanel';
 import { AssetLibraryPanel } from './components/AssetLibraryPanel';
 import { BalancePanel } from './components/BalancePanel';
 import { ScenePhotoPanel } from './components/ScenePhotoPanel';
+import { ImitationPanel } from './components/ImitationPanel';
 import { RobotCreatorModal } from './components/RobotCreatorModal';
 import { EnvironmentCreatorModal } from './components/EnvironmentCreatorModal';
 import { RobotStudioModal } from './components/RobotStudioModal';
@@ -179,6 +180,7 @@ export const AppContent: React.FC = () => {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [balanceOpen, setBalanceOpen] = useState(false);
   const [photoOpen, setPhotoOpen] = useState(false);
+  const [imitOpen, setImitOpen] = useState(false);
 
   // Undo / Redo stacks
   const [undoStack, setUndoStack] = useState<SceneObject[][]>([]);
@@ -1257,6 +1259,15 @@ export const AppContent: React.FC = () => {
           >
             Train a skill
           </button>
+          <button
+            onClick={() => setImitOpen((v) => !v)}
+            title="Imitation learning: demonstrate a skill, the arm learns to copy it"
+            className="rf-glass-hud"
+            style={{ position: 'absolute', bottom: 18, right: 410, zIndex: 30, padding: '7px 16px', borderRadius: 100, cursor: 'pointer', fontSize: 12, fontWeight: 600, color: 'inherit' }}
+          >
+            Imitation
+          </button>
+          {imitOpen && <ImitationPanel onClose={() => setImitOpen(false)} onShowToast={showToast} />}
           {photoOpen && <ScenePhotoPanel onClose={() => setPhotoOpen(false)} onShowToast={showToast} />}
           {balanceOpen && <BalancePanel onClose={() => setBalanceOpen(false)} onShowToast={showToast} />}
           {!missionOpen && (

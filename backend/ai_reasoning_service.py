@@ -135,6 +135,9 @@ class AIReasoningService:
             "spawn_humanoid",
             "spawn_balance_robot",
             "train_scene_task",
+            "record_demos",
+            "train_from_demos",
+            "imitation_goal",
             "push_robot",
             "train_balance",
             "stop_balance_training",
@@ -1001,10 +1004,38 @@ class AIReasoningService:
             "details": f"Spawned articulated arm '{robot.name}' with {n_joints} joints into the scene. It is now the active robot and you can drive its joints or train a reach policy on it.",
         }
 
+    def tool_record_demos(self, source: str = "expert", count: int = 100) -> Dict[str, Any]:
+        from backend.imitation import lab
+        s = str(source).lower()
+        if s in ("start", "user", "me", "live", "record"):
+            return lab.start_recording(self.pm, self.engine)
+        if s in ("stop", "save", "done"):
+            return lab.stop_recording(self.engine)
+        if s in ("clear", "delete", "reset"):
+            return lab.clear()
+        return lab.add_expert(int(count), self.pm, self.engine)
+
+    def tool_train_from_demos(self, dagger_rounds: int = 8, finetune_steps: int = 0) -> Dict[str, Any]:
+        from backend.imitation import lab
+        return lab.train(self.pm, self.engine, max(0, min(20, int(dagger_rounds))), max(0, min(1000000, int(finetune_steps))))
+
+    def tool_imitation_goal(self, x=None, y=None, z=None, target: Optional[str] = None) -> Dict[str, Any]:
+        from backend.imitation import lab
+        from backend import scene_task
+        goal = None
+        if target:
+            try:
+                goal = scene_task.resolve_target(target)[1]
+            except ValueError as e:
+                return {"status": "error", "details": str(e)}
+        elif None not in (x, y, z):
+            goal = [float(x), float(y), float(z)]
+        return lab.deploy(self.engine, goal)
+
     def tool_train_scene_task(self, task: str = "climb", target: Optional[str] = None, timesteps: int = 300000) -> Dict[str, Any]:
         from backend import scene_task
         res = scene_task.trainer.start(str(task), target, max(20000, min(2000000, int(timesteps))), self.pm, self.engine)
-        res["action"] = "train_scene_task"
+        res.setdefault("action", "train_scene_task")
         return res
 
     def tool_spawn_balance_robot(self, kind: str = "dog", clear: bool = True) -> Dict[str, Any]:
@@ -3784,6 +3815,14 @@ class AIReasoningService:
     # -------------------------------------------------------------
 
     def execute_tool(self, tool_name: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Unified executor; guarantees every result carries 'action' and 'status' (the chat pipeline needs both)."""
+        res = self._execute_tool_impl(tool_name, params)
+        if isinstance(res, dict):
+            res.setdefault("action", str(tool_name).lower().strip())
+            res.setdefault("status", "success")
+        return res
+
+    def _execute_tool_impl(self, tool_name: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Unified executor for simulation mutation and inspection tools."""
         params = params or {}
         tool_name = str(tool_name).lower().strip()
@@ -3924,6 +3963,12 @@ class AIReasoningService:
                     name=params.get("name"),
                     preset=params.get("preset") or params.get("type"),
                 )
+            elif tool_name == "record_demos":
+                return self.tool_record_demos(source=params.get("source", "expert"), count=params.get("count", 100))
+            elif tool_name == "train_from_demos":
+                return self.tool_train_from_demos(dagger_rounds=params.get("dagger_rounds", 8), finetune_steps=params.get("finetune_steps", 0))
+            elif tool_name == "imitation_goal":
+                return self.tool_imitation_goal(x=params.get("x"), y=params.get("y"), z=params.get("z"), target=params.get("target"))
             elif tool_name == "train_scene_task":
                 return self.tool_train_scene_task(task=params.get("task", "climb"), target=params.get("target"),
                                                   timesteps=params.get("timesteps", 300000))
@@ -4899,6 +4944,7 @@ class AIReasoningService:
             "- 'teleport_robot': {position: [x,y,z], yaw: float}\n"
             "- 'add_robot': {name: str, position: [x,y,z], color: str, mass: float}\n"
             "- 'spawn_arm': {joints: int (default 4), name: str, preset: 'kr6'|'scara' (optional)}  -- USE THIS for ANY articulated arm / manipulator / 'N joint arm' request. 'add_robot' only makes a wheeled rover and must NOT be used for arms.\n"
+            "- IMITATION LEARNING (robot arm): 'record_demos' {source:'expert'|'start'|'stop'|'clear', count?} -- 'expert' records scripted inverse-kinematics demonstrations; 'start'/'stop' records the user moving the arm live. 'train_from_demos' {dagger_rounds?:8, finetune_steps?:0} -- behaviour cloning + DAgger on the demos, then deploys the policy. 'imitation_goal' {x,y,z} or {target:'<photo object>'} or {} for a random point -- tell the imitation policy where to move the arm's tip. For 'learn from demonstrations' / 'imitation learning' do record_demos(expert, 200) then train_from_demos.\n"
             "- 'train_scene_task': {task:'walk'|'climb'|'go_to'|'reach', target?:'<object label from the photo scene>', timesteps?} -- real PPO training. 'walk' needs NO photo or target: it trains the legged robot (dog by default, or the current humanoid) to walk forward (use ~2000000 timesteps). 'climb'/'go_to'/'reach' use objects from the user's uploaded photo scene (climb stairs, walk to an object, arm reaches an object). Use whenever the user asks to train a robot to walk or to do something in their photo.\n"
             "- 'spawn_balance_robot': {kind:'dog'|'humanoid'} -- spawn an UNTRAINED free-standing robot for balance training.\n"
             "- 'push_robot': {angle_deg?, strength?} -- shove the balance robot. 'train_balance': {kind?, timesteps?} -- real PPO training so it stays upright. 'stop_balance_training': {}.\n"
