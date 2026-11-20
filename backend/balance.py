@@ -258,11 +258,22 @@ class BalanceTrainer:
                         gae_lambda=0.95, ent_coef=0.0, clip_range=0.2, device="cpu", verbose=0,
                         policy_kwargs=dict(net_arch=[128, 128], log_std_init=-1.2))
             trainer = self
+            engine.balance_ghost_joints = list(venv.envs[0].unwrapped.names)
+            last_pub = [0.0]
 
             class Progress(BaseCallback):
                 def _on_step(self) -> bool:
                     if trainer.stop_flag:
                         return False
+                    now = time.time()
+                    if now - last_pub[0] > 0.066:        # ~15 Hz: live poses of the real PPO training envs
+                        last_pub[0] = now
+                        ghosts = []
+                        for e in venv.envs:
+                            b = e.unwrapped
+                            ghosts.append([float(v) for v in b.data.qpos[:7]] + [1.0 if b.push_left > 0 else 0.0]
+                                          + [float(b.data.qpos[a]) for a in b.qadr])
+                        engine.balance_ghosts = ghosts
                     t = self.num_timesteps
                     if t % (256 * n_envs) < n_envs:
                         s = 0.35 + 0.65 * min(1.0, t / (0.6 * total))     # push-strength curriculum
@@ -280,6 +291,7 @@ class BalanceTrainer:
                     return True
 
             model.learn(total_timesteps=total, callback=Progress())
+            engine.balance_ghosts = []
             venv.close()
             stopped = self.stop_flag
 
@@ -300,6 +312,7 @@ class BalanceTrainer:
             self.status.update(phase="done", progress=1.0, finished_at=time.time(),
                                message=("Stopped early. " if stopped else "") + "Policy deployed to the live robot.")
         except Exception as e:  # noqa: BLE001
+            engine.balance_ghosts = []
             logger.exception("Balance training failed")
             self.status.update(phase="error", message=f"Training failed: {e}")
 
