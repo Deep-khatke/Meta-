@@ -45,8 +45,9 @@ def make_ctx(model, gr, goal, task, engine=None) -> SimpleNamespace:
     parents = {j.parent_link for j in gr.joints}
     leaves = [l.name for l in gr.links if l.name not in parents] or [gr.links[-1].name]
     bid = lambda n: mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, n)  # noqa: E731
+    gait = _gait_arrays(gr, names) if (task == "walk" and not gr.is_fixed_base) else None
     return SimpleNamespace(
-        free=not gr.is_fixed_base, task=task, names=names, n=len(names), goal=np.asarray(goal, dtype=float),
+        gait=gait, free=not gr.is_fixed_base, task=task, names=names, n=len(names), goal=np.asarray(goal, dtype=float),
         qadr=np.array([model.jnt_qposadr[i] for i in jid]), dadr=np.array([model.jnt_dofadr[i] for i in jid]),
         lo=np.array([j.limit.lower for j in joints]), hi=np.array([j.limit.upper for j in joints]),
         root=bid(gr.root_link), ee=bid(leaves[-1]), delta=(task == "imitation"),
@@ -55,9 +56,49 @@ def make_ctx(model, gr, goal, task, engine=None) -> SimpleNamespace:
 
 DELTA = 0.25  # rad per 50 Hz tick for relative (imitation) control
 
+# Walking = rhythmic gait + learned corrections ("policies modulating trajectory generators", Iscen et al. 2018).
+# Parameters were found by open-loop search on the real model: the dog trot alone moves +0.6 m/s, straight and
+# upright; the humanoid gait alone always falls, so the policy must learn the balancing on top of it.
+GAITS = {
+    "dog": dict(freq=2.0, hip=-0.25, knee=-0.5, ankle=0.0, speed=0.5),
+    "humanoid": dict(freq=1.0, hip=-0.15, knee=0.4, ankle=0.6, speed=0.2),
+}
+RESIDUAL = 0.3
 
-def to_targets(c, a: np.ndarray, q=None) -> np.ndarray:
+
+def _gait_arrays(gr, names):
+    kind = "humanoid" if any(l.name == "pelvis" for l in gr.links) else "dog"
+    g = GAITS[kind]
+    hip, knee, ank, off = (np.zeros(len(names)) for _ in range(4))
+    for i, n in enumerate(names):
+        if kind == "dog":
+            off[i] = 0.0 if n[:2] in ("fl", "rr") else math.pi
+            hip[i] = g["hip"] if n.endswith("_hip") else 0.0
+            knee[i] = g["knee"] if n.endswith("_knee") else 0.0
+        else:
+            off[i] = 0.0 if n.startswith("l_") else math.pi
+            hip[i] = g["hip"] if "hip_pitch" in n else 0.0
+            knee[i] = g["knee"] if "knee" in n else 0.0
+            ank[i] = -g["ankle"] * g["hip"] if "ankle" in n else 0.0
+    return dict(kind=kind, freq=g["freq"], speed=g["speed"], hip=hip, knee=knee, ank=ank, off=off)
+
+
+def gait_base(c, t: float) -> np.ndarray:
+    G = c.gait
+    ph = 2.0 * math.pi * G["freq"] * t + G["off"]
+    sn = np.sin(ph)
+    return G["hip"] * sn + G["knee"] * np.maximum(0.0, np.cos(ph)) + G["ank"] * sn
+
+
+def gait_phase(c, t: float) -> np.ndarray:
+    ph = 2.0 * math.pi * c.gait["freq"] * t
+    return np.array([math.sin(ph), math.cos(ph)])
+
+
+def to_targets(c, a: np.ndarray, q=None, t: Optional[float] = None) -> np.ndarray:
     a = np.clip(a, -1.0, 1.0)
+    if c.gait is not None and t is not None:
+        return np.clip(gait_base(c, t) + a * RESIDUAL, c.lo, c.hi)
     if c.delta and q is not None:
         return np.clip(q + a * DELTA, c.lo, c.hi)
     if c.free:
@@ -65,12 +106,14 @@ def to_targets(c, a: np.ndarray, q=None) -> np.ndarray:
     return c.lo + (a + 1.0) * 0.5 * (c.hi - c.lo)
 
 
-def task_obs(model, data, c, last_a) -> np.ndarray:
+def task_obs(model, data, c, last_a, t: Optional[float] = None) -> np.ndarray:
     qj, qd = data.qpos[c.qadr], data.qvel[c.dadr] * 0.05
     if c.free:
         R = data.xmat[c.root].reshape(3, 3)
         rel = np.array([c.goal[0], 0.0, 0.0]) if c.task == "walk" else np.clip(R.T @ (c.goal - data.xpos[c.root]), -4.0, 4.0)
-        return np.concatenate([R.T @ [0, 0, -1.0], data.qvel[3:6] * 0.25, R.T @ data.qvel[0:3], rel, qj, qd, last_a]).astype(np.float32)
+        extra = [gait_phase(c, t or 0.0)] if c.gait is not None else []
+        return np.concatenate([R.T @ [0, 0, -1.0], data.qvel[3:6] * 0.25, R.T @ data.qvel[0:3], rel, qj, qd, last_a]
+                              + extra).astype(np.float32)
     ee = data.xpos[c.ee]
     err = (c.goal - ee) * (10.0 if c.delta else 1.0)      # imitation policy: amplify the tip error for precision
     return np.concatenate([err, ee, qj, qd, last_a]).astype(np.float32)
@@ -102,11 +145,15 @@ class SceneTaskEnv(gym.Env):
         self.t = 0
         self.z0 = 0.4
         self.x0 = 0.0
+        self.y0 = 0.0
         self.fall_h = 0.2
 
     def _obs_dummy(self):
         mujoco.mj_forward(self.model, self.data)
-        return task_obs(self.model, self.data, self.c, np.zeros(self.n))
+        return task_obs(self.model, self.data, self.c, np.zeros(self.n), 0.0)
+
+    def _time(self) -> float:
+        return self.t * self.sub * float(self.model.opt.timestep)
 
     def _dist(self) -> float:
         d = self.data
@@ -133,12 +180,13 @@ class SceneTaskEnv(gym.Env):
         self.t = 0
         self.prev = self._dist()
         self.x0 = float(d.xpos[c.root][0])
-        return task_obs(m, d, c, self.last_a), {}
+        self.y0 = float(d.xpos[c.root][1])
+        return task_obs(m, d, c, self.last_a, 0.0), {}
 
     def step(self, action):
         c, m, d = self.c, self.model, self.data
         a = np.clip(np.asarray(action, dtype=np.float64), -1, 1)
-        d.ctrl[c.act] = to_targets(c, a, d.qpos[c.qadr])
+        d.ctrl[c.act] = to_targets(c, a, d.qpos[c.qadr], self._time())
         for _ in range(self.sub):
             mujoco.mj_step(m, d)
         self.t += 1
@@ -156,8 +204,10 @@ class SceneTaskEnv(gym.Env):
             if c.task == "walk":
                 vb = R.T @ d.qvel[0:3]
                 cmd = c.goal[0]
-                r += (0.5 + 1.5 * math.exp(-((vb[0] - cmd) / 0.15) ** 2) + 0.3 * up - 0.5 * vb[1] ** 2
-                      - 0.1 * float(d.qvel[5]) ** 2 - 0.3 * abs(h - self.z0))
+                r += (1.0 + 1.5 * math.exp(-((vb[0] - cmd) / 0.15) ** 2) + 0.3 * up - 0.5 * vb[1] ** 2
+                      - 0.1 * float(d.qvel[5]) ** 2 - 0.3 * abs(h - self.z0)
+                      - 0.5 * math.atan2(R[1, 0], R[0, 0]) ** 2            # keep facing +x (no veering)
+                      - 0.5 * abs(float(d.xpos[c.root][1]) - self.y0))      # and on the line it started on
             if h < self.fall_h or up < 0.4 or np.isnan(h):
                 r -= 30.0 if c.task == "walk" else 5.0
                 term = True
@@ -179,11 +229,11 @@ class SceneTaskEnv(gym.Env):
         if c.task == "walk" and (trunc or term):
             self.speed = (float(d.xpos[c.root][0]) - self.x0) / (self.t * self.sub * float(m.opt.timestep))
             success = (not term) and self.speed >= 0.5 * c.goal[0]
-        return task_obs(m, d, c, a), float(r), term, trunc, {"success": success}
+        return task_obs(m, d, c, a, self._time()), float(r), term, trunc, {"success": success}
 
 
 def evaluate(env: SceneTaskEnv, policy, trials: int = 20) -> Dict[str, float]:
-    ok, best, spd = 0, [], []
+    ok, best, spd, fell = 0, [], [], 0
     for i in range(trials):
         obs, _ = env.reset(seed=1000 + i)
         done, success = False, False
@@ -191,10 +241,13 @@ def evaluate(env: SceneTaskEnv, policy, trials: int = 20) -> Dict[str, float]:
             act = np.zeros(env.n) if policy is None else policy.predict(obs, deterministic=True)[0]
             obs, _, te, tr, info = env.step(act)
             success, done = info["success"], te or tr
+        fell += int(te and not success)
         ok += int(success)
         best.append(env._dist())
         spd.append(getattr(env, "speed", 0.0))
     out = {"success_rate": ok / trials, "final_distance_m": float(np.mean(best))}
+    if env.c.task == "walk":
+        out["fell_rate"] = round(fell / trials, 3)
     if env.c.task == "walk":
         out["mean_speed_mps"] = float(np.mean(spd))
     return out
@@ -216,10 +269,25 @@ class TaskController:
         if self._k != id(engine.model):
             self.c = make_ctx(engine.model, engine.project.generic_robot, self.goal, self.task)
             self.last_a, self._k = np.zeros(self.c.n), id(engine.model)
-        obs = task_obs(engine.model, engine.data, self.c, self.last_a)
+        if self.c.free and self.task == "walk":
+            R = engine.data.xmat[self.c.root].reshape(3, 3)
+            fallen = engine.data.xpos[self.c.root][2] < 0.18 or R[2, 2] < 0.4
+            self.down = (getattr(self, "down", 0) + 1) if fallen else 0
+            if self.down > 50:                      # fallen for 1 s: stand it back up where it is and carry on
+                x, y = float(engine.data.xpos[self.c.root][0]), float(engine.data.xpos[self.c.root][1])
+                engine.reset()
+                engine.data.qpos[0:2] = [x, y]
+                mujoco.mj_forward(engine.model, engine.data)
+                engine.play()
+                self.down, self.last_a = 0, np.zeros(self.c.n)
+                self.recoveries = getattr(self, "recoveries", 0) + 1
+                return
+        self.k = getattr(self, "k", 0) + 1
+        t = self.k * self.substeps_for(engine) * float(engine.model.opt.timestep)
+        obs = task_obs(engine.model, engine.data, self.c, self.last_a, t)
         a = np.clip(self.ppo.predict(obs, deterministic=True)[0], -1, 1)
         self.last_a = a
-        for nm, v in zip(self.c.names, to_targets(self.c, a, engine.data.qpos[self.c.qadr])):
+        for nm, v in zip(self.c.names, to_targets(self.c, a, engine.data.qpos[self.c.qadr], t)):
             engine.joint_targets[nm] = float(v)
 
 
@@ -247,7 +315,38 @@ def resolve_target(text: Optional[str]) -> tuple:
     return best, t[best]
 
 
-def ensure_robot(task: str, pm, engine) -> str:
+def robot_kind(gr) -> Optional[str]:
+    if gr is None:
+        return None
+    names = {l.name for l in gr.links}
+    return "humanoid" if "pelvis" in names else ("dog" if "fl_thigh" in names else None)
+
+
+def install_trained_robot(engine, pm, trained_robot) -> None:
+    """Put the exact robot a policy was trained on into the live scene (free-standing, same joints), standing."""
+    live = engine.project.generic_robot
+    same = (live is not None and not live.is_fixed_base and trained_robot is not None
+            and [j.name for j in live.joints] == [j.name for j in trained_robot.joints])
+    if same:
+        engine.reset()
+    else:
+        proj = pm.get_current() if pm is not None else engine.project
+        proj.generic_robot = trained_robot.model_copy(deep=True)
+        proj.robot, proj.robot_active = None, False
+        if pm is not None:
+            pm.update_project(proj)
+        engine.project = proj
+        engine.rebuild_model(preserve_state=False)
+        cb = getattr(engine, "notify_project_changed", None)
+        if cb:
+            try:
+                cb()
+            except Exception:
+                pass
+    engine.play()
+
+
+def ensure_robot(task: str, pm, engine, kind: Optional[str] = None) -> str:
     """Make sure a suitable robot is in the scene (without touching the photo's objects)."""
     proj = pm.get_current()
     gr = proj.generic_robot
@@ -257,8 +356,11 @@ def ensure_robot(task: str, pm, engine) -> str:
             get_ai_reasoning_service(pm, engine=engine).tool_spawn_arm(joints=4)
             proj = pm.get_current()
     else:
-        if gr is None or gr.is_fixed_base:
-            proj.generic_robot = build_preset("dog", free=True)
+        # Walking needs a FREE-standing legged robot. The Robot Studio presets are pinned (fixed base, for
+        # in-place motions), so swap in the free version of the same robot (or the requested one).
+        want = kind or robot_kind(gr) or "dog"
+        if gr is None or gr.is_fixed_base or robot_kind(gr) != want:
+            proj.generic_robot = build_preset(want, free=True)
     proj.robot, proj.robot_active = None, False
     pm.update_project(proj)
     engine.project = proj
@@ -299,12 +401,14 @@ class SceneTrainer:
                 label, pos = resolve_target(target)
             except ValueError as e:
                 return {"status": "error", "details": str(e)}
-        robot = ensure_robot(task, pm, engine)
-        proj = engine.project
+        kind = "humanoid" if any(k in tl for k in ("humanoid", "biped", "human")) else (
+            "dog" if any(k in tl for k in ("dog", "quadruped")) else None)
+        robot = ensure_robot(task, pm, engine, kind)
+        proj = engine.project.model_copy(deep=True)   # snapshot: later scene edits must not change what we train on
         goal = list(pos)
         if task == "walk":
             humanoid = any(l.name == "pelvis" for l in proj.generic_robot.links)
-            goal = [0.2 if humanoid else 0.3, 0.0, 0.0]   # commanded forward speed, m/s
+            goal = [GAITS["humanoid" if humanoid else "dog"]["speed"], 0.0, 0.0]   # commanded forward speed, m/s
             probe = None
         elif task == "go_to":                                   # stand ON the target: add the robot's standing height
             probe = SceneTaskEnv(proj, task, goal)
@@ -326,6 +430,7 @@ class SceneTrainer:
         self.status = {"phase": "training", "task": task, "target": label, "goal": [round(g, 3) for g in goal], "robot": robot,
                        "progress": 0.0, "timesteps": 0, "total": int(timesteps), "mean_reward": None, "history": [],
                        "eval": None, "message": "Building environments...", "started_at": time.time()}
+        self._pm = pm
         self.thread = threading.Thread(target=self._run, args=(task, goal, int(timesteps), proj, engine), daemon=True)
         self.thread.start()
         return {"status": "started", "task": task, "target": label, "robot": robot, "timesteps": int(timesteps),
@@ -344,7 +449,9 @@ class SceneTrainer:
             from stable_baselines3.common.vec_env import DummyVecEnv
             torch.set_num_threads(2)
             venv = DummyVecEnv([(lambda s=i: Monitor(SceneTaskEnv(proj, task, goal, seed=50 + s))) for i in range(6)])
-            model = PPO("MlpPolicy", venv, n_steps=256, batch_size=512, learning_rate=3e-4, gamma=0.98, gae_lambda=0.95,
+            # walking: look further ahead (gamma 0.99 ~ 2 s at 50 Hz) so falling later is worth avoiding now
+            model = PPO("MlpPolicy", venv, n_steps=512 if task == "walk" else 256, batch_size=512, learning_rate=3e-4,
+                        gamma=0.99 if task == "walk" else 0.98, gae_lambda=0.95,
                         device="cpu", verbose=0, policy_kwargs=dict(net_arch=[128, 128], log_std_init=-1.0))
             engine.balance_ghost_joints = list(venv.envs[0].unwrapped.c.names)
             me, last = self, [0.0]
@@ -381,6 +488,8 @@ class SceneTrainer:
             env = SceneTaskEnv(proj, task, goal, seed=7)
             res = {"untrained": evaluate(env, None), "trained": evaluate(env, model)}
             model.save(os.path.join(MODEL_DIR, f"{task}_{self.status['target'].replace(' ', '_')}.zip"))
+            if proj.generic_robot is not None and not proj.generic_robot.is_fixed_base:
+                install_trained_robot(engine, getattr(self, "_pm", None), proj.generic_robot)
             engine.balance_controller = TaskController(model, np.array(goal), task)
             self.status.update(phase="done", progress=1.0, eval=res, finished_at=time.time(),
                                message=("Stopped early. " if self.stop_flag else "") + "Policy deployed to the live robot.")

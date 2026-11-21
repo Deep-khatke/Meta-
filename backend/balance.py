@@ -311,11 +311,9 @@ class BalanceTrainer:
             self.status["eval"] = {"untrained": before, "trained": after, "push_newtons": CFG[kind]["demo_push"],
                                    "trials": 24}
             # Deploy the learned reflex onto the live robot (only if it is still the same kind of robot).
-            gr = engine.project.generic_robot
-            live_kind = "humanoid" if gr and any(l.name == "pelvis" for l in gr.links) else (
-                "dog" if gr and any(l.name == "fl_thigh" for l in gr.links) else None)
-            if live_kind == kind:
-                engine.balance_controller = BalanceController(model, kind)
+            from backend.scene_task import install_trained_robot
+            install_trained_robot(engine, getattr(self, "_pm", None), build_preset(kind, free=True))   # the free-standing robot it learned on
+            engine.balance_controller = BalanceController(model, kind)
             self.status.update(phase="done", progress=1.0, finished_at=time.time(),
                                message=("Stopped early. " if stopped else "") + "Policy deployed to the live robot.")
         except Exception as e:  # noqa: BLE001

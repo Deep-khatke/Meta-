@@ -439,6 +439,11 @@ async def simulation_loop():
 async def lifespan(app: FastAPI):
     global simulation_task
     simulation_task = asyncio.create_task(simulation_loop())
+    # Background trainers (threads) swap robots when they deploy; this lets them tell the UI thread-safely.
+    balance_lab.trainer._pm = project_manager
+    _loop = asyncio.get_running_loop()
+    engine.notify_project_changed = lambda: asyncio.run_coroutine_threadsafe(
+        broadcast_json({"type": "project_updated", "data": engine.project.model_dump()}), _loop)
     engine.log("info", "RoboForge server initialized and physics engine ready.")
     # Real ROS interoperability: rosbridge v2 server (Foxglove / roslibpy / roslibjs / ROS 2 graph).
     await rosbridge.start()
