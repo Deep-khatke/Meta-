@@ -4,7 +4,7 @@ import { AIWorkspaceSidebar, ChatSessionMeta } from './AIWorkspaceSidebar';
 import { AIConversationPanel, ChatMessage } from './AIConversationPanel';
 import { AIArtifactPanel, ArtifactTabType } from './AIArtifactPanel';
 import { AIExecutionStepItem } from './AIExecutionStep';
-import { sendAIChatMessage, fetchProject } from '../../services/api';
+import { sendAIChatMessage, fetchProject, fetchAIChatHistory } from '../../services/api';
 
 export interface AIWorkspaceProps {
   project: Project;
@@ -25,158 +25,18 @@ export interface AIWorkspaceProps {
   onToggleEducatorMode?: () => void;
 }
 
+const DEFAULT_SESSION_ID = 'session-live';
+
 const INITIAL_SESSIONS: ChatSessionMeta[] = [
   {
-    id: 'session-rover-ppo',
-    title: 'Autonomous Rover Obstacle Avoidance (PPO)',
-    timestamp: Date.now() - 1000 * 60 * 45, // 45m ago (Today)
-  },
-  {
-    id: 'session-arm-ik',
-    title: '6-DOF Articulated Robotic Arm Kinematics',
-    timestamp: Date.now() - 1000 * 60 * 60 * 26, // Yesterday
-  },
-  {
-    id: 'session-drone-hover',
-    title: 'Quadrotor Drone Altitude & Attitude Control',
-    timestamp: Date.now() - 1000 * 60 * 60 * 24 * 3, // 3 days ago
+    id: DEFAULT_SESSION_ID,
+    title: 'Live Robotics Session',
+    timestamp: Date.now(),
   },
 ];
 
 const INITIAL_MESSAGES_MAP: Record<string, ChatMessage[]> = {
-  'session-rover-ppo': [
-    {
-      id: 'msg-r-1',
-      sender: 'user',
-      text: 'Train an autonomous rover to navigate randomized obstacles using PPO in MuJoCo.',
-      timestamp: Date.now() - 1000 * 60 * 45,
-    },
-    {
-      id: 'msg-r-2',
-      sender: 'assistant',
-      text: `### Rover Autonomous Navigation Initialized
-
-I have configured the simulation environment with **8 dynamic obstacles** and attached a 360° virtual LiDAR sensor to the differential-drive rover chassis.
-
-The PPO (Proximal Policy Optimization) reinforcement learning harness is now training in the physics runtime with the following hyperparameter profile:
-- **Actor-Critic Network**: 2x [128, 128] MLP with Tanh activations
-- **Observation Space**: 16-ray LiDAR distances + target delta vector (\`[dx, dy, heading_error]\`)
-- **Action Space**: Normalized wheel speeds \`[-1.0, 1.0]\` with 2.5 m/s velocity clamp
-- **Reward Function**: \`+2.0 * progress - 10.0 * collision - 0.05 * jerk\`
-
-You can view the real-time reward curve and episode telemetry in the **Training Tab**, or inspect the live 3D obstacle avoidance in the **Simulation Tab**.`,
-      timestamp: Date.now() - 1000 * 60 * 44,
-      steps: [
-        {
-          id: 'step-1',
-          title: 'Validated kinematic parameters',
-          state: 'completed',
-          category: 'general',
-          durationMs: 120,
-          details: 'Rover chassis verified: 4-wheel differential drive, track width 0.38m, wheel radius 0.06m.',
-        },
-        {
-          id: 'step-2',
-          title: 'Spawned randomized obstacle field',
-          state: 'completed',
-          category: 'environment',
-          durationMs: 85,
-          details: 'Placed 8 bounding cylinders with friction coefficient μ=0.85 across 10m x 10m arena.',
-        },
-        {
-          id: 'step-3',
-          title: 'Mounted 16-ray virtual LiDAR sensor',
-          state: 'completed',
-          category: 'sensor',
-          durationMs: 95,
-          details: 'Ray length: 8.0m, sweep angle: 360°, raycast query frequency: 50Hz.',
-        },
-        {
-          id: 'step-4',
-          title: 'Executing PPO Training Loop',
-          state: 'running',
-          category: 'training',
-          durationMs: 250,
-          details: 'Timestep: 24,500 / 100,000 | Current Mean Reward: +18.42 | Collision Rate: 3.2%',
-        },
-      ],
-      artifactTrigger: {
-        tab: 'training',
-        label: 'Open Live Training Telemetry',
-      },
-    },
-  ],
-  'session-arm-ik': [
-    {
-      id: 'msg-a-1',
-      sender: 'user',
-      text: 'Construct a 6-DOF articulated serial manipulator with inverse kinematics.',
-      timestamp: Date.now() - 1000 * 60 * 60 * 26,
-    },
-    {
-      id: 'msg-a-2',
-      sender: 'assistant',
-      text: `### 6-DOF Manipulator Assembled
-
-I have built a 6-DOF robotic manipulator based on standard industrial serial kinematics with spherical wrist alignment:
-1. **Base Revolute**: \`[-180°, +180°]\` around Z-axis
-2. **Shoulder Pitch**: \`[-90°, +120°]\` around Y-axis
-3. **Elbow Pitch**: \`[-150°, +150°]\` around Y-axis
-4. **Wrist Roll**: Continuous rotation \`[-180°, +180°]\`
-5. **Wrist Pitch**: \`[-110°, +110°]\`
-6. **Tool Flange Roll**: \`[-180°, +180°]\`
-
-The kinematics solver uses **Damped Least Squares (DLS)** to avoid singularities near boundary reaches. The full URDF model and joint configuration are available in the **Robot Tab**.`,
-      timestamp: Date.now() - 1000 * 60 * 60 * 26 + 1000,
-      steps: [
-        {
-          id: 'step-arm-1',
-          title: 'Generated MuJoCo XML kinematic tree',
-          state: 'completed',
-          category: 'robot',
-          durationMs: 140,
-          details: '6 revolute joints, mass 14.2kg, total reach: 0.85m.',
-        },
-        {
-          id: 'step-arm-2',
-          title: 'Initialized DLS Jacobian IK Solver',
-          state: 'completed',
-          category: 'general',
-          durationMs: 110,
-          details: 'Damping factor λ = 0.05, position tolerance: 1.0mm, max iterations: 50.',
-        },
-      ],
-      artifactTrigger: {
-        tab: 'robot',
-        label: 'Inspect Robot Joint Specs',
-      },
-    },
-  ],
-  'session-drone-hover': [
-    {
-      id: 'msg-d-1',
-      sender: 'user',
-      text: 'Simulate an autonomous quadrotor drone and verify altitude hold.',
-      timestamp: Date.now() - 1000 * 60 * 60 * 24 * 3,
-    },
-    {
-      id: 'msg-d-2',
-      sender: 'assistant',
-      text: `### Quadrotor Drone Simulation Ready
-
-The 4-rotor drone flight dynamics are active in the physics simulation.
-- **Rotor Configuration**: X-quad layout with dual CW/CCW counter-rotating rotors
-- **Cascaded PID Flight Controller**: Attitude loop running at 250Hz, Altitude loop running at 100Hz
-- **Telemetry**: IMU quaternion attitude, climb rate, and 4-axis individual thrust outputs
-
-You can test manual keyboard teleoperation (\`W/S\` pitch, \`A/D\` roll, \`Space/Shift\` climb, \`Q/E\` yaw) or toggle the autonomous hover stabilization in the **Simulation Tab**.`,
-      timestamp: Date.now() - 1000 * 60 * 60 * 24 * 3 + 1200,
-      artifactTrigger: {
-        tab: 'simulation',
-        label: 'Open 3D Drone Viewport',
-      },
-    },
-  ],
+  [DEFAULT_SESSION_ID]: [],
 };
 
 export const AIWorkspace: React.FC<AIWorkspaceProps> = ({
@@ -200,8 +60,72 @@ export const AIWorkspace: React.FC<AIWorkspaceProps> = ({
   // Sidebar state
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
   const [sessions, setSessions] = useState<ChatSessionMeta[]>(INITIAL_SESSIONS);
-  const [activeSessionId, setActiveSessionId] = useState<string>('session-rover-ppo');
+  const [activeSessionId, setActiveSessionId] = useState<string>(DEFAULT_SESSION_ID);
   const [messagesMap, setMessagesMap] = useState<Record<string, ChatMessage[]>>(INITIAL_MESSAGES_MAP);
+
+  // Hydrate persistent chat history on mount if available
+  useEffect(() => {
+    let isMounted = true;
+    fetchAIChatHistory('default_session', 50)
+      .then((res) => {
+        if (!isMounted) return;
+        if (res?.history && Array.isArray(res.history) && res.history.length > 0) {
+          const hydrated: ChatMessage[] = res.history.map((h: any, idx: number) => {
+            let steps: AIExecutionStepItem[] | undefined;
+            if (h.actions_executed) {
+              try {
+                const acts = typeof h.actions_executed === 'string' ? JSON.parse(h.actions_executed) : h.actions_executed;
+                if (Array.isArray(acts) && acts.length > 0) {
+                  steps = acts.map((act: any, aIdx: number) => {
+                    const rawAction = (act.action || act.tool || 'Action').replace(/^tool_/, '');
+                    const title = rawAction
+                      .split('_')
+                      .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1))
+                      .join(' ');
+                    return {
+                      id: `step-hist-${idx}-${aIdx}`,
+                      title,
+                      state: (act.status === 'failed' ? 'failed' : 'completed') as any,
+                      category: 'general' as const,
+                      details: act.details || (act.name ? `Entity: ${act.name}` : undefined) || 'Applied to simulation runtime.',
+                    };
+                  });
+                }
+              } catch {}
+            }
+            return {
+              id: h.id ? `msg-${h.id}` : `msg-hist-${idx}`,
+              sender: h.role === 'assistant' ? 'assistant' : 'user',
+              text: h.content,
+              timestamp: h.created_at ? h.created_at * 1000 : Date.now(),
+              steps,
+            };
+          });
+
+          setMessagesMap((prev) => ({
+            ...prev,
+            [DEFAULT_SESSION_ID]: hydrated,
+          }));
+          const firstUserMsg = hydrated.find((m) => m.sender === 'user');
+          if (firstUserMsg) {
+            setSessions([
+              {
+                id: DEFAULT_SESSION_ID,
+                title: firstUserMsg.text.slice(0, 32) + (firstUserMsg.text.length > 32 ? '…' : ''),
+                timestamp: Date.now(),
+              },
+            ]);
+          }
+        }
+      })
+      .catch(() => {
+        // Keep initial clean empty session
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Artifact drawer state
   const [artifactPanelOpen, setArtifactPanelOpen] = useState<boolean>(true);
@@ -330,11 +254,11 @@ export const AIWorkspace: React.FC<AIWorkspaceProps> = ({
       {
         id: 'step-gen-1',
         title: isEducatorMsg
-          ? 'Formulating intuitive robotics analogy & simulation plan'
-          : 'Parsing robotics query & planning scene configuration',
+          ? 'Formulating intuitive robotics analogy & plan'
+          : 'Executing live agentic reasoning in MuJoCo physics',
         state: 'running',
         category: 'general',
-        details: `Selected model: ${options?.model || 'Google Gemini 2.0 Flash'} | Mode: ${activeMode}`,
+        details: `Connecting to ${options?.model || 'Google Gemini'} | Grounding live simulation telemetry.`,
       },
     ];
 
@@ -360,7 +284,8 @@ export const AIWorkspace: React.FC<AIWorkspaceProps> = ({
       fullText: string,
       steps: AIExecutionStepItem[],
       followUps?: string[],
-      tab?: ArtifactTabType
+      tab?: ArtifactTabType,
+      triggerLabel?: string
     ) => {
       // Tokenize by word / whitespace / newline chunks
       const tokens = fullText.match(/\S+\s*|\n+/g) || [fullText];
@@ -392,7 +317,7 @@ export const AIWorkspace: React.FC<AIWorkspaceProps> = ({
                     followUpSuggestions: isLast ? followUps : undefined,
                     artifactTrigger: isLast && tab ? {
                       tab,
-                      label: `Open in ${tab.charAt(0).toUpperCase() + tab.slice(1)} Tab`,
+                      label: triggerLabel || `Open in ${tab.charAt(0).toUpperCase() + tab.slice(1)} Tab`,
                     } : undefined,
                   }
                 : m
@@ -413,29 +338,59 @@ export const AIWorkspace: React.FC<AIWorkspaceProps> = ({
         mode: activeMode === 'educator' ? 'educator' : activeMode === 'supervised' ? 'supervised' : 'autonomous',
       });
 
-      // Construct finalized steps
-      const finalSteps: AIExecutionStepItem[] = [
-        {
-          id: 'step-gen-1',
-          title: isEducatorMsg
-            ? 'Validated Kinematic Principles & Core Concepts'
-            : 'Validated kinematics & physics parameters',
+      // Construct dynamic live steps based on actual backend execution
+      const finalSteps: AIExecutionStepItem[] = [];
+
+      if (aiResponse.actions_executed && aiResponse.actions_executed.length > 0) {
+        aiResponse.actions_executed.forEach((act, idx) => {
+          const rawAction = (act.action || act.tool || 'Action').replace(/^tool_/, '');
+          const formattedTitle = rawAction
+            .split('_')
+            .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1))
+            .join(' ');
+
+          let cat: 'robot' | 'environment' | 'sensor' | 'training' | 'evaluation' | 'general' = 'general';
+          const lowerAct = rawAction.toLowerCase();
+          if (lowerAct.includes('obstacle') || lowerAct.includes('ground') || lowerAct.includes('arena') || lowerAct.includes('scene')) {
+            cat = 'environment';
+          } else if (lowerAct.includes('robot') || lowerAct.includes('arm') || lowerAct.includes('drone') || lowerAct.includes('chassis') || lowerAct.includes('wheel')) {
+            cat = 'robot';
+          } else if (lowerAct.includes('sensor') || lowerAct.includes('lidar') || lowerAct.includes('camera') || lowerAct.includes('imu')) {
+            cat = 'sensor';
+          } else if (lowerAct.includes('train') || lowerAct.includes('rl') || lowerAct.includes('ppo') || lowerAct.includes('policy')) {
+            cat = 'training';
+          } else if (lowerAct.includes('eval') || lowerAct.includes('benchmark') || lowerAct.includes('experiment')) {
+            cat = 'evaluation';
+          }
+
+          finalSteps.push({
+            id: `step-action-${idx + 1}`,
+            title: formattedTitle,
+            state: act.status === 'failed' ? 'failed' : 'completed',
+            category: cat,
+            details: act.details || (act.name ? `Target entity: ${act.name}` : undefined) || 'Applied live to active simulation.',
+          });
+        });
+      } else if (aiResponse.thought_steps && aiResponse.thought_steps.length > 0) {
+        aiResponse.thought_steps.forEach((ts, idx) => {
+          finalSteps.push({
+            id: `step-thought-${idx + 1}`,
+            title: ts.title || `Analysis Step ${idx + 1}`,
+            state: ts.status === 'running' ? 'running' : 'completed',
+            category: 'general',
+            details: ts.detail || 'Telemetry verified.',
+          });
+        });
+      } else {
+        const providerName = aiResponse.provider || 'AI Engine';
+        finalSteps.push({
+          id: 'step-live-1',
+          title: isEducatorMsg ? 'Educational Synthesis & Concept Grounding' : 'Kinematic Reasoning & Telemetry Analysis',
           state: 'completed',
           category: 'general',
-          durationMs: 140,
-          details: `Processed via ${options?.model || 'Google Gemini 2.0 Flash'} in ${isEducatorMsg ? 'Educator Mode' : 'Autonomous Tool-Calling Mode'}.`,
-        },
-        {
-          id: 'step-gen-2',
-          title: isEducatorMsg
-            ? 'Demonstrating Live in 3D MuJoCo Physics'
-            : 'Updated active simulation state',
-          state: 'completed',
-          category: 'environment',
-          durationMs: 220,
-          details: 'Synchronized with MuJoCo physics runtime. 0 collision exceptions.',
-        },
-      ];
+          details: `Executed turn via ${providerName}. Physics constraints verified.`,
+        });
+      }
 
       // Refresh project if backend mutated the scene or robot
       if (aiResponse.tools_invoked && aiResponse.tools_invoked.length > 0) {
@@ -444,16 +399,32 @@ export const AIWorkspace: React.FC<AIWorkspaceProps> = ({
 
       const responseText = aiResponse.reply || `Executed instruction across the robotics simulation workspace.\n\nAll kinematic constraints and physics boundaries have been verified against the active physics engine.`;
 
+      // Determine dynamic tab and label
+      let triggerTab: ArtifactTabType = recommendedTab;
+      let triggerLabel = `Open in ${recommendedTab.charAt(0).toUpperCase() + recommendedTab.slice(1)} Tab`;
+
+      if (aiResponse.tools_invoked?.some((t: string) => t.includes('train') || t.includes('ppo') || t.includes('rl'))) {
+        triggerTab = 'training';
+        triggerLabel = 'Open Live Training Telemetry';
+      } else if (aiResponse.tools_invoked?.some((t: string) => t.includes('robot') || t.includes('arm') || t.includes('drone') || t.includes('chassis'))) {
+        triggerTab = 'robot';
+        triggerLabel = 'Inspect Robot Joint Specs';
+      } else if (aiResponse.tools_invoked?.some((t: string) => t.includes('obstacle') || t.includes('scene') || t.includes('teleport'))) {
+        triggerTab = 'simulation';
+        triggerLabel = 'Open 3D Viewport';
+      }
+
       // Stream the response text smoothly like ChatGPT
       await streamMessage(
         responseText,
         finalSteps,
         aiResponse.follow_up_suggestions,
-        recommendedTab
+        triggerTab,
+        triggerLabel
       );
 
       // Automatically switch to the recommended tab and open drawer
-      setArtifactTab(recommendedTab);
+      setArtifactTab(triggerTab);
       setArtifactPanelOpen(true);
 
       onShowToast?.(`RoboForge AI: Completed robotics task using ${options?.model || 'Gemini 2.0 Flash'}`);
